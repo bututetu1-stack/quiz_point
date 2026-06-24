@@ -3,63 +3,794 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>クイズ得点</title>
-  <link rel="stylesheet" href="/css/style.css" />
+  <title>Quiz Scoreboard</title>
+
+  <!-- Tailwind（CDN・ビルド不要） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 + Babel（CDN・ビルド不要） -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- 既存サーバの Socket.IO クライアント -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    html, body { background: #030712; margin: 0; }
+  </style>
 </head>
 <body>
-  <div class="wrap">
+  <div id="root"></div>
 
-    <!-- ホーム（部屋作成） -->
-    <section id="home" class="hidden">
-      <h1>🧮 クイズ得点</h1>
-      <p class="muted">かけ算・わり算・チーム得点に対応した得点表。部屋を建てて、参加者にリンクを共有しよう。</p>
-      <div class="card center">
-        <button id="createBtn">部屋を作る（ホスト）</button>
-        <p class="muted" style="margin-top:14px;">参加者は共有されたリンクから入室してください。</p>
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ==========================================
+// ユーティリティ関数（スコア計算・表示・音声）
+// ==========================================
+
+const parseScoreToNumber = (scoreStr) => {
+  if (!scoreStr && scoreStr !== 0) return 0;
+  const str = scoreStr.toString();
+  const parts = str.split('/');
+  if (parts.length === 2) {
+    return parseInt(parts[0], 10) / parseInt(parts[1], 10);
+  }
+  return parseFloat(str) || 0;
+};
+
+const formatScoreStr = (scoreStr) => {
+  const val = parseScoreToNumber(scoreStr);
+  if (Number.isInteger(val)) return val.toString();
+  return Number(val.toFixed(2)).toString(); // 小数第2位まで、末尾0除去
+};
+
+// 効果音再生
+const playSound = (type, enabled) => {
+  if (!enabled) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'correct') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1108, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.5);
+    } else if (type === 'wrong') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } else if (type === 'pop') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    }
+  } catch (e) {
+    // ユーザーインタラクション前などのエラーは無視
+  }
+};
+
+// ==========================================
+// Mock Socket（バックエンドが無いプレビュー時のフォールバック）
+// 実環境では /socket.io/socket.io.js の window.io() を使う
+// ==========================================
+const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+
+const evalFrac = (op, aStr, bStr) => {
+  let [n1, d1] = aStr.toString().split('/').map(Number);
+  if (!d1) d1 = 1;
+  let [n2, d2] = bStr.toString().split('/').map(Number);
+  if (!d2) d2 = 1;
+
+  let n, d;
+  switch (op) {
+    case '+': n = n1 * d2 + n2 * d1; d = d1 * d2; break;
+    case '-': n = n1 * d2 - n2 * d1; d = d1 * d2; break;
+    case '*': n = n1 * n2; d = d1 * d2; break;
+    case '/': n = n1 * d2; d = d1 * n2; break;
+    default: return aStr;
+  }
+  if (d === 0) return aStr;
+
+  let g = gcd(Math.abs(n), Math.abs(d));
+  n /= g; d /= g;
+  if (d < 0) { n = -n; d = -d; }
+  return d === 1 ? `${n}` : `${n}/${d}`;
+};
+
+class MockSocket {
+  constructor() {
+    this.handlers = {};
+    if (!window.__mockDb) window.__mockDb = { rooms: {} };
+  }
+  on(event, handler) { this.handlers[event] = handler; }
+  off(event) { delete this.handlers[event]; }
+
+  emit(event, data, ack) {
+    // createRoom のように「コールバックを第1引数」で渡された場合に対応
+    if (typeof data === 'function' && ack === undefined) { ack = data; data = {}; }
+    setTimeout(() => {
+      const db = window.__mockDb;
+
+      const broadcastState = (roomId) => {
+        const room = db.rooms[roomId];
+        if (room && this.handlers['state']) {
+          this.handlers['state']({
+            roomId: room.id, players: room.players, teams: room.teams, timeline: room.timeline || []
+          });
+        }
+      };
+      const saveHistory = (room) => {
+        room.history.push(JSON.parse(JSON.stringify({ players: room.players, teams: room.teams })));
+        if (room.history.length > 50) room.history.shift();
+      };
+      const pushTimeline = (room) => {
+        const scores = {};
+        room.players.forEach(p => scores[p.id] = p.score);
+        if (!room.timeline) room.timeline = [];
+        room.timeline.push({ t: Date.now(), scores });
+      };
+
+      try {
+        if (event === 'createRoom') {
+          const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const hostToken = Math.random().toString(36).substring(2);
+          db.rooms[roomId] = { id: roomId, hostToken, players: [], teams: [], history: [], timeline: [] };
+          pushTimeline(db.rooms[roomId]);
+          if (ack) ack({ ok: true, roomId, hostToken });
+        } else if (event === 'hostJoin') {
+          const room = db.rooms[data.roomId];
+          if (room && room.hostToken === data.hostToken) {
+            if (ack) ack({ ok: true, state: { roomId: room.id, players: room.players, teams: room.teams, timeline: room.timeline } });
+            broadcastState(room.id);
+          } else if (ack) ack({ ok: false, error: 'unauthorized' });
+        } else if (event === 'joinRoom') {
+          const room = db.rooms[data.roomId];
+          if (!room) { if (ack) ack({ ok: false, error: 'room_not_found' }); return; }
+          let player = room.players.find(p => p.id === data.playerId);
+          if (!player) {
+            player = { id: Math.random().toString(36).substring(2), name: data.name, score: "0", teamId: null };
+            room.players.push(player);
+            pushTimeline(room);
+          } else { player.name = data.name; }
+          if (ack) ack({ ok: true, playerId: player.id, state: { roomId: room.id, players: room.players, teams: room.teams, timeline: room.timeline } });
+          broadcastState(room.id);
+        } else if (event === 'op') {
+          const room = db.rooms[data.roomId];
+          if (!room || room.hostToken !== data.hostToken) { if (ack) ack({ ok: false, error: 'unauthorized' }); return; }
+          saveHistory(room);
+          const { type, payload } = data;
+          if (type === 'score') {
+            const p = room.players.find(p => p.id === payload.playerId);
+            if (p) p.score = evalFrac(payload.operator, p.score, payload.valueStr);
+          } else if (type === 'setAll') {
+            room.players.forEach(p => p.score = payload.valueStr);
+          } else if (type === 'resetAll') {
+            room.players.forEach(p => p.score = "0");
+          } else if (type === 'undo') {
+            if (room.history.length > 0) { const prev = room.history.pop(); room.players = prev.players; room.teams = prev.teams; }
+          } else if (type === 'createTeam') {
+            room.teams.push({ id: Math.random().toString(36).substring(2), name: payload.name });
+          } else if (type === 'assignTeam') {
+            const p = room.players.find(p => p.id === payload.playerId);
+            if (p) p.teamId = payload.teamId;
+          } else if (type === 'removePlayer') {
+            room.players = room.players.filter(p => p.id !== payload.playerId);
+          }
+          if (type !== 'undo') pushTimeline(room);
+          broadcastState(room.id);
+          if (ack) ack({ ok: true });
+        }
+      } catch (e) {
+        if (ack) ack({ ok: false, error: e.message });
+      }
+    }, 10);
+  }
+}
+
+let socketInstance = null;
+const getSocket = () => {
+  if (!socketInstance) {
+    socketInstance = (typeof window.io !== 'undefined') ? window.io() : new MockSocket();
+  }
+  return socketInstance;
+};
+
+// ==========================================
+// App
+// ==========================================
+const App = () => {
+  const [view, setView] = useState('home'); // home, host, participant
+  const [roomId, setRoomId] = useState('');
+  const [hostToken, setHostToken] = useState('');
+  const [myPlayerId, setMyPlayerId] = useState(null);
+  const [myName, setMyName] = useState('');
+
+  const [state, setState] = useState({ players: [], teams: [], timeline: [] });
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  // サーバが timeline を送らない場合に備え、フロントで得点推移を蓄積（仕様書 方式②）
+  const timelineRef = useRef([]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    socket.on('state', (newState) => {
+      let tl = newState.timeline;
+      if (!tl || tl.length === 0) {
+        const scores = {};
+        (newState.players || []).forEach(p => { scores[p.id] = p.score; });
+        timelineRef.current = [...timelineRef.current, { t: Date.now(), scores }];
+        tl = timelineRef.current;
+      } else {
+        timelineRef.current = tl;
+      }
+      setState({ ...newState, timeline: tl });
+    });
+    return () => socket.off('state');
+  }, []);
+
+  // 初期ロード時に URL の ?room= で自動参加
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = urlParams.get('room');
+    const savedHostToken = roomFromUrl ? localStorage.getItem(`hostToken_${roomFromUrl}`) : null;
+    const savedPlayerId = roomFromUrl ? localStorage.getItem(`playerId_${roomFromUrl}`) : null;
+    const savedName = localStorage.getItem('playerName');
+
+    if (roomFromUrl) {
+      setRoomId(roomFromUrl);
+      if (savedHostToken) {
+        getSocket().emit('hostJoin', { roomId: roomFromUrl, hostToken: savedHostToken }, (res) => {
+          if (res && res.ok) {
+            setHostToken(savedHostToken);
+            setState(prev => ({ ...prev, ...res.state }));
+            setView('host');
+          } else if (savedName) {
+            handleJoin(roomFromUrl, savedName, savedPlayerId);
+          }
+        });
+      } else if (savedName) {
+        handleJoin(roomFromUrl, savedName, savedPlayerId);
+      }
+    }
+  }, []);
+
+  const handleCreateRoom = () => {
+    // 既存サーバは createRoom のコールバックを第1引数で受け取る
+    getSocket().emit('createRoom', (res) => {
+      if (!res || !res.ok) return;
+      setRoomId(res.roomId);
+      setHostToken(res.hostToken);
+      localStorage.setItem(`hostToken_${res.roomId}`, res.hostToken);
+
+      const url = new URL(window.location);
+      url.searchParams.set('room', res.roomId);
+      window.history.pushState({}, '', url);
+
+      // ホストも部屋に join しないと state ブロードキャストが届かない
+      getSocket().emit('hostJoin', { roomId: res.roomId, hostToken: res.hostToken }, (r) => {
+        if (r && r.ok) setState(prev => ({ ...prev, ...r.state }));
+      });
+      setView('host');
+    });
+  };
+
+  const handleJoin = (rId, name, pId = null) => {
+    getSocket().emit('joinRoom', { roomId: rId, name, playerId: pId }, (res) => {
+      if (res && res.ok) {
+        setRoomId(rId);
+        setMyPlayerId(res.playerId);
+        setMyName(name);
+        localStorage.setItem(`playerId_${rId}`, res.playerId);
+        localStorage.setItem('playerName', name);
+        setState(prev => ({ ...prev, ...res.state }));
+
+        const url = new URL(window.location);
+        url.searchParams.set('room', rId);
+        window.history.pushState({}, '', url);
+
+        setView('participant');
+      } else {
+        alert('入室に失敗しました: ' + (res && res.error === 'room_not_found' ? '部屋が見つかりません' : (res && res.error)));
+      }
+    });
+  };
+
+  const executeOp = (type, payload = {}) => {
+    getSocket().emit('op', { roomId, hostToken, type, payload }, (res) => {
+      if (!res || !res.ok) console.error("Op failed:", res && res.error);
+    });
+  };
+
+  const toggleSound = () => {
+    setSoundEnabled(!soundEnabled);
+    if (!soundEnabled) playSound('pop', true);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30">
+      <div className="absolute top-4 right-4 z-50">
+        <button onClick={toggleSound} className="p-2 rounded-full bg-gray-800 text-gray-400 hover:text-yellow-400 transition-colors">
+          {soundEnabled ? '🔊 音声ON' : '🔇 音声OFF'}
+        </button>
       </div>
-      <div class="card">
-        <h2>部屋コードで入る</h2>
-        <div class="row">
-          <input id="joinCode" class="grow" placeholder="部屋コード（例: ABC123）" maxlength="6" autocapitalize="characters" />
-          <button id="goJoin" class="secondary">入る</button>
+
+      {view === 'home' && (
+        <HomeView onCreate={handleCreateRoom} onJoin={(r, n) => handleJoin(r, n)} defaultRoom={roomId} defaultName={myName} />
+      )}
+      {view === 'host' && (
+        <HostView state={state} roomId={roomId} onOp={executeOp} playSound={(type) => playSound(type, soundEnabled)} />
+      )}
+      {view === 'participant' && (
+        <ParticipantView state={state} roomId={roomId} myPlayerId={myPlayerId} playSound={(type) => playSound(type, soundEnabled)} />
+      )}
+    </div>
+  );
+};
+
+// ==========================================
+// Home View
+// ==========================================
+const HomeView = ({ onCreate, onJoin, defaultRoom, defaultName }) => {
+  const [room, setRoom] = useState(defaultRoom || '');
+  const [name, setName] = useState(defaultName || '');
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6">
+      <div className="mb-12 text-center space-y-4">
+        <h1 className="text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600">
+          Quiz Scoreboard
+        </h1>
+        <p className="text-gray-400">リアルタイム得点表示システム</p>
+      </div>
+
+      <div className="w-full max-w-md space-y-8">
+        <div className="bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800">
+          <h2 className="text-xl font-bold mb-4 text-white">参加者として入室</h2>
+          <div className="space-y-4">
+            <input type="text" placeholder="部屋コード (6文字)" value={room} onChange={(e) => setRoom(e.target.value.toUpperCase())}
+                   className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-center tracking-widest" />
+            <input type="text" placeholder="あなたの名前" value={name} onChange={(e) => setName(e.target.value)}
+                   className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+            <button onClick={() => onJoin(room, name)} disabled={!room || !name}
+                    className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20">
+              入室する
+            </button>
+          </div>
+        </div>
+
+        <div className="relative flex items-center py-4">
+          <div className="flex-grow border-t border-gray-800"></div>
+          <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">または</span>
+          <div className="flex-grow border-t border-gray-800"></div>
+        </div>
+
+        <button onClick={onCreate}
+                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
+          <span>👑</span> 司会者として新しい部屋を作る
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// Participant View
+// ==========================================
+const ParticipantView = ({ state, roomId, myPlayerId, playSound }) => {
+  const [tab, setTab] = useState('ranking'); // ranking, graph
+
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-950 pb-8">
+      <div className="bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-20 flex justify-between items-center">
+        <div className="font-bold text-gray-300 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+          ROOM: <span className="text-yellow-400 font-mono tracking-widest">{roomId}</span>
+        </div>
+        <div className="flex gap-2 bg-gray-800 p-1 rounded-lg">
+          <button onClick={() => setTab('ranking')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`}>ランキング</button>
+          <button onClick={() => setTab('graph')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`}>グラフ</button>
         </div>
       </div>
-    </section>
 
-    <!-- 参加者: 名前入力 -->
-    <section id="joinForm" class="hidden">
-      <h1>入室</h1>
-      <p class="muted">部屋コード: <span id="joinRoomCode" class="roomcode"></span></p>
-      <div class="card">
-        <label class="muted" for="nameInput">あなたの名前</label>
-        <div class="row" style="margin-top:6px;">
-          <input id="nameInput" class="grow" placeholder="名前を入力" maxlength="30" />
-          <button id="enterBtn">入室</button>
+      <div className="flex-1 p-4 max-w-4xl w-full mx-auto mt-4">
+        {tab === 'ranking' ? (
+          <div className="space-y-8">
+            {state.teams.length > 0 && <TeamBoard teams={state.teams} players={state.players} />}
+            <div>
+              <h3 className="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider">個人ランキング</h3>
+              <PlayerList players={state.players} teams={state.teams} myPlayerId={myPlayerId} playSound={playSound} />
+            </div>
+          </div>
+        ) : (
+          <ScoreGraph timeline={state.timeline} players={state.players} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// Host View
+// ==========================================
+const HostView = ({ state, roomId, onOp, playSound }) => {
+  const [actionMode, setActionMode] = useState('calc'); // calc, ox
+  const [calcOp, setCalcOp] = useState('×');
+  const [calcVal, setCalcVal] = useState('1');
+  const [oxPoint, setOxPoint] = useState('10');
+
+  const copyUrl = () => {
+    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    navigator.clipboard.writeText(url);
+    alert('共有URLをコピーしました');
+  };
+
+  const handleAction = (player, actionType) => {
+    if (actionType === 'ox_o') {
+      onOp('score', { playerId: player.id, operator: '+', valueStr: oxPoint });
+      playSound('correct');
+    } else if (actionType === 'ox_x') {
+      onOp('score', { playerId: player.id, operator: '-', valueStr: oxPoint });
+      playSound('wrong');
+    } else if (actionType === 'calc') {
+      const internalOp = calcOp === '×' ? '*' : calcOp === '÷' ? '/' : calcOp;
+      onOp('score', { playerId: player.id, operator: internalOp, valueStr: calcVal });
+      playSound('pop');
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
+      <div className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-lg">HOST</div>
+          <div className="font-mono text-xl tracking-widest text-white">{roomId}</div>
+          <button onClick={copyUrl} className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700">URLコピー</button>
         </div>
-        <p id="joinError" class="error"></p>
-      </div>
-    </section>
-
-    <!-- 参加者: 閲覧専用ボード -->
-    <section id="viewer" class="hidden">
-      <h1>得点表</h1>
-      <p class="muted">部屋 <span id="viewerRoomCode" class="roomcode" style="font-size:1.1rem;"></span> ・ <span id="viewerName"></span> として閲覧中（更新は自動）</p>
-
-      <div id="teamsSection" class="hidden">
-        <h2>チーム得点</h2>
-        <ul id="teamBoard" class="board"></ul>
+        <button onClick={() => onOp('undo')} className="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-gray-700 text-gray-300">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+          UNDO
+        </button>
       </div>
 
-      <h2>個人得点</h2>
-      <ul id="playerBoard" class="board"></ul>
-    </section>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4 pb-40">
+          <PlayerList
+            players={state.players}
+            teams={state.teams}
+            isHost={true}
+            actionConfig={{ mode: actionMode, op: calcOp, val: calcVal, oxPt: oxPoint }}
+            onAction={handleAction}
+            playSound={playSound}
+            onRemove={(id) => { if (window.confirm('削除しますか？')) onOp('removePlayer', { playerId: id }); }}
+          />
+        </div>
 
-  </div>
+        <div className="w-80 bg-gray-900 border-l border-gray-800 p-4 hidden md:flex flex-col overflow-y-auto">
+          <HostTeamsPanel state={state} onOp={onOp} />
+        </div>
+      </div>
 
-  <div id="toast" class="toast"></div>
+      <div className="absolute bottom-0 left-0 right-0 md:right-80 bg-gray-900 border-t border-gray-800 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-800 shrink-0">
+            <button onClick={() => setActionMode('calc')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === 'calc' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>通常計算</button>
+            <button onClick={() => setActionMode('ox')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === 'ox' ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>○×モード</button>
+          </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/common.js"></script>
-  <script src="/js/participant.js"></script>
+          <div className="flex-1 flex justify-center items-center">
+            {actionMode === 'calc' ? (
+              <div className="flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700">
+                <select value={calcOp} onChange={e => setCalcOp(e.target.value)} className="bg-gray-900 text-white text-xl font-bold p-2 rounded-lg outline-none appearance-none text-center w-12 cursor-pointer">
+                  <option value="×">×</option><option value="÷">÷</option><option value="+">＋</option><option value="-">－</option>
+                </select>
+                <input type="text" value={calcVal} onChange={e => setCalcVal(e.target.value)} className="bg-gray-900 text-white text-xl font-bold p-2 w-20 rounded-lg outline-none text-center placeholder-gray-600" placeholder="値" />
+                <div className="text-gray-400 text-sm px-2 hidden sm:block">を適用する</div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700">
+                <span className="text-gray-400 text-sm font-bold pl-2">規定点:</span>
+                <input type="text" value={oxPoint} onChange={e => setOxPoint(e.target.value)} className="bg-gray-900 text-yellow-400 text-xl font-bold p-2 w-20 rounded-lg outline-none text-center" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            <button onClick={() => { if (window.confirm('全員を1にしますか？')) onOp('setAll', { valueStr: '1' }); }} className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700">全員1に</button>
+            <button onClick={() => { if (window.confirm('全員の得点を0にリセットしますか？')) onOp('resetAll'); }} className="bg-red-950/50 hover:bg-red-900/50 text-red-400 text-xs font-bold px-3 py-2 rounded-lg border border-red-900">0リセット</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HostTeamsPanel = ({ state, onOp }) => {
+  const [newTeam, setNewTeam] = useState('');
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          チーム管理
+        </h3>
+        <div className="flex gap-2 mb-4">
+          <input type="text" value={newTeam} onChange={e => setNewTeam(e.target.value)} placeholder="新チーム名" className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-500" />
+          <button onClick={() => { if (newTeam) { onOp('createTeam', { name: newTeam }); setNewTeam(''); } }} className="bg-gray-700 hover:bg-gray-600 px-3 rounded-lg text-sm font-bold transition-colors">+</button>
+        </div>
+
+        <div className="space-y-4">
+          {state.teams.map(team => (
+            <div key={team.id} className="bg-gray-800 rounded-xl p-3 border border-gray-700">
+              <div className="font-bold text-white mb-2">{team.name}</div>
+              <div className="space-y-1">
+                {state.players.filter(p => p.teamId === team.id).map(p => (
+                  <div key={p.id} className="text-xs text-gray-400 flex justify-between items-center bg-gray-900 p-1.5 rounded-md">
+                    <span>{p.name}</span>
+                    <button onClick={() => onOp('assignTeam', { playerId: p.id, teamId: null })} className="text-red-400 hover:text-red-300">外す</button>
+                  </div>
+                ))}
+                <select
+                  className="w-full bg-gray-900 border border-gray-700 text-xs text-gray-300 p-1.5 rounded-md mt-2 outline-none"
+                  value=""
+                  onChange={(e) => { if (e.target.value) onOp('assignTeam', { playerId: e.target.value, teamId: team.id }); }}
+                >
+                  <option value="">+ メンバー追加...</option>
+                  {state.players.filter(p => p.teamId !== team.id).map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// Board & FLIP List
+// ==========================================
+const TeamBoard = ({ teams, players }) => {
+  const teamScores = useMemo(() => {
+    return teams.map(t => {
+      const members = players.filter(p => p.teamId === t.id);
+      if (members.length === 0) return { ...t, score: 0 };
+      let product = 1;
+      members.forEach(m => product *= parseScoreToNumber(m.score));
+      return { ...t, score: product };
+    }).sort((a, b) => b.score - a.score);
+  }, [teams, players]);
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
+      <h3 className="text-sm font-bold text-yellow-500 mb-4 flex items-center gap-2">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+        チームランキング (積)
+      </h3>
+      <div className="flex flex-wrap gap-4">
+        {teamScores.map((t, i) => (
+          <div key={t.id} className="flex-1 min-w-[120px] bg-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden border border-gray-700">
+            {i === 0 && t.score > 0 && <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400"></div>}
+            <div className="text-gray-400 text-sm font-bold mb-1 truncate w-full text-center">{t.name}</div>
+            <div className="text-3xl font-black text-white tracking-tighter">
+              {Number.isInteger(t.score) ? t.score : Number(t.score.toFixed(2))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PlayerList = ({ players, teams, myPlayerId, isHost, onAction, actionConfig, onRemove }) => {
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      const sA = parseScoreToNumber(a.score);
+      const sB = parseScoreToNumber(b.score);
+      if (sB !== sA) return sB - sA;
+      return a.name.localeCompare(b.name);
+    });
+  }, [players]);
+
+  const rowHeight = isHost ? 80 : 72;
+  const gap = 8;
+  const containerHeight = sortedPlayers.length * (rowHeight + gap);
+
+  if (players.length === 0) {
+    return <div className="text-center p-8 text-gray-500 bg-gray-900 rounded-2xl border border-gray-800 border-dashed">まだ参加者がいません</div>;
+  }
+
+  return (
+    <div className="relative w-full transition-all duration-500 ease-in-out" style={{ height: containerHeight }}>
+      {sortedPlayers.map((p, index) => {
+        const team = teams?.find(t => t.id === p.teamId);
+        return (
+          <PlayerRow
+            key={p.id}
+            player={p}
+            team={team}
+            index={index}
+            isMe={p.id === myPlayerId}
+            top={index * (rowHeight + gap)}
+            height={rowHeight}
+            isHost={isHost}
+            onAction={onAction}
+            actionConfig={actionConfig}
+            onRemove={onRemove}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+const PlayerRow = ({ player, team, index, isMe, top, height, isHost, onAction, actionConfig, onRemove }) => {
+  const [flash, setFlash] = useState(null);
+  const prevScore = useRef(parseScoreToNumber(player.score));
+
+  const scoreNum = parseScoreToNumber(player.score);
+  const isTop = index === 0 && scoreNum > 0;
+
+  useEffect(() => {
+    const current = parseScoreToNumber(player.score);
+    if (current > prevScore.current) { setFlash('green'); setTimeout(() => setFlash(null), 600); }
+    else if (current < prevScore.current) { setFlash('red'); setTimeout(() => setFlash(null), 600); }
+    prevScore.current = current;
+  }, [player.score]);
+
+  let bgClass = 'bg-gray-800';
+  let borderClass = 'border-gray-700 border';
+  if (isMe) { bgClass = 'bg-blue-900/40'; borderClass = 'border-blue-500/50 border-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]'; }
+  if (isTop && !isHost) { borderClass = 'border-yellow-400/50 border-2 shadow-[0_0_20px_rgba(250,204,21,0.2)]'; }
+
+  let flashOverlay = null;
+  if (flash === 'green') flashOverlay = <div className="absolute inset-0 bg-green-500/20 rounded-xl animate-pulse pointer-events-none"></div>;
+  else if (flash === 'red') flashOverlay = <div className="absolute inset-0 bg-red-500/20 rounded-xl animate-pulse pointer-events-none"></div>;
+
+  return (
+    <div
+      className={`absolute left-0 right-0 rounded-xl flex items-center px-3 sm:px-5 transition-all duration-500 ease-out z-10 ${bgClass} ${borderClass}`}
+      style={{ top: `${top}px`, height: `${height}px`, transform: flash === 'red' ? 'translateX(2px)' : 'none' }}
+    >
+      {flashOverlay}
+
+      <div className="w-8 sm:w-10 flex-shrink-0 flex items-center">
+        {isTop ? (<span className="text-2xl" title="1位">👑</span>) : (<span className={`text-lg sm:text-xl font-bold ${isMe ? 'text-blue-300' : 'text-gray-500'}`}>{index + 1}</span>)}
+      </div>
+
+      <div className="flex-1 min-w-0 pr-4">
+        <div className="flex items-center gap-2">
+          <div className="text-base sm:text-lg font-bold text-white truncate">{player.name}</div>
+          {team && (<span className="text-[10px] sm:text-xs font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap border border-gray-600">{team.name}</span>)}
+        </div>
+        {isMe && <div className="text-xs text-blue-400 font-bold mt-0.5">YOU</div>}
+      </div>
+
+      <div className="flex-shrink-0 flex items-center justify-end mr-2 sm:mr-4 w-20 sm:w-28">
+        <div className={`text-3xl sm:text-4xl font-black tracking-tighter transition-colors duration-300 ${flash === 'green' ? 'text-green-400' : flash === 'red' ? 'text-red-400' : 'text-yellow-400'}`}>
+          {formatScoreStr(player.score)}
+        </div>
+      </div>
+
+      {isHost && (
+        <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 border-l border-gray-700 pl-3 sm:pl-4 py-2">
+          {actionConfig.mode === 'calc' ? (
+            <button onClick={() => onAction(player, 'calc')} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors border border-gray-600 active:scale-95 flex items-center justify-center min-w-[60px] sm:min-w-[80px]">
+              <span className="text-yellow-400 mr-1">{actionConfig.op}</span>{actionConfig.val}
+            </button>
+          ) : (
+            <>
+              <button onClick={() => onAction(player, 'ox_o')} className="bg-green-900/50 hover:bg-green-800/50 text-green-400 font-black py-2 px-4 rounded-lg border-2 border-green-700/50 active:scale-95 transition-all text-xl">○</button>
+              <button onClick={() => onAction(player, 'ox_x')} className="bg-red-900/50 hover:bg-red-800/50 text-red-400 font-black py-2 px-4 rounded-lg border-2 border-red-700/50 active:scale-95 transition-all text-xl">×</button>
+            </>
+          )}
+          <button onClick={() => onRemove(player.id)} className="ml-1 p-2 text-gray-600 hover:text-red-400 transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==========================================
+// Graph View（SVGによる自前描画）
+// ==========================================
+const ScoreGraph = ({ timeline, players }) => {
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(800);
+  const height = 400;
+  const padding = { top: 40, right: 40, bottom: 40, left: 60 };
+
+  useEffect(() => {
+    if (containerRef.current) {
+      setWidth(containerRef.current.clientWidth);
+      const handleResize = () => setWidth(containerRef.current.clientWidth);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+
+  if (!timeline || timeline.length < 2) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[400px] bg-gray-900 rounded-2xl border border-gray-800 text-gray-500 p-8 text-center">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="mb-4 opacity-50"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        グラフを描画するのに十分なデータがありません。<br />得点が変動すると記録が開始されます。
+      </div>
+    );
+  }
+
+  const activePlayers = players.filter(p => timeline[timeline.length - 1].scores[p.id] !== undefined);
+  const colors = ['#facc15', '#3b82f6', '#ef4444', '#10b981', '#a855f7', '#f97316', '#06b6d4', '#ec4899'];
+
+  let minScore = 0;
+  let maxScore = 10;
+  timeline.forEach(point => {
+    Object.values(point.scores).forEach(s => {
+      const val = parseScoreToNumber(s);
+      if (val > maxScore) maxScore = val;
+      if (val < minScore) minScore = val;
+    });
+  });
+  maxScore = Math.ceil(maxScore * 1.1);
+  minScore = Math.floor(minScore < 0 ? minScore * 1.1 : 0);
+
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+  const getX = (index) => padding.left + (index / (timeline.length - 1)) * innerWidth;
+  const getY = (val) => padding.top + innerHeight - ((val - minScore) / (maxScore - minScore || 1)) * innerHeight;
+
+  return (
+    <div ref={containerRef} className="bg-gray-900 rounded-2xl border border-gray-800 p-4 shadow-xl overflow-hidden w-full relative">
+      <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">得点推移</h3>
+      <svg width={width} height={height} className="overflow-visible">
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+          const y = padding.top + innerHeight * ratio;
+          const val = maxScore - (maxScore - minScore) * ratio;
+          return (
+            <g key={i}>
+              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#374151" strokeDasharray="4 4" strokeWidth="1" />
+              <text x={padding.left - 10} y={y + 4} fill="#6b7280" fontSize="12" textAnchor="end" fontFamily="monospace">{Number.isInteger(val) ? val : val.toFixed(1)}</text>
+            </g>
+          );
+        })}
+        {minScore < 0 && (<line x1={padding.left} y1={getY(0)} x2={width - padding.right} y2={getY(0)} stroke="#4b5563" strokeWidth="2" />)}
+        {activePlayers.map((p, pIndex) => {
+          const color = colors[pIndex % colors.length];
+          const points = timeline.map((t, tIndex) => `${getX(tIndex)},${getY(parseScoreToNumber(t.scores[p.id]))}`).join(' ');
+          const lastVal = parseScoreToNumber(timeline[timeline.length - 1].scores[p.id]);
+          return (
+            <g key={p.id}>
+              <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-md" />
+              <circle cx={getX(timeline.length - 1)} cy={getY(lastVal)} r="5" fill={color} stroke="#111827" strokeWidth="2" />
+              <text x={getX(timeline.length - 1) + 10} y={getY(lastVal) + 4} fill={color} fontSize="12" fontWeight="bold">{p.name}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+  </script>
 </body>
 </html>
