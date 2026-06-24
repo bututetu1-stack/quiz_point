@@ -12,18 +12,10 @@
   <style> html, body { background: #030712; margin: 0; } </style>
 </head>
 <body>
-  <div id="root">
-    <div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div>
-  </div>
+  <div id="root"><div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div></div>
   <script>
-    window.addEventListener("error", function (e) {
-      var b = document.getElementById("boot");
-      if (b) { b.style.color = "#ff6b6b"; b.textContent = "エラー: " + (e.message || e.error) + (e.filename ? " @ " + e.filename : ""); }
-    });
-    setTimeout(function () {
-      var b = document.getElementById("boot");
-      if (b && b.textContent === "読み込み中…") { b.style.color = "#ffd24a"; b.textContent = "読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; }
-    }, 7000);
+    window.addEventListener("error", function (e) { var b=document.getElementById("boot"); if(b){ b.style.color="#ff6b6b"; b.textContent="エラー: "+(e.message||e.error)+(e.filename?" @ "+e.filename:""); } });
+    setTimeout(function(){ var b=document.getElementById("boot"); if(b&&b.textContent==="読み込み中…"){ b.style.color="#ffd24a"; b.textContent="読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; } }, 7000);
   </script>
   <script>
 const {
@@ -625,12 +617,11 @@ class FirebaseSocket {
       timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
     };
   }
-  _pushHistory() {
-    this.history.push({
+  _pushHistory(roomId) {
+    this.db.ref('history/' + roomId).push({
       players: _clone(this.latestVal.players),
       teams: _clone(this.latestVal.teams)
     });
-    if (this.history.length > 50) this.history.shift();
   }
   _handleOp(data, A) {
     const {
@@ -667,7 +658,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         p.score = applyOp(p.score, payload.operator, val);
         ref.child('players').set(players);
         appendTimeline(players);
@@ -691,7 +682,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         p.score = val;
         ref.child('players').set(players);
         appendTimeline(players);
@@ -707,7 +698,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         Object.values(players).forEach(p => {
           p.score = val;
         });
@@ -717,7 +708,7 @@ class FirebaseSocket {
           ok: true
         });
       } else if (type === 'resetAll') {
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         Object.values(players).forEach(p => {
           p.score = '0/1';
         });
@@ -727,7 +718,7 @@ class FirebaseSocket {
           ok: true
         });
       } else if (type === 'removePlayer') {
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         ref.child('players/' + payload.playerId).remove();
         A({
           ok: true
@@ -741,7 +732,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         ref.child('players/' + payload.playerId + '/name').set(nm);
         A({
           ok: true
@@ -773,13 +764,13 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         ref.child('teams/' + payload.teamId + '/name').set(nm);
         A({
           ok: true
         });
       } else if (type === 'removeTeam') {
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         ref.child('teams/' + payload.teamId).remove();
         Object.values(players).forEach(p => {
           if (p.teamId === payload.teamId) ref.child('players/' + p.id + '/teamId').set(null);
@@ -796,25 +787,35 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory();
+        this._pushHistory(data.roomId);
         ref.child('players/' + payload.playerId + '/teamId').set(payload.teamId || null);
         A({
           ok: true
         });
       } else if (type === 'undo') {
-        if (this.history.length === 0) {
-          A({
+        const href = this.db.ref('history/' + data.roomId);
+        href.get().then(s => {
+          const h = s.val() || {};
+          const keys = Object.keys(h).sort();
+          if (keys.length === 0) {
+            A({
+              ok: false,
+              error: 'nothing_to_undo'
+            });
+            return;
+          }
+          const lastKey = keys[keys.length - 1];
+          const snap = h[lastKey] || {};
+          Promise.all([ref.child('players').set(snap.players || {}), ref.child('teams').set(snap.teams || {}), href.child(lastKey).remove()]).then(() => A({
+            ok: true
+          })).catch(e => A({
             ok: false,
-            error: 'nothing_to_undo'
-          });
-          return;
-        }
-        const snap = this.history.pop();
-        ref.child('players').set(snap.players || {});
-        ref.child('teams').set(snap.teams || {});
-        A({
-          ok: true
-        });
+            error: e.message
+          }));
+        }).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
       } else {
         A({
           ok: false,
@@ -1189,45 +1190,29 @@ const ParticipantView = ({
 // ==========================================
 // Host View
 // ==========================================
+const QUICK_PRESETS = [1, 2, 3, 5];
 const HostView = ({
   state,
   roomId,
   onOp,
   playSound
 }) => {
-  const [actionMode, setActionMode] = useState('calc'); // calc, ox
+  const [actionMode, setActionMode] = useState('ox'); // ox, plus, calc, quick
   const [calcOp, setCalcOp] = useState('×');
-  const [calcVal, setCalcVal] = useState('1');
-  const [oxPoint, setOxPoint] = useState('10');
+  const [calcVal, setCalcVal] = useState('2');
+  const [oxPoint, setOxPoint] = useState('1');
   const copyUrl = () => {
     const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
     navigator.clipboard.writeText(url);
     alert('共有URLをコピーしました');
   };
-  const handleAction = (player, actionType) => {
-    if (actionType === 'ox_o') {
-      onOp('score', {
-        playerId: player.id,
-        operator: '+',
-        valueStr: oxPoint
-      });
-      playSound('correct');
-    } else if (actionType === 'ox_x') {
-      onOp('score', {
-        playerId: player.id,
-        operator: '-',
-        valueStr: oxPoint
-      });
-      playSound('wrong');
-    } else if (actionType === 'calc') {
-      const internalOp = calcOp === '×' ? '*' : calcOp === '÷' ? '/' : calcOp;
-      onOp('score', {
-        playerId: player.id,
-        operator: internalOp,
-        valueStr: calcVal
-      });
-      playSound('pop');
-    }
+  const handleAction = (player, operator, valueStr, sound) => {
+    onOp('score', {
+      playerId: player.id,
+      operator,
+      valueStr
+    });
+    if (sound) playSound(sound);
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col h-screen bg-gray-950 overflow-hidden"
@@ -1270,7 +1255,8 @@ const HostView = ({
       mode: actionMode,
       op: calcOp,
       val: calcVal,
-      oxPt: oxPoint
+      pt: oxPoint,
+      quick: QUICK_PRESETS
     },
     onAction: handleAction,
     playSound: playSound,
@@ -1289,14 +1275,12 @@ const HostView = ({
   }, /*#__PURE__*/React.createElement("div", {
     className: "max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex bg-gray-950 p-1 rounded-xl border border-gray-800 shrink-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActionMode('calc'),
-    className: `px-4 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === 'calc' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`
-  }, "通常計算"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActionMode('ox'),
-    className: `px-4 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === 'ox' ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`
-  }, "○×モード")), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-1 bg-gray-950 p-1 rounded-xl border border-gray-800"
+  }, [['ox', '○×'], ['plus', '加点のみ'], ['calc', '自由計算'], ['quick', 'クイック']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => setActionMode(k),
+    className: `px-3 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === k ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`
+  }, l))), /*#__PURE__*/React.createElement("div", {
     className: "flex-1 flex justify-center items-center"
   }, actionMode === 'calc' ? /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
@@ -1320,11 +1304,15 @@ const HostView = ({
     placeholder: "値"
   }), /*#__PURE__*/React.createElement("div", {
     className: "text-gray-400 text-sm px-2 hidden sm:block"
-  }, "を適用する")) : /*#__PURE__*/React.createElement("div", {
+  }, "を適用")) : actionMode === 'quick' ? /*#__PURE__*/React.createElement("div", {
+    className: "text-gray-400 text-sm text-center px-2"
+  }, "各行の ", /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-200 font-bold"
+  }, "＋1〜＋5 ／ −1"), " ボタンで素早く加減点") : /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-400 text-sm font-bold pl-2"
-  }, "規定点:"), /*#__PURE__*/React.createElement("input", {
+  }, actionMode === 'plus' ? '加点' : '規定点', ":"), /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: oxPoint,
     onChange: e => setOxPoint(e.target.value),
@@ -1591,18 +1579,28 @@ const PlayerRow = ({
     className: `text-3xl sm:text-4xl font-black tracking-tighter transition-colors duration-300 ${flash === 'green' ? 'text-green-400' : flash === 'red' ? 'text-red-400' : 'text-yellow-400'}`
   }, formatScoreStr(player.score))), isHost && /*#__PURE__*/React.createElement("div", {
     className: "flex gap-1.5 sm:gap-2 flex-shrink-0 border-l border-gray-700 pl-3 sm:pl-4 py-2"
-  }, actionConfig.mode === 'calc' ? /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, 'calc'),
+  }, actionConfig.mode === 'calc' && /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, actionConfig.op === '×' ? '*' : actionConfig.op === '÷' ? '/' : actionConfig.op, actionConfig.val, 'pop'),
     className: "bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors border border-gray-600 active:scale-95 flex items-center justify-center min-w-[60px] sm:min-w-[80px]"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-yellow-400 mr-1"
-  }, actionConfig.op), actionConfig.val) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, 'ox_o'),
+  }, actionConfig.op), actionConfig.val), actionConfig.mode === 'ox' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, '+', actionConfig.pt, 'correct'),
     className: "bg-green-900/50 hover:bg-green-800/50 text-green-400 font-black py-2 px-4 rounded-lg border-2 border-green-700/50 active:scale-95 transition-all text-xl"
   }, "○"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, 'ox_x'),
+    onClick: () => onAction(player, '-', actionConfig.pt, 'wrong'),
     className: "bg-red-900/50 hover:bg-red-800/50 text-red-400 font-black py-2 px-4 rounded-lg border-2 border-red-700/50 active:scale-95 transition-all text-xl"
-  }, "×")), /*#__PURE__*/React.createElement("button", {
+  }, "×")), actionConfig.mode === 'plus' && /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, '+', actionConfig.pt, 'correct'),
+    className: "bg-green-900/50 hover:bg-green-800/50 text-green-400 font-black py-2 px-4 rounded-lg border-2 border-green-700/50 active:scale-95 transition-all whitespace-nowrap"
+  }, "○ ＋", actionConfig.pt), actionConfig.mode === 'quick' && /*#__PURE__*/React.createElement(React.Fragment, null, (actionConfig.quick || []).map(n => /*#__PURE__*/React.createElement("button", {
+    key: n,
+    onClick: () => onAction(player, '+', String(n), 'pop'),
+    className: "bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-2 sm:px-3 rounded-lg border border-gray-600 active:scale-95"
+  }, "＋", n)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, '-', '1', 'wrong'),
+    className: "bg-red-900/50 hover:bg-red-800/50 text-red-400 font-bold py-2 px-2 sm:px-3 rounded-lg border border-red-700/50 active:scale-95"
+  }, "−1")), /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(player.id),
     className: "ml-1 p-2 text-gray-600 hover:text-red-400 transition-colors"
   }, /*#__PURE__*/React.createElement("svg", {
