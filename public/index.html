@@ -378,10 +378,15 @@ const App = () => {
             setView('host');
           } else if (savedName) {
             handleJoin(roomFromUrl, savedName, savedPlayerId);
+          } else {
+            setView('join');
           }
         });
       } else if (savedName) {
         handleJoin(roomFromUrl, savedName, savedPlayerId);
+      } else {
+        // 招待リンク経由：ロビーではなく「この部屋に入室」画面へ
+        setView('join');
       }
     }
   }, []);
@@ -460,6 +465,11 @@ const App = () => {
     onJoin: (r, n) => handleJoin(r, n),
     defaultRoom: roomId,
     defaultName: myName
+  }), view === 'join' && /*#__PURE__*/React.createElement(JoinView, {
+    roomId: roomId,
+    defaultName: myName,
+    onJoin: n => handleJoin(roomId, n),
+    onBack: () => setView('home')
   }), view === 'host' && /*#__PURE__*/React.createElement(HostView, {
     state: state,
     roomId: roomId,
@@ -502,9 +512,16 @@ const HomeView = ({
     className: "space-y-4"
   }, /*#__PURE__*/React.createElement("input", {
     type: "text",
+    inputMode: "text",
+    autoCapitalize: "characters",
+    autoCorrect: "off",
+    autoComplete: "off",
     placeholder: "部屋コード (6文字)",
     value: room,
-    onChange: e => setRoom(e.target.value.toUpperCase()),
+    onChange: e => setRoom(e.target.value),
+    style: {
+      textTransform: 'uppercase'
+    },
     className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-center tracking-widest"
   }), /*#__PURE__*/React.createElement("input", {
     type: "text",
@@ -513,8 +530,8 @@ const HomeView = ({
     onChange: e => setName(e.target.value),
     className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
   }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onJoin(room, name),
-    disabled: !room || !name,
+    onClick: () => onJoin(room.trim().toUpperCase(), name.trim()),
+    disabled: !room.trim() || !name.trim(),
     className: "w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
   }, "入室する"))), /*#__PURE__*/React.createElement("div", {
     className: "relative flex items-center py-4"
@@ -528,6 +545,52 @@ const HomeView = ({
     onClick: onCreate,
     className: "w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
   }, /*#__PURE__*/React.createElement("span", null, "👑"), " 司会者として新しい部屋を作る")));
+};
+
+// ==========================================
+// Join View（招待リンク専用：名前を入れて即入室）
+// ==========================================
+const JoinView = ({
+  roomId,
+  defaultName,
+  onJoin,
+  onBack
+}) => {
+  const [name, setName] = useState(defaultName || '');
+  const submit = () => {
+    const n = name.trim();
+    if (n) onJoin(n);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col items-center justify-center min-h-screen p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-8 text-center space-y-3"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
+  }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-400"
+  }, "この部屋に入室します"), /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl font-mono tracking-widest text-yellow-400"
+  }, "ROOM ", roomId)), /*#__PURE__*/React.createElement("div", {
+    className: "w-full max-w-md bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800 space-y-4"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "あなたの名前",
+    value: name,
+    onChange: e => setName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') submit();
+    },
+    autoFocus: true,
+    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: submit,
+    disabled: !name.trim(),
+    className: "w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
+  }, "入室する"), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    className: "w-full text-gray-500 hover:text-gray-300 text-sm py-1"
+  }, "別の部屋コードを入力する")));
 };
 
 // ==========================================
