@@ -20,7 +20,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v9 ・ Undoボタンを下部に / クイック+1〜+5";
+const BUILD = "v10 ・ 音声ボタン廃止 / チーム得点 積・和切替";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -448,6 +448,7 @@ class FirebaseSocket {
       roomId: this.roomId,
       players: Object.values(v.players || {}),
       teams: Object.values(v.teams || {}),
+      teamMode: v.teamMode || 'product',
       timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
     };
   }
@@ -611,6 +612,7 @@ class FirebaseSocket {
       roomId,
       players: Object.values(v.players || {}),
       teams: Object.values(v.teams || {}),
+      teamMode: v.teamMode || 'product',
       timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
     };
   }
@@ -789,6 +791,11 @@ class FirebaseSocket {
         A({
           ok: true
         });
+      } else if (type === 'setTeamMode') {
+        ref.child('teamMode').set(payload.mode === 'sum' ? 'sum' : 'product');
+        A({
+          ok: true
+        });
       } else if (type === 'undo') {
         const href = this.db.ref('history/' + data.roomId);
         href.get().then(s => {
@@ -859,7 +866,6 @@ const App = () => {
     teams: [],
     timeline: []
   });
-  const [soundEnabled, setSoundEnabled] = useState(false);
 
   // サーバ接続状態（Firebase が設定済みか・つながっているか）
   const hasBackend = FB_CONFIGURED;
@@ -989,20 +995,11 @@ const App = () => {
       if (!res || !res.ok) console.error("Op failed:", res && res.error);
     });
   };
-  const toggleSound = () => {
-    setSoundEnabled(!soundEnabled);
-    if (!soundEnabled) playSound('pop', true);
-  };
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
   }, !connected && /*#__PURE__*/React.createElement("div", {
     className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
-  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), /*#__PURE__*/React.createElement("div", {
-    className: "absolute top-4 right-4 z-50"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: toggleSound,
-    className: "p-2 rounded-full bg-gray-800 text-gray-400 hover:text-yellow-400 transition-colors"
-  }, soundEnabled ? '🔊 音声ON' : '🔇 音声OFF')), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
+  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
     onCreate: handleCreateRoom,
     onJoin: (r, n) => handleJoin(r, n),
     defaultRoom: roomId,
@@ -1016,12 +1013,12 @@ const App = () => {
     state: state,
     roomId: roomId,
     onOp: executeOp,
-    playSound: type => playSound(type, soundEnabled)
+    playSound: () => {}
   }), view === 'participant' && /*#__PURE__*/React.createElement(ParticipantView, {
     state: state,
     roomId: roomId,
     myPlayerId: myPlayerId,
-    playSound: type => playSound(type, soundEnabled)
+    playSound: () => {}
   }));
 };
 
@@ -1172,7 +1169,8 @@ const ParticipantView = ({
     className: "space-y-8"
   }, state.teams.length > 0 && /*#__PURE__*/React.createElement(TeamBoard, {
     teams: state.teams,
-    players: state.players
+    players: state.players,
+    teamMode: state.teamMode
   }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
     className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider"
   }, "個人ランキング"), /*#__PURE__*/React.createElement(PlayerList, {
@@ -1379,6 +1377,18 @@ const HostTeamsPanel = ({
     },
     className: "bg-gray-700 hover:bg-gray-600 px-3 rounded-lg text-sm font-bold transition-colors"
   }, "+")), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 mb-4"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-500 text-xs"
+  }, "チーム得点の計算:"), /*#__PURE__*/React.createElement("div", {
+    className: "flex bg-gray-950 p-1 rounded-lg border border-gray-800"
+  }, [['product', '積（×）'], ['sum', '和（＋）']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => onOp('setTeamMode', {
+      mode: k
+    }),
+    className: `px-3 py-1 rounded-md font-bold text-xs transition-colors ${(state.teamMode || 'product') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
+  }, l)))), /*#__PURE__*/React.createElement("div", {
     className: "space-y-4"
   }, state.teams.map(team => /*#__PURE__*/React.createElement("div", {
     key: team.id,
@@ -1387,7 +1397,9 @@ const HostTeamsPanel = ({
     className: "flex items-center justify-between mb-2 gap-2"
   }, /*#__PURE__*/React.createElement("div", {
     className: "font-bold text-white truncate"
-  }, team.name), /*#__PURE__*/React.createElement("div", {
+  }, team.name, /*#__PURE__*/React.createElement("span", {
+    className: "text-yellow-400 ml-2"
+  }, fmtNum(calcTeamScore(state.players.filter(p => p.teamId === team.id), state.teamMode)))), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-1 shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => {
@@ -1436,25 +1448,27 @@ const HostTeamsPanel = ({
 // ==========================================
 // Board & FLIP List
 // ==========================================
+// チーム得点：積（product）または和（sum）。表示用に数値で返す。
+const calcTeamScore = (members, mode) => {
+  if (!members.length) return 0;
+  if (mode === 'sum') return members.reduce((s, m) => s + parseScoreToNumber(m.score), 0);
+  return members.reduce((p, m) => p * parseScoreToNumber(m.score), 1);
+};
+const fmtNum = v => Number.isInteger(v) ? v : Number(v.toFixed(2));
 const TeamBoard = ({
   teams,
-  players
+  players,
+  teamMode
 }) => {
   const teamScores = useMemo(() => {
     return teams.map(t => {
       const members = players.filter(p => p.teamId === t.id);
-      if (members.length === 0) return {
-        ...t,
-        score: 0
-      };
-      let product = 1;
-      members.forEach(m => product *= parseScoreToNumber(m.score));
       return {
         ...t,
-        score: product
+        score: calcTeamScore(members, teamMode)
       };
     }).sort((a, b) => b.score - a.score);
-  }, [teams, players]);
+  }, [teams, players, teamMode]);
   return /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -1468,7 +1482,7 @@ const TeamBoard = ({
     strokeWidth: "2"
   }, /*#__PURE__*/React.createElement("path", {
     d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-  })), "チームランキング (積)"), /*#__PURE__*/React.createElement("div", {
+  })), "チームランキング（", teamMode === 'sum' ? '和' : '積', "）"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-4"
   }, teamScores.map((t, i) => /*#__PURE__*/React.createElement("div", {
     key: t.id,
@@ -1479,7 +1493,7 @@ const TeamBoard = ({
     className: "text-gray-400 text-sm font-bold mb-1 truncate w-full text-center"
   }, t.name), /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-black text-white tracking-tighter"
-  }, Number.isInteger(t.score) ? t.score : Number(t.score.toFixed(2)))))));
+  }, fmtNum(t.score))))));
 };
 const PlayerList = ({
   players,
