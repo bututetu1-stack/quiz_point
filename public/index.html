@@ -9,7 +9,7 @@
 <body><div id="root"><div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div></div>
 <script>
   window.addEventListener("error", function (e) { var b=document.getElementById("boot"); if(b){ b.style.color="#ff6b6b"; b.textContent="エラー: "+(e.message||e.error)+(e.filename?" @ "+e.filename:""); } });
-  setTimeout(function(){ var b=document.getElementById("boot"); if(b&&b.textContent==="読み込み中…"){ b.style.color="#ffd24a"; b.textContent="読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; } }, 7000);
+  setTimeout(function(){ var b=document.getElementById("boot"); if(b&&b.textContent==="読み込み中…"){ b.style.color="#ffd24a"; b.textContent="読み込みに失敗しました。"; } }, 7000);
 </script>
 <script>
 const {
@@ -20,7 +20,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v8 ・ 4得点モード / チーム削除・改名 / Undo再実装";
+const BUILD = "v9 ・ Undoボタンを下部に / クイック+1〜+5";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1189,7 +1189,7 @@ const ParticipantView = ({
 // ==========================================
 // Host View
 // ==========================================
-const QUICK_PRESETS = [1, 2, 3, 5];
+const QUICK_PRESETS = [1, 2, 3, 4, 5];
 const HostView = ({
   state,
   roomId,
@@ -1228,23 +1228,7 @@ const HostView = ({
   }, BUILD), /*#__PURE__*/React.createElement("button", {
     onClick: copyUrl,
     className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700"
-  }, "URLコピー")), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onOp('undo'),
-    className: "text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-gray-700 text-gray-300"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M3 7v6h6"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
-  })), "UNDO")), /*#__PURE__*/React.createElement("div", {
+  }, "URLコピー"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-1 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1 overflow-y-auto p-4 pb-40"
@@ -1321,6 +1305,22 @@ const HostView = ({
   }))), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('undo'),
+    className: "bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700 flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "14",
+    height: "14",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M3 7v6h6"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
+  })), "1つ戻す"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       if (window.confirm('全員を1にしますか？')) onOp('setAll', {
         valueStr: '1'
