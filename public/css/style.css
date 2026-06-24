@@ -1,0 +1,134 @@
+:root {
+  --bg: #0f1226;
+  --card: #1b1f3b;
+  --card2: #252a52;
+  --accent: #5b8cff;
+  --accent2: #ff7eb6;
+  --gold: #ffd24a;
+  --text: #eef0ff;
+  --muted: #9aa0c8;
+  --danger: #ff6b6b;
+  --ok: #4ade80;
+  --border: #34396b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 14px 64px;
+}
+
+h1 { font-size: 1.4rem; margin: 0.2em 0; }
+h2 { font-size: 1.1rem; margin: 1.2em 0 0.5em; color: var(--muted); }
+a { color: var(--accent); }
+
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 12px 0;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  transition: filter 0.12s ease;
+}
+button:hover { filter: brightness(1.1); }
+button:active { filter: brightness(0.95); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+button.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+button.danger { background: var(--danger); }
+button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 6px 10px; }
+button.small { padding: 6px 10px; font-size: 0.85rem; }
+
+input, select {
+  font: inherit;
+  background: var(--card2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 100%;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); }
+
+.row { display: flex; gap: 8px; align-items: center; }
+.row.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+
+/* 共有リンク */
+.share {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.share code {
+  background: var(--card2); padding: 8px 10px; border-radius: 8px;
+  word-break: break-all; flex: 1; min-width: 160px; font-size: 0.9rem;
+}
+.roomcode {
+  font-size: 1.6rem; font-weight: 800; letter-spacing: 0.15em;
+  color: var(--gold);
+}
+
+/* 得点表 */
+.board { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.board li {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px;
+}
+.board .rank { width: 1.6em; text-align: center; font-weight: 800; color: var(--muted); }
+.board .name { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board .team-chip {
+  font-size: 0.72rem; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 999px; padding: 1px 8px; margin-left: 6px;
+}
+.board .score { font-size: 1.3rem; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+.board li.me { outline: 2px solid var(--accent2); }
+.board li.top1 .rank { color: var(--gold); }
+.board li.top1 { background: linear-gradient(90deg, rgba(255,210,74,0.18), var(--card2)); }
+
+/* ホストの操作行 */
+.controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.op-btns { display: flex; gap: 4px; }
+.op-btns button { padding: 8px 12px; min-width: 42px; background: var(--card); border: 1px solid var(--border); }
+.op-btns button.active { background: var(--accent); border-color: var(--accent); }
+.val-input { width: 90px; flex: 0 0 auto; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.error { color: var(--danger); font-size: 0.9rem; min-height: 1.2em; }
+.toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  background: var(--ok); color: #062b12; padding: 10px 16px; border-radius: 10px;
+  font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 10;
+}
+.toast.show { opacity: 1; }
+
+.center { text-align: center; }
+.hidden { display: none !important; }
+
+.team-card { border-left: 4px solid var(--accent); }
+.team-card .score { color: var(--accent2); }
