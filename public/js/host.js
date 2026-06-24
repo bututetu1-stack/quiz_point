@@ -12,6 +12,12 @@
   // 各プレイヤー行で選択中の演算子（既定は ×）
   const selectedOp = {};
 
+  // ○×モード設定（localStorage に保持）
+  const settings = {
+    maruBatsu: localStorage.getItem('mb:enabled') === '1',
+    point: localStorage.getItem('mb:point') || '10',
+  };
+
   function showToast(msg) {
     toastEl.textContent = msg;
     toastEl.classList.add('show');
@@ -91,6 +97,24 @@
   document.getElementById('undoBtn').addEventListener('click', () => {
     op('undo', {}, '一つ戻しました');
   });
+  // ○×モードの切替・得点設定
+  (function setupMaruBatsu() {
+    const toggle = document.getElementById('maruBatsuToggle');
+    const pointInput = document.getElementById('pointValue');
+    toggle.checked = settings.maruBatsu;
+    pointInput.value = settings.point;
+    toggle.addEventListener('change', () => {
+      settings.maruBatsu = toggle.checked;
+      localStorage.setItem('mb:enabled', toggle.checked ? '1' : '0');
+      renderPlayers();
+    });
+    pointInput.addEventListener('input', () => {
+      settings.point = pointInput.value.trim();
+      localStorage.setItem('mb:point', settings.point);
+      if (settings.maruBatsu) renderPlayers();
+    });
+  })();
+
   document.getElementById('addTeamBtn').addEventListener('click', addTeam);
   document.getElementById('newTeamName').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') addTeam();
@@ -169,17 +193,20 @@
           `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${escapeHtml(t.name)}</option>`))
         .join('');
 
+    const pt = escapeHtml(settings.point || '0');
     list.innerHTML = players.map((p, i) => {
       const op0 = selectedOp[p.id] || '*';
       const mk = (sym, val) => `<button data-op="${val}" data-pid="${p.id}" class="${op0 === val ? 'active' : ''}">${sym}</button>`;
-      return `
-      <li class="${i === 0 ? 'top1' : ''}">
-        <div style="flex:1; min-width:0;">
-          <div class="row" style="gap:8px;">
-            <span class="rank">${i + 1}</span>
-            <span class="name">${escapeHtml(p.name)}</span>
-            <span class="score">${formatScore(p.score)}</span>
-          </div>
+      const controls = settings.maruBatsu
+        ? `
+          <div class="controls mb-controls">
+            <button class="mb-correct" data-mb="+" data-pid="${p.id}">○ +${pt}</button>
+            <button class="mb-wrong" data-mb="-" data-pid="${p.id}">× −${pt}</button>
+            <select data-team="${p.id}" class="grow" style="max-width:140px;">${teamOptions(p.teamId)}</select>
+            <button class="ghost small" data-rename="${p.id}">改名</button>
+            <button class="ghost small" data-remove="${p.id}">削除</button>
+          </div>`
+        : `
           <div class="controls">
             <div class="op-btns">
               ${mk('+', '+')}${mk('−', '-')}${mk('×', '*')}${mk('÷', '/')}
@@ -190,10 +217,28 @@
             <select data-team="${p.id}" class="grow" style="max-width:140px;">${teamOptions(p.teamId)}</select>
             <button class="ghost small" data-rename="${p.id}">改名</button>
             <button class="ghost small" data-remove="${p.id}">削除</button>
+          </div>`;
+      return `
+      <li class="${i === 0 ? 'top1' : ''}">
+        <div style="flex:1; min-width:0;">
+          <div class="row" style="gap:8px;">
+            <span class="rank">${i + 1}</span>
+            <span class="name">${escapeHtml(p.name)}</span>
+            <span class="score">${formatScore(p.score)}</span>
           </div>
+          ${controls}
         </div>
       </li>`;
     }).join('');
+
+    // ○×ボタン（ワンタップで規定得点を加減）
+    list.querySelectorAll('[data-mb]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const valueStr = (settings.point || '').trim();
+        if (!valueStr) return showToast('1問の得点を入力してください');
+        op('score', { playerId: b.dataset.pid, operator: b.dataset.mb, valueStr });
+      });
+    });
 
     // 演算子選択
     list.querySelectorAll('[data-op]').forEach((b) => {

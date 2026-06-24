@@ -132,3 +132,12 @@ input:focus, select:focus { outline: 2px solid var(--accent); }
 
 .team-card { border-left: 4px solid var(--accent); }
 .team-card .score { color: var(--accent2); }
+
+/* ○×モード */
+.switch { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
+.switch input { width: auto; }
+.mb-controls .mb-correct, .mb-controls .mb-wrong {
+  flex: 1; min-width: 96px; font-size: 1.1rem; font-weight: 800; padding: 14px 16px;
+}
+.mb-correct { background: var(--ok); color: #062b12; }
+.mb-wrong { background: var(--danger); color: #fff; }
