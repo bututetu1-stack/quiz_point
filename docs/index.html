@@ -1,1 +1,1747 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Quiz Scoreboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <style> html, body { background: #030712; margin: 0; } </style>
+</head>
+<body>
+  <div id="root">
+    <div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div>
+  </div>
+  <script>
+    window.addEventListener("error", function (e) {
+      var b = document.getElementById("boot");
+      if (b) { b.style.color = "#ff6b6b"; b.textContent = "エラー: " + (e.message || e.error) + (e.filename ? " @ " + e.filename : ""); }
+    });
+    setTimeout(function () {
+      var b = document.getElementById("boot");
+      if (b && b.textContent === "読み込み中…") { b.style.color = "#ffd24a"; b.textContent = "読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; }
+    }, 7000);
+  </script>
+  <script>
+const {
+  useState,
+  useEffect,
+  useRef,
+  useMemo
+} = React;
 
+// ==========================================
+// ユーティリティ関数（スコア計算・表示・音声）
+// ==========================================
+
+const parseScoreToNumber = scoreStr => {
+  if (!scoreStr && scoreStr !== 0) return 0;
+  const str = scoreStr.toString();
+  const parts = str.split('/');
+  if (parts.length === 2) {
+    return parseInt(parts[0], 10) / parseInt(parts[1], 10);
+  }
+  return parseFloat(str) || 0;
+};
+const formatScoreStr = scoreStr => {
+  const val = parseScoreToNumber(scoreStr);
+  if (Number.isInteger(val)) return val.toString();
+  return Number(val.toFixed(2)).toString(); // 小数第2位まで、末尾0除去
+};
+
+// 効果音再生
+const playSound = (type, enabled) => {
+  if (!enabled) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    if (type === 'correct') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1108, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.5);
+    } else if (type === 'wrong') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } else if (type === 'pop') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    }
+  } catch (e) {
+    // ユーザーインタラクション前などのエラーは無視
+  }
+};
+
+// ==========================================
+// Mock Socket（バックエンドが無いプレビュー時のフォールバック）
+// 実環境では /socket.io/socket.io.js の window.io() を使う
+// ==========================================
+const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+const evalFrac = (op, aStr, bStr) => {
+  let [n1, d1] = aStr.toString().split('/').map(Number);
+  if (!d1) d1 = 1;
+  let [n2, d2] = bStr.toString().split('/').map(Number);
+  if (!d2) d2 = 1;
+  let n, d;
+  switch (op) {
+    case '+':
+      n = n1 * d2 + n2 * d1;
+      d = d1 * d2;
+      break;
+    case '-':
+      n = n1 * d2 - n2 * d1;
+      d = d1 * d2;
+      break;
+    case '*':
+      n = n1 * n2;
+      d = d1 * d2;
+      break;
+    case '/':
+      n = n1 * d2;
+      d = d1 * n2;
+      break;
+    default:
+      return aStr;
+  }
+  if (d === 0) return aStr;
+  let g = gcd(Math.abs(n), Math.abs(d));
+  n /= g;
+  d /= g;
+  if (d < 0) {
+    n = -n;
+    d = -d;
+  }
+  return d === 1 ? `${n}` : `${n}/${d}`;
+};
+class MockSocket {
+  constructor() {
+    this.handlers = {};
+    if (!window.__mockDb) window.__mockDb = {
+      rooms: {}
+    };
+  }
+  on(event, handler) {
+    this.handlers[event] = handler;
+  }
+  off(event) {
+    delete this.handlers[event];
+  }
+  emit(event, data, ack) {
+    // createRoom のように「コールバックを第1引数」で渡された場合に対応
+    if (typeof data === 'function' && ack === undefined) {
+      ack = data;
+      data = {};
+    }
+    setTimeout(() => {
+      const db = window.__mockDb;
+      const broadcastState = roomId => {
+        const room = db.rooms[roomId];
+        if (room && this.handlers['state']) {
+          this.handlers['state']({
+            roomId: room.id,
+            players: room.players,
+            teams: room.teams,
+            timeline: room.timeline || []
+          });
+        }
+      };
+      const saveHistory = room => {
+        room.history.push(JSON.parse(JSON.stringify({
+          players: room.players,
+          teams: room.teams
+        })));
+        if (room.history.length > 50) room.history.shift();
+      };
+      const pushTimeline = room => {
+        const scores = {};
+        room.players.forEach(p => scores[p.id] = p.score);
+        if (!room.timeline) room.timeline = [];
+        room.timeline.push({
+          t: Date.now(),
+          scores
+        });
+      };
+      try {
+        if (event === 'createRoom') {
+          const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const hostToken = Math.random().toString(36).substring(2);
+          db.rooms[roomId] = {
+            id: roomId,
+            hostToken,
+            players: [],
+            teams: [],
+            history: [],
+            timeline: []
+          };
+          pushTimeline(db.rooms[roomId]);
+          if (ack) ack({
+            ok: true,
+            roomId,
+            hostToken
+          });
+        } else if (event === 'hostJoin') {
+          const room = db.rooms[data.roomId];
+          if (room && room.hostToken === data.hostToken) {
+            if (ack) ack({
+              ok: true,
+              state: {
+                roomId: room.id,
+                players: room.players,
+                teams: room.teams,
+                timeline: room.timeline
+              }
+            });
+            broadcastState(room.id);
+          } else if (ack) ack({
+            ok: false,
+            error: 'unauthorized'
+          });
+        } else if (event === 'joinRoom') {
+          const room = db.rooms[data.roomId];
+          if (!room) {
+            if (ack) ack({
+              ok: false,
+              error: 'room_not_found'
+            });
+            return;
+          }
+          let player = room.players.find(p => p.id === data.playerId);
+          if (!player) {
+            player = {
+              id: Math.random().toString(36).substring(2),
+              name: data.name,
+              score: "0",
+              teamId: null
+            };
+            room.players.push(player);
+            pushTimeline(room);
+          } else {
+            player.name = data.name;
+          }
+          if (ack) ack({
+            ok: true,
+            playerId: player.id,
+            state: {
+              roomId: room.id,
+              players: room.players,
+              teams: room.teams,
+              timeline: room.timeline
+            }
+          });
+          broadcastState(room.id);
+        } else if (event === 'op') {
+          const room = db.rooms[data.roomId];
+          if (!room || room.hostToken !== data.hostToken) {
+            if (ack) ack({
+              ok: false,
+              error: 'unauthorized'
+            });
+            return;
+          }
+          saveHistory(room);
+          const {
+            type,
+            payload
+          } = data;
+          if (type === 'score') {
+            const p = room.players.find(p => p.id === payload.playerId);
+            if (p) p.score = evalFrac(payload.operator, p.score, payload.valueStr);
+          } else if (type === 'setAll') {
+            room.players.forEach(p => p.score = payload.valueStr);
+          } else if (type === 'resetAll') {
+            room.players.forEach(p => p.score = "0");
+          } else if (type === 'undo') {
+            if (room.history.length > 0) {
+              const prev = room.history.pop();
+              room.players = prev.players;
+              room.teams = prev.teams;
+            }
+          } else if (type === 'createTeam') {
+            room.teams.push({
+              id: Math.random().toString(36).substring(2),
+              name: payload.name
+            });
+          } else if (type === 'assignTeam') {
+            const p = room.players.find(p => p.id === payload.playerId);
+            if (p) p.teamId = payload.teamId;
+          } else if (type === 'removePlayer') {
+            room.players = room.players.filter(p => p.id !== payload.playerId);
+          }
+          if (type !== 'undo') pushTimeline(room);
+          broadcastState(room.id);
+          if (ack) ack({
+            ok: true
+          });
+        }
+      } catch (e) {
+        if (ack) ack({
+          ok: false,
+          error: e.message
+        });
+      }
+    }, 10);
+  }
+}
+let socketInstance = null;
+
+// ==========================================
+// Firebase 設定（★ここにあなたの Firebase 設定を貼る）
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBcByOVfP3zT8SbA0iPeSJOPV4TyXUGg9I",
+  authDomain: "quiz-point-8dfab.firebaseapp.com",
+  databaseURL: "https://quiz-point-8dfab-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "quiz-point-8dfab",
+  storageBucket: "quiz-point-8dfab.firebasestorage.app",
+  messagingSenderId: "647540813825",
+  appId: "1:647540813825:web:7990651ab1d1104db29000"
+};
+const FB_CONFIGURED = typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'PASTE_API_KEY' && firebaseConfig.databaseURL && firebaseConfig.databaseURL.indexOf('PASTE') === -1;
+let _db = null;
+const getDb = () => {
+  if (!_db && FB_CONFIGURED) {
+    firebase.initializeApp(firebaseConfig);
+    _db = firebase.database();
+  }
+  return _db;
+};
+
+// ---- 有理数（分数）演算：得点を厳密に保持 ----
+const _gcd = (a, b) => {
+  a = a < 0n ? -a : a;
+  b = b < 0n ? -b : b;
+  while (b) {
+    [a, b] = [b, a % b];
+  }
+  return a;
+};
+const _rMake = (n, d) => {
+  if (d === 0n) return null;
+  if (d < 0n) {
+    n = -n;
+    d = -d;
+  }
+  if (n === 0n) return "0/1";
+  const g = _gcd(n, d) || 1n;
+  return `${n / g}/${d / g}`;
+};
+const _rParse = s => {
+  const [a, b] = String(s == null ? "0" : s).split('/');
+  return {
+    n: BigInt(a || "0"),
+    d: b === undefined ? 1n : BigInt(b)
+  };
+};
+const _decToRat = s => {
+  if (!/^[+-]?(\d+(\.\d+)?|\.\d+)$/.test(s)) return null;
+  let sign = 1n;
+  if (s[0] === '+') s = s.slice(1);else if (s[0] === '-') {
+    sign = -1n;
+    s = s.slice(1);
+  }
+  if (s.indexOf('.') >= 0) {
+    const [i, f] = s.split('.');
+    return {
+      n: BigInt((i || '0') + f) * sign,
+      d: 10n ** BigInt(f.length)
+    };
+  }
+  return {
+    n: BigInt(s) * sign,
+    d: 1n
+  };
+};
+const parseValue = input => {
+  if (input == null) return null;
+  let s = String(input).trim();
+  if (s === '') return null;
+  if (s.indexOf('/') >= 0) {
+    const p = s.split('/');
+    if (p.length !== 2) return null;
+    const a = _decToRat(p[0].trim()),
+      b = _decToRat(p[1].trim());
+    if (!a || !b) return null;
+    return _rMake(a.n * b.d, a.d * b.n);
+  }
+  const r = _decToRat(s);
+  return r ? _rMake(r.n, r.d) : null;
+};
+const applyOp = (scoreStr, op, valStr) => {
+  const a = _rParse(scoreStr || "0/1"),
+    b = _rParse(valStr);
+  let n, d;
+  switch (op) {
+    case '+':
+      n = a.n * b.d + b.n * a.d;
+      d = a.d * b.d;
+      break;
+    case '-':
+      n = a.n * b.d - b.n * a.d;
+      d = a.d * b.d;
+      break;
+    case '*':
+      n = a.n * b.n;
+      d = a.d * b.d;
+      break;
+    case '/':
+      if (b.n === 0n) return scoreStr;
+      n = a.n * b.d;
+      d = a.d * b.n;
+      break;
+    default:
+      return scoreStr;
+  }
+  return _rMake(n, d);
+};
+
+// ---- ID/コード生成 ----
+const _clone = o => JSON.parse(JSON.stringify(o || {}));
+const genRoomCode = () => {
+  const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random() * a.length)];
+  return s;
+};
+const genToken = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+const genId = p => p + '_' + Math.random().toString(36).slice(2, 10);
+
+// ==========================================
+// Firebase 版「ソケット」：既存の emit/on インターフェースを踏襲
+// ==========================================
+class FirebaseSocket {
+  constructor() {
+    this.handlers = {};
+    this.history = [];
+    this.latestVal = {};
+    this.roomId = null;
+    this._connected = false;
+    this._subRef = null;
+    this._sub = null;
+    this.db = getDb();
+    if (this.db) {
+      this.db.ref('.info/connected').on('value', s => {
+        this._connected = !!s.val();
+        const h = this.handlers[this._connected ? 'connect' : 'disconnect'];
+        if (h) h();
+      });
+    }
+  }
+  on(e, h) {
+    this.handlers[e] = h;
+    if (e === 'connect' && this._connected) h();
+  }
+  off(e) {
+    delete this.handlers[e];
+  }
+  _stateObj() {
+    const v = this.latestVal || {};
+    return {
+      roomId: this.roomId,
+      players: Object.values(v.players || {}),
+      teams: Object.values(v.teams || {}),
+      timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
+    };
+  }
+  _emitState() {
+    const h = this.handlers['state'];
+    if (h) h(this._stateObj());
+  }
+  _subscribe(roomId) {
+    if (this.roomId === roomId && this._sub) return;
+    if (this._sub && this._subRef) this._subRef.off('value', this._sub);
+    this.roomId = roomId;
+    this._subRef = this.db.ref('rooms/' + roomId);
+    this._sub = this._subRef.on('value', s => {
+      this.latestVal = s.val() || {};
+      this._emitState();
+    });
+  }
+  emit(event, data, ack) {
+    if (typeof data === 'function' && ack === undefined) {
+      ack = data;
+      data = {};
+    }
+    data = data || {};
+    const A = x => {
+      if (typeof ack === 'function') ack(x);
+    };
+    if (!this.db) {
+      A({
+        ok: false,
+        error: 'firebase_not_configured'
+      });
+      return;
+    }
+    try {
+      if (event === 'createRoom') {
+        const roomId = genRoomCode(),
+          hostToken = genToken();
+        this.db.ref('rooms/' + roomId).set({
+          hostToken,
+          createdAt: Date.now(),
+          players: {},
+          teams: {},
+          timeline: {}
+        }).then(() => A({
+          ok: true,
+          roomId,
+          hostToken
+        })).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
+      } else if (event === 'checkRoom') {
+        this.db.ref('rooms/' + data.roomId).get().then(s => A({
+          ok: s.exists()
+        })).catch(() => A({
+          ok: false
+        }));
+      } else if (event === 'hostJoin') {
+        const ref = this.db.ref('rooms/' + data.roomId);
+        ref.get().then(s => {
+          if (!s.exists()) {
+            // サーバ側の状態が無くてもホストのトークンで同じコードを復元
+            return ref.set({
+              hostToken: data.hostToken,
+              createdAt: Date.now(),
+              players: {},
+              teams: {},
+              timeline: {}
+            }).then(() => {
+              this._subscribe(data.roomId);
+              A({
+                ok: true,
+                state: {
+                  roomId: data.roomId,
+                  players: [],
+                  teams: [],
+                  timeline: []
+                }
+              });
+            });
+          }
+          const v = s.val();
+          if (v.hostToken !== data.hostToken) {
+            A({
+              ok: false,
+              error: 'unauthorized'
+            });
+            return;
+          }
+          this._subscribe(data.roomId);
+          A({
+            ok: true,
+            state: this._stateFromVal(data.roomId, v)
+          });
+        }).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
+      } else if (event === 'joinRoom') {
+        const ref = this.db.ref('rooms/' + data.roomId);
+        ref.get().then(s => {
+          if (!s.exists()) {
+            A({
+              ok: false,
+              error: 'room_not_found'
+            });
+            return;
+          }
+          const v = s.val();
+          const name = (data.name || '').trim().slice(0, 30);
+          if (!name) {
+            A({
+              ok: false,
+              error: 'invalid_name'
+            });
+            return;
+          }
+          let pid = data.playerId;
+          const existing = pid && v.players && v.players[pid];
+          if (!existing) pid = genId('p');
+          const playerObj = existing ? Object.assign({}, v.players[pid], {
+            name
+          }) : {
+            id: pid,
+            name,
+            score: '0/1',
+            teamId: null,
+            joinedAt: Date.now()
+          };
+          ref.child('players/' + pid).set(playerObj).then(() => {
+            this._subscribe(data.roomId);
+            const merged = Object.assign({}, v.players || {});
+            merged[pid] = playerObj;
+            A({
+              ok: true,
+              playerId: pid,
+              state: this._stateFromVal(data.roomId, Object.assign({}, v, {
+                players: merged
+              }))
+            });
+          }).catch(e => A({
+            ok: false,
+            error: e.message
+          }));
+        }).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
+      } else if (event === 'op') {
+        this._handleOp(data, A);
+      }
+    } catch (e) {
+      A({
+        ok: false,
+        error: e.message
+      });
+    }
+  }
+  _stateFromVal(roomId, v) {
+    return {
+      roomId,
+      players: Object.values(v.players || {}),
+      teams: Object.values(v.teams || {}),
+      timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
+    };
+  }
+  _pushHistory() {
+    this.history.push({
+      players: _clone(this.latestVal.players),
+      teams: _clone(this.latestVal.teams)
+    });
+    if (this.history.length > 50) this.history.shift();
+  }
+  _handleOp(data, A) {
+    const {
+      type,
+      payload = {}
+    } = data;
+    const ref = this.db.ref('rooms/' + data.roomId);
+    const players = _clone(this.latestVal.players);
+    const appendTimeline = pmap => {
+      const scores = {};
+      Object.values(pmap || {}).forEach(p => {
+        scores[p.id] = p.score;
+      });
+      ref.child('timeline').push({
+        t: Date.now(),
+        scores
+      });
+    };
+    try {
+      if (type === 'score') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        const val = parseValue(payload.valueStr);
+        if (val === null) {
+          A({
+            ok: false,
+            error: 'invalid_value'
+          });
+          return;
+        }
+        this._pushHistory();
+        p.score = applyOp(p.score, payload.operator, val);
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'setScore') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        const val = parseValue(payload.valueStr);
+        if (val === null) {
+          A({
+            ok: false,
+            error: 'invalid_value'
+          });
+          return;
+        }
+        this._pushHistory();
+        p.score = val;
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'setAll') {
+        const val = parseValue(payload.valueStr);
+        if (val === null) {
+          A({
+            ok: false,
+            error: 'invalid_value'
+          });
+          return;
+        }
+        this._pushHistory();
+        Object.values(players).forEach(p => {
+          p.score = val;
+        });
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'resetAll') {
+        this._pushHistory();
+        Object.values(players).forEach(p => {
+          p.score = '0/1';
+        });
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'removePlayer') {
+        this._pushHistory();
+        ref.child('players/' + payload.playerId).remove();
+        A({
+          ok: true
+        });
+      } else if (type === 'renamePlayer') {
+        const nm = (payload.name || '').trim().slice(0, 30);
+        if (!nm) {
+          A({
+            ok: false,
+            error: 'invalid_name'
+          });
+          return;
+        }
+        this._pushHistory();
+        ref.child('players/' + payload.playerId + '/name').set(nm);
+        A({
+          ok: true
+        });
+      } else if (type === 'createTeam') {
+        const nm = (payload.name || '').trim().slice(0, 30);
+        if (!nm) {
+          A({
+            ok: false,
+            error: 'invalid_name'
+          });
+          return;
+        }
+        const tid = genId('t');
+        this._pushHistory();
+        ref.child('teams/' + tid).set({
+          id: tid,
+          name: nm
+        });
+        A({
+          ok: true
+        });
+      } else if (type === 'renameTeam') {
+        const nm = (payload.name || '').trim().slice(0, 30);
+        if (!nm) {
+          A({
+            ok: false,
+            error: 'invalid_name'
+          });
+          return;
+        }
+        this._pushHistory();
+        ref.child('teams/' + payload.teamId + '/name').set(nm);
+        A({
+          ok: true
+        });
+      } else if (type === 'removeTeam') {
+        this._pushHistory();
+        ref.child('teams/' + payload.teamId).remove();
+        Object.values(players).forEach(p => {
+          if (p.teamId === payload.teamId) ref.child('players/' + p.id + '/teamId').set(null);
+        });
+        A({
+          ok: true
+        });
+      } else if (type === 'assignTeam') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        this._pushHistory();
+        ref.child('players/' + payload.playerId + '/teamId').set(payload.teamId || null);
+        A({
+          ok: true
+        });
+      } else if (type === 'undo') {
+        if (this.history.length === 0) {
+          A({
+            ok: false,
+            error: 'nothing_to_undo'
+          });
+          return;
+        }
+        const snap = this.history.pop();
+        ref.child('players').set(snap.players || {});
+        ref.child('teams').set(snap.teams || {});
+        A({
+          ok: true
+        });
+      } else {
+        A({
+          ok: false,
+          error: 'unknown_op'
+        });
+      }
+    } catch (e) {
+      A({
+        ok: false,
+        error: e.message
+      });
+    }
+  }
+}
+
+// Firebase 未設定時のダミー（画面は出るが操作はエラーになる）
+class DeadSocket {
+  on() {}
+  off() {}
+  emit(event, data, ack) {
+    if (typeof data === 'function') ack = data;
+    if (typeof ack === 'function') ack({
+      ok: false,
+      error: 'firebase_not_configured'
+    });
+  }
+}
+const getSocket = () => {
+  if (!socketInstance) socketInstance = FB_CONFIGURED ? new FirebaseSocket() : new DeadSocket();
+  return socketInstance;
+};
+
+// ==========================================
+// App
+// ==========================================
+const App = () => {
+  const [view, setView] = useState('home'); // home, host, participant
+  const [roomId, setRoomId] = useState('');
+  const [hostToken, setHostToken] = useState('');
+  const [myPlayerId, setMyPlayerId] = useState(null);
+  const [myName, setMyName] = useState('');
+  const [state, setState] = useState({
+    players: [],
+    teams: [],
+    timeline: []
+  });
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  // サーバ接続状態（Firebase が設定済みか・つながっているか）
+  const hasBackend = FB_CONFIGURED;
+  const [connected, setConnected] = useState(false);
+
+  // サーバが timeline を送らない場合に備え、フロントで得点推移を蓄積（仕様書 方式②）
+  const timelineRef = useRef([]);
+  useEffect(() => {
+    const socket = getSocket();
+    if (socket.connected) setConnected(true);
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('state', newState => {
+      let tl = newState.timeline;
+      if (!tl || tl.length === 0) {
+        const scores = {};
+        (newState.players || []).forEach(p => {
+          scores[p.id] = p.score;
+        });
+        timelineRef.current = [...timelineRef.current, {
+          t: Date.now(),
+          scores
+        }];
+        tl = timelineRef.current;
+      } else {
+        timelineRef.current = tl;
+      }
+      setState({
+        ...newState,
+        timeline: tl
+      });
+    });
+    return () => socket.off('state');
+  }, []);
+
+  // 初期ロード時に URL の ?room= で自動参加
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = (urlParams.get('room') || '').trim().toUpperCase() || null;
+    const savedHostToken = roomFromUrl ? localStorage.getItem(`hostToken_${roomFromUrl}`) : null;
+    const savedPlayerId = roomFromUrl ? localStorage.getItem(`playerId_${roomFromUrl}`) : null;
+    const savedName = localStorage.getItem('playerName');
+    if (roomFromUrl) {
+      setRoomId(roomFromUrl);
+      if (savedHostToken) {
+        getSocket().emit('hostJoin', {
+          roomId: roomFromUrl,
+          hostToken: savedHostToken
+        }, res => {
+          if (res && res.ok) {
+            setHostToken(savedHostToken);
+            setState(prev => ({
+              ...prev,
+              ...res.state
+            }));
+            setView('host');
+          } else if (savedName) {
+            handleJoin(roomFromUrl, savedName, savedPlayerId);
+          } else {
+            setView('join');
+          }
+        });
+      } else if (savedName) {
+        handleJoin(roomFromUrl, savedName, savedPlayerId);
+      } else {
+        // 招待リンク経由：ロビーではなく「この部屋に入室」画面へ
+        setView('join');
+      }
+    }
+  }, []);
+  const handleCreateRoom = () => {
+    // 既存サーバは createRoom のコールバックを第1引数で受け取る
+    getSocket().emit('createRoom', res => {
+      if (!res || !res.ok) return;
+      setRoomId(res.roomId);
+      setHostToken(res.hostToken);
+      localStorage.setItem(`hostToken_${res.roomId}`, res.hostToken);
+      const url = new URL(window.location);
+      url.searchParams.set('room', res.roomId);
+      window.history.pushState({}, '', url);
+
+      // ホストも部屋に join しないと state ブロードキャストが届かない
+      getSocket().emit('hostJoin', {
+        roomId: res.roomId,
+        hostToken: res.hostToken
+      }, r => {
+        if (r && r.ok) setState(prev => ({
+          ...prev,
+          ...r.state
+        }));
+      });
+      setView('host');
+    });
+  };
+  const handleJoin = (rId, name, pId = null) => {
+    getSocket().emit('joinRoom', {
+      roomId: rId,
+      name,
+      playerId: pId
+    }, res => {
+      if (res && res.ok) {
+        setRoomId(rId);
+        setMyPlayerId(res.playerId);
+        setMyName(name);
+        localStorage.setItem(`playerId_${rId}`, res.playerId);
+        localStorage.setItem('playerName', name);
+        setState(prev => ({
+          ...prev,
+          ...res.state
+        }));
+        const url = new URL(window.location);
+        url.searchParams.set('room', rId);
+        window.history.pushState({}, '', url);
+        setView('participant');
+      } else {
+        alert(res && res.error === 'room_not_found' ? '部屋が見つかりませんでした。\n・司会者に最新の招待リンクを発行してもらってください\n（サーバが再起動・スリープすると部屋は消えます）' : '入室に失敗しました: ' + (res && res.error));
+      }
+    });
+  };
+  const executeOp = (type, payload = {}) => {
+    getSocket().emit('op', {
+      roomId,
+      hostToken,
+      type,
+      payload
+    }, res => {
+      if (!res || !res.ok) console.error("Op failed:", res && res.error);
+    });
+  };
+  const toggleSound = () => {
+    setSoundEnabled(!soundEnabled);
+    if (!soundEnabled) playSound('pop', true);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
+  }, !connected && /*#__PURE__*/React.createElement("div", {
+    className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
+  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), /*#__PURE__*/React.createElement("div", {
+    className: "absolute top-4 right-4 z-50"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: toggleSound,
+    className: "p-2 rounded-full bg-gray-800 text-gray-400 hover:text-yellow-400 transition-colors"
+  }, soundEnabled ? '🔊 音声ON' : '🔇 音声OFF')), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
+    onCreate: handleCreateRoom,
+    onJoin: (r, n) => handleJoin(r, n),
+    defaultRoom: roomId,
+    defaultName: myName
+  }), view === 'join' && /*#__PURE__*/React.createElement(JoinView, {
+    roomId: roomId,
+    defaultName: myName,
+    onJoin: n => handleJoin(roomId, n),
+    onBack: () => setView('home')
+  }), view === 'host' && /*#__PURE__*/React.createElement(HostView, {
+    state: state,
+    roomId: roomId,
+    onOp: executeOp,
+    playSound: type => playSound(type, soundEnabled)
+  }), view === 'participant' && /*#__PURE__*/React.createElement(ParticipantView, {
+    state: state,
+    roomId: roomId,
+    myPlayerId: myPlayerId,
+    playSound: type => playSound(type, soundEnabled)
+  }));
+};
+
+// ==========================================
+// Home View
+// ==========================================
+const HomeView = ({
+  onCreate,
+  onJoin,
+  defaultRoom,
+  defaultName
+}) => {
+  const [room, setRoom] = useState(defaultRoom || '');
+  const [name, setName] = useState(defaultName || '');
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col items-center justify-center min-h-screen p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-12 text-center space-y-4"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
+  }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-400"
+  }, "リアルタイム得点表示システム")), /*#__PURE__*/React.createElement("div", {
+    className: "w-full max-w-md space-y-8"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "text-xl font-bold mb-4 text-white"
+  }, "参加者として入室"), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-4"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    inputMode: "text",
+    autoCapitalize: "characters",
+    autoCorrect: "off",
+    autoComplete: "off",
+    placeholder: "部屋コード (6文字)",
+    value: room,
+    onChange: e => setRoom(e.target.value),
+    style: {
+      textTransform: 'uppercase'
+    },
+    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-center tracking-widest"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "あなたの名前",
+    value: name,
+    onChange: e => setName(e.target.value),
+    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onJoin(room.trim().toUpperCase(), name.trim()),
+    disabled: !room.trim() || !name.trim(),
+    className: "w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
+  }, "入室する"))), /*#__PURE__*/React.createElement("div", {
+    className: "relative flex items-center py-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-grow border-t border-gray-800"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "flex-shrink-0 mx-4 text-gray-500 text-sm"
+  }, "または"), /*#__PURE__*/React.createElement("div", {
+    className: "flex-grow border-t border-gray-800"
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: onCreate,
+    className: "w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", null, "👑"), " 司会者として新しい部屋を作る")));
+};
+
+// ==========================================
+// Join View（招待リンク専用：名前を入れて即入室）
+// ==========================================
+const JoinView = ({
+  roomId,
+  defaultName,
+  onJoin,
+  onBack
+}) => {
+  const [name, setName] = useState(defaultName || '');
+  const submit = () => {
+    const n = name.trim();
+    if (n) onJoin(n);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col items-center justify-center min-h-screen p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-8 text-center space-y-3"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
+  }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-400"
+  }, "この部屋に入室します"), /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl font-mono tracking-widest text-yellow-400"
+  }, "ROOM ", roomId)), /*#__PURE__*/React.createElement("div", {
+    className: "w-full max-w-md bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800 space-y-4"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "あなたの名前",
+    value: name,
+    onChange: e => setName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') submit();
+    },
+    autoFocus: true,
+    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: submit,
+    disabled: !name.trim(),
+    className: "w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
+  }, "入室する"), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    className: "w-full text-gray-500 hover:text-gray-300 text-sm py-1"
+  }, "別の部屋コードを入力する")));
+};
+
+// ==========================================
+// Participant View
+// ==========================================
+const ParticipantView = ({
+  state,
+  roomId,
+  myPlayerId,
+  playSound
+}) => {
+  const [tab, setTab] = useState('ranking'); // ranking, graph
+
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col min-h-screen bg-gray-950 pb-8"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-20 flex justify-between items-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-gray-300 flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-2 h-2 rounded-full bg-green-500 animate-pulse"
+  }), "ROOM: ", /*#__PURE__*/React.createElement("span", {
+    className: "text-yellow-400 font-mono tracking-widest"
+  }, roomId)), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 bg-gray-800 p-1 rounded-lg"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab('ranking'),
+    className: `px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
+  }, "ランキング"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab('graph'),
+    className: `px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
+  }, "グラフ"))), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 p-4 max-w-4xl w-full mx-auto mt-4"
+  }, tab === 'ranking' ? /*#__PURE__*/React.createElement("div", {
+    className: "space-y-8"
+  }, state.teams.length > 0 && /*#__PURE__*/React.createElement(TeamBoard, {
+    teams: state.teams,
+    players: state.players
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+    className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider"
+  }, "個人ランキング"), /*#__PURE__*/React.createElement(PlayerList, {
+    players: state.players,
+    teams: state.teams,
+    myPlayerId: myPlayerId,
+    playSound: playSound
+  }))) : /*#__PURE__*/React.createElement(ScoreGraph, {
+    timeline: state.timeline,
+    players: state.players
+  })));
+};
+
+// ==========================================
+// Host View
+// ==========================================
+const HostView = ({
+  state,
+  roomId,
+  onOp,
+  playSound
+}) => {
+  const [actionMode, setActionMode] = useState('calc'); // calc, ox
+  const [calcOp, setCalcOp] = useState('×');
+  const [calcVal, setCalcVal] = useState('1');
+  const [oxPoint, setOxPoint] = useState('10');
+  const copyUrl = () => {
+    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    navigator.clipboard.writeText(url);
+    alert('共有URLをコピーしました');
+  };
+  const handleAction = (player, actionType) => {
+    if (actionType === 'ox_o') {
+      onOp('score', {
+        playerId: player.id,
+        operator: '+',
+        valueStr: oxPoint
+      });
+      playSound('correct');
+    } else if (actionType === 'ox_x') {
+      onOp('score', {
+        playerId: player.id,
+        operator: '-',
+        valueStr: oxPoint
+      });
+      playSound('wrong');
+    } else if (actionType === 'calc') {
+      const internalOp = calcOp === '×' ? '*' : calcOp === '÷' ? '/' : calcOp;
+      onOp('score', {
+        playerId: player.id,
+        operator: internalOp,
+        valueStr: calcVal
+      });
+      playSound('pop');
+    }
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col h-screen bg-gray-950 overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center shrink-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-lg"
+  }, "HOST"), /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-xl tracking-widest text-white"
+  }, roomId), /*#__PURE__*/React.createElement("button", {
+    onClick: copyUrl,
+    className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700"
+  }, "URLコピー")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('undo'),
+    className: "text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-gray-700 text-gray-300"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "16",
+    height: "16",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M3 7v6h6"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
+  })), "UNDO")), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-1 overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 overflow-y-auto p-4 pb-40"
+  }, /*#__PURE__*/React.createElement(PlayerList, {
+    players: state.players,
+    teams: state.teams,
+    isHost: true,
+    actionConfig: {
+      mode: actionMode,
+      op: calcOp,
+      val: calcVal,
+      oxPt: oxPoint
+    },
+    onAction: handleAction,
+    playSound: playSound,
+    onRemove: id => {
+      if (window.confirm('削除しますか？')) onOp('removePlayer', {
+        playerId: id
+      });
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "w-80 bg-gray-900 border-l border-gray-800 p-4 hidden md:flex flex-col overflow-y-auto"
+  }, /*#__PURE__*/React.createElement(HostTeamsPanel, {
+    state: state,
+    onOp: onOp
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "absolute bottom-0 left-0 right-0 md:right-80 bg-gray-900 border-t border-gray-800 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex bg-gray-950 p-1 rounded-xl border border-gray-800 shrink-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setActionMode('calc'),
+    className: `px-4 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === 'calc' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`
+  }, "通常計算"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setActionMode('ox'),
+    className: `px-4 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === 'ox' ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`
+  }, "○×モード")), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 flex justify-center items-center"
+  }, actionMode === 'calc' ? /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
+  }, /*#__PURE__*/React.createElement("select", {
+    value: calcOp,
+    onChange: e => setCalcOp(e.target.value),
+    className: "bg-gray-900 text-white text-xl font-bold p-2 rounded-lg outline-none appearance-none text-center w-12 cursor-pointer"
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "×"
+  }, "×"), /*#__PURE__*/React.createElement("option", {
+    value: "÷"
+  }, "÷"), /*#__PURE__*/React.createElement("option", {
+    value: "+"
+  }, "＋"), /*#__PURE__*/React.createElement("option", {
+    value: "-"
+  }, "－")), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: calcVal,
+    onChange: e => setCalcVal(e.target.value),
+    className: "bg-gray-900 text-white text-xl font-bold p-2 w-20 rounded-lg outline-none text-center placeholder-gray-600",
+    placeholder: "値"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "text-gray-400 text-sm px-2 hidden sm:block"
+  }, "を適用する")) : /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-400 text-sm font-bold pl-2"
+  }, "規定点:"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: oxPoint,
+    onChange: e => setOxPoint(e.target.value),
+    className: "bg-gray-900 text-yellow-400 text-xl font-bold p-2 w-20 rounded-lg outline-none text-center"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 shrink-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm('全員を1にしますか？')) onOp('setAll', {
+        valueStr: '1'
+      });
+    },
+    className: "bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700"
+  }, "全員1に"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm('全員の得点を0にリセットしますか？')) onOp('resetAll');
+    },
+    className: "bg-red-950/50 hover:bg-red-900/50 text-red-400 text-xs font-bold px-3 py-2 rounded-lg border border-red-900"
+  }, "0リセット")))));
+};
+const HostTeamsPanel = ({
+  state,
+  onOp
+}) => {
+  const [newTeam, setNewTeam] = useState('');
+  return /*#__PURE__*/React.createElement("div", {
+    className: "space-y-8"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+    className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "16",
+    height: "16",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "9",
+    cy: "7",
+    r: "4"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M23 21v-2a4 4 0 0 0-3-3.87"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M16 3.13a4 4 0 0 1 0 7.75"
+  })), "チーム管理"), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mb-4"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: newTeam,
+    onChange: e => setNewTeam(e.target.value),
+    placeholder: "新チーム名",
+    className: "flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-500"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (newTeam) {
+        onOp('createTeam', {
+          name: newTeam
+        });
+        setNewTeam('');
+      }
+    },
+    className: "bg-gray-700 hover:bg-gray-600 px-3 rounded-lg text-sm font-bold transition-colors"
+  }, "+")), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-4"
+  }, state.teams.map(team => /*#__PURE__*/React.createElement("div", {
+    key: team.id,
+    className: "bg-gray-800 rounded-xl p-3 border border-gray-700"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-white mb-2"
+  }, team.name), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-1"
+  }, state.players.filter(p => p.teamId === team.id).map(p => /*#__PURE__*/React.createElement("div", {
+    key: p.id,
+    className: "text-xs text-gray-400 flex justify-between items-center bg-gray-900 p-1.5 rounded-md"
+  }, /*#__PURE__*/React.createElement("span", null, p.name), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('assignTeam', {
+      playerId: p.id,
+      teamId: null
+    }),
+    className: "text-red-400 hover:text-red-300"
+  }, "外す"))), /*#__PURE__*/React.createElement("select", {
+    className: "w-full bg-gray-900 border border-gray-700 text-xs text-gray-300 p-1.5 rounded-md mt-2 outline-none",
+    value: "",
+    onChange: e => {
+      if (e.target.value) onOp('assignTeam', {
+        playerId: e.target.value,
+        teamId: team.id
+      });
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "+ メンバー追加..."), state.players.filter(p => p.teamId !== team.id).map(p => /*#__PURE__*/React.createElement("option", {
+    key: p.id,
+    value: p.id
+  }, p.name)))))))));
+};
+
+// ==========================================
+// Board & FLIP List
+// ==========================================
+const TeamBoard = ({
+  teams,
+  players
+}) => {
+  const teamScores = useMemo(() => {
+    return teams.map(t => {
+      const members = players.filter(p => p.teamId === t.id);
+      if (members.length === 0) return {
+        ...t,
+        score: 0
+      };
+      let product = 1;
+      members.forEach(m => product *= parseScoreToNumber(m.score));
+      return {
+        ...t,
+        score: product
+      };
+    }).sort((a, b) => b.score - a.score);
+  }, [teams, players]);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "text-sm font-bold text-yellow-500 mb-4 flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "18",
+    height: "18",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+  })), "チームランキング (積)"), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-4"
+  }, teamScores.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: t.id,
+    className: "flex-1 min-w-[120px] bg-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden border border-gray-700"
+  }, i === 0 && t.score > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "absolute top-0 left-0 w-full h-1 bg-yellow-400"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "text-gray-400 text-sm font-bold mb-1 truncate w-full text-center"
+  }, t.name), /*#__PURE__*/React.createElement("div", {
+    className: "text-3xl font-black text-white tracking-tighter"
+  }, Number.isInteger(t.score) ? t.score : Number(t.score.toFixed(2)))))));
+};
+const PlayerList = ({
+  players,
+  teams,
+  myPlayerId,
+  isHost,
+  onAction,
+  actionConfig,
+  onRemove
+}) => {
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      const sA = parseScoreToNumber(a.score);
+      const sB = parseScoreToNumber(b.score);
+      if (sB !== sA) return sB - sA;
+      return a.name.localeCompare(b.name);
+    });
+  }, [players]);
+  const rowHeight = isHost ? 80 : 72;
+  const gap = 8;
+  const containerHeight = sortedPlayers.length * (rowHeight + gap);
+  if (players.length === 0) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "text-center p-8 text-gray-500 bg-gray-900 rounded-2xl border border-gray-800 border-dashed"
+    }, "まだ参加者がいません");
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "relative w-full transition-all duration-500 ease-in-out",
+    style: {
+      height: containerHeight
+    }
+  }, sortedPlayers.map((p, index) => {
+    const team = teams?.find(t => t.id === p.teamId);
+    return /*#__PURE__*/React.createElement(PlayerRow, {
+      key: p.id,
+      player: p,
+      team: team,
+      index: index,
+      isMe: p.id === myPlayerId,
+      top: index * (rowHeight + gap),
+      height: rowHeight,
+      isHost: isHost,
+      onAction: onAction,
+      actionConfig: actionConfig,
+      onRemove: onRemove
+    });
+  }));
+};
+const PlayerRow = ({
+  player,
+  team,
+  index,
+  isMe,
+  top,
+  height,
+  isHost,
+  onAction,
+  actionConfig,
+  onRemove
+}) => {
+  const [flash, setFlash] = useState(null);
+  const prevScore = useRef(parseScoreToNumber(player.score));
+  const scoreNum = parseScoreToNumber(player.score);
+  const isTop = index === 0 && scoreNum > 0;
+  useEffect(() => {
+    const current = parseScoreToNumber(player.score);
+    if (current > prevScore.current) {
+      setFlash('green');
+      setTimeout(() => setFlash(null), 600);
+    } else if (current < prevScore.current) {
+      setFlash('red');
+      setTimeout(() => setFlash(null), 600);
+    }
+    prevScore.current = current;
+  }, [player.score]);
+  let bgClass = 'bg-gray-800';
+  let borderClass = 'border-gray-700 border';
+  if (isMe) {
+    bgClass = 'bg-blue-900/40';
+    borderClass = 'border-blue-500/50 border-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]';
+  }
+  if (isTop && !isHost) {
+    borderClass = 'border-yellow-400/50 border-2 shadow-[0_0_20px_rgba(250,204,21,0.2)]';
+  }
+  let flashOverlay = null;
+  if (flash === 'green') flashOverlay = /*#__PURE__*/React.createElement("div", {
+    className: "absolute inset-0 bg-green-500/20 rounded-xl animate-pulse pointer-events-none"
+  });else if (flash === 'red') flashOverlay = /*#__PURE__*/React.createElement("div", {
+    className: "absolute inset-0 bg-red-500/20 rounded-xl animate-pulse pointer-events-none"
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    className: `absolute left-0 right-0 rounded-xl flex items-center px-3 sm:px-5 transition-all duration-500 ease-out z-10 ${bgClass} ${borderClass}`,
+    style: {
+      top: `${top}px`,
+      height: `${height}px`,
+      transform: flash === 'red' ? 'translateX(2px)' : 'none'
+    }
+  }, flashOverlay, /*#__PURE__*/React.createElement("div", {
+    className: "w-8 sm:w-10 flex-shrink-0 flex items-center"
+  }, isTop ? /*#__PURE__*/React.createElement("span", {
+    className: "text-2xl",
+    title: "1位"
+  }, "👑") : /*#__PURE__*/React.createElement("span", {
+    className: `text-lg sm:text-xl font-bold ${isMe ? 'text-blue-300' : 'text-gray-500'}`
+  }, index + 1)), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 min-w-0 pr-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-base sm:text-lg font-bold text-white truncate"
+  }, player.name), team && /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] sm:text-xs font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap border border-gray-600"
+  }, team.name)), isMe && /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-blue-400 font-bold mt-0.5"
+  }, "YOU")), /*#__PURE__*/React.createElement("div", {
+    className: "flex-shrink-0 flex items-center justify-end mr-2 sm:mr-4 w-20 sm:w-28"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-3xl sm:text-4xl font-black tracking-tighter transition-colors duration-300 ${flash === 'green' ? 'text-green-400' : flash === 'red' ? 'text-red-400' : 'text-yellow-400'}`
+  }, formatScoreStr(player.score))), isHost && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1.5 sm:gap-2 flex-shrink-0 border-l border-gray-700 pl-3 sm:pl-4 py-2"
+  }, actionConfig.mode === 'calc' ? /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, 'calc'),
+    className: "bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors border border-gray-600 active:scale-95 flex items-center justify-center min-w-[60px] sm:min-w-[80px]"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-yellow-400 mr-1"
+  }, actionConfig.op), actionConfig.val) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, 'ox_o'),
+    className: "bg-green-900/50 hover:bg-green-800/50 text-green-400 font-black py-2 px-4 rounded-lg border-2 border-green-700/50 active:scale-95 transition-all text-xl"
+  }, "○"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAction(player, 'ox_x'),
+    className: "bg-red-900/50 hover:bg-red-800/50 text-red-400 font-black py-2 px-4 rounded-lg border-2 border-red-700/50 active:scale-95 transition-all text-xl"
+  }, "×")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onRemove(player.id),
+    className: "ml-1 p-2 text-gray-600 hover:text-red-400 transition-colors"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "16",
+    height: "16",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M18 6L6 18M6 6l12 12"
+  })))));
+};
+
+// ==========================================
+// Graph View（SVGによる自前描画）
+// ==========================================
+const ScoreGraph = ({
+  timeline,
+  players
+}) => {
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(800);
+  const height = 400;
+  const padding = {
+    top: 40,
+    right: 40,
+    bottom: 40,
+    left: 60
+  };
+  useEffect(() => {
+    if (containerRef.current) {
+      setWidth(containerRef.current.clientWidth);
+      const handleResize = () => setWidth(containerRef.current.clientWidth);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+  if (!timeline || timeline.length < 2) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "flex flex-col items-center justify-center h-[400px] bg-gray-900 rounded-2xl border border-gray-800 text-gray-500 p-8 text-center"
+    }, /*#__PURE__*/React.createElement("svg", {
+      width: "48",
+      height: "48",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1",
+      className: "mb-4 opacity-50"
+    }, /*#__PURE__*/React.createElement("polyline", {
+      points: "22 12 18 12 15 21 9 3 6 12 2 12"
+    })), "グラフを描画するのに十分なデータがありません。", /*#__PURE__*/React.createElement("br", null), "得点が変動すると記録が開始されます。");
+  }
+  const activePlayers = players.filter(p => timeline[timeline.length - 1].scores[p.id] !== undefined);
+  const colors = ['#facc15', '#3b82f6', '#ef4444', '#10b981', '#a855f7', '#f97316', '#06b6d4', '#ec4899'];
+  let minScore = 0;
+  let maxScore = 10;
+  timeline.forEach(point => {
+    Object.values(point.scores).forEach(s => {
+      const val = parseScoreToNumber(s);
+      if (val > maxScore) maxScore = val;
+      if (val < minScore) minScore = val;
+    });
+  });
+  maxScore = Math.ceil(maxScore * 1.1);
+  minScore = Math.floor(minScore < 0 ? minScore * 1.1 : 0);
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+  const getX = index => padding.left + index / (timeline.length - 1) * innerWidth;
+  const getY = val => padding.top + innerHeight - (val - minScore) / (maxScore - minScore || 1) * innerHeight;
+  return /*#__PURE__*/React.createElement("div", {
+    ref: containerRef,
+    className: "bg-gray-900 rounded-2xl border border-gray-800 p-4 shadow-xl overflow-hidden w-full relative"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "text-sm font-bold text-gray-400 mb-2 px-2"
+  }, "得点推移"), /*#__PURE__*/React.createElement("svg", {
+    width: width,
+    height: height,
+    className: "overflow-visible"
+  }, [0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+    const y = padding.top + innerHeight * ratio;
+    const val = maxScore - (maxScore - minScore) * ratio;
+    return /*#__PURE__*/React.createElement("g", {
+      key: i
+    }, /*#__PURE__*/React.createElement("line", {
+      x1: padding.left,
+      y1: y,
+      x2: width - padding.right,
+      y2: y,
+      stroke: "#374151",
+      strokeDasharray: "4 4",
+      strokeWidth: "1"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: padding.left - 10,
+      y: y + 4,
+      fill: "#6b7280",
+      fontSize: "12",
+      textAnchor: "end",
+      fontFamily: "monospace"
+    }, Number.isInteger(val) ? val : val.toFixed(1)));
+  }), minScore < 0 && /*#__PURE__*/React.createElement("line", {
+    x1: padding.left,
+    y1: getY(0),
+    x2: width - padding.right,
+    y2: getY(0),
+    stroke: "#4b5563",
+    strokeWidth: "2"
+  }), activePlayers.map((p, pIndex) => {
+    const color = colors[pIndex % colors.length];
+    const points = timeline.map((t, tIndex) => `${getX(tIndex)},${getY(parseScoreToNumber(t.scores[p.id]))}`).join(' ');
+    const lastVal = parseScoreToNumber(timeline[timeline.length - 1].scores[p.id]);
+    return /*#__PURE__*/React.createElement("g", {
+      key: p.id
+    }, /*#__PURE__*/React.createElement("polyline", {
+      points: points,
+      fill: "none",
+      stroke: color,
+      strokeWidth: "3",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      className: "drop-shadow-md"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: getX(timeline.length - 1),
+      cy: getY(lastVal),
+      r: "5",
+      fill: color,
+      stroke: "#111827",
+      strokeWidth: "2"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: getX(timeline.length - 1) + 10,
+      y: getY(lastVal) + 4,
+      fill: color,
+      fontSize: "12",
+      fontWeight: "bold"
+    }, p.name));
+  })));
+};
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(/*#__PURE__*/React.createElement(App, null));
+  </script>
+</body>
+</html>
