@@ -1,0 +1,18 @@
+{
+  "name": "quiz_point",
+  "version": "1.0.0",
+  "description": "クイズ用得点サイト（tokuten 拡張版）: かけ算・わり算・チーム機能対応のリアルタイム得点表",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
