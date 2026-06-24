@@ -308,11 +308,13 @@ let socketInstance = null;
 // Firebase 設定（★ここにあなたの Firebase 設定を貼る）
 // ==========================================
 const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE.firebaseapp.com",
-  databaseURL: "https://PASTE-default-rtdb.firebaseio.com",
-  projectId: "PASTE",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyBcByOVfP3zT8SbA0iPeSJOPV4TyXUGg9I",
+  authDomain: "quiz-point-8dfab.firebaseapp.com",
+  databaseURL: "https://quiz-point-8dfab-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "quiz-point-8dfab",
+  storageBucket: "quiz-point-8dfab.firebasestorage.app",
+  messagingSenderId: "647540813825",
+  appId: "1:647540813825:web:7990651ab1d1104db29000"
 };
 const FB_CONFIGURED = typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'PASTE_API_KEY' && firebaseConfig.databaseURL && firebaseConfig.databaseURL.indexOf('PASTE') === -1;
 let _db = null;
