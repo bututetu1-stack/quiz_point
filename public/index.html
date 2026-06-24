@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>クイズ得点</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- ホーム（部屋作成） -->
+    <section id="home" class="hidden">
+      <h1>🧮 クイズ得点</h1>
+      <p class="muted">かけ算・わり算・チーム得点に対応した得点表。部屋を建てて、参加者にリンクを共有しよう。</p>
+      <div class="card center">
+        <button id="createBtn">部屋を作る（ホスト）</button>
+        <p class="muted" style="margin-top:14px;">参加者は共有されたリンクから入室してください。</p>
+      </div>
+      <div class="card">
+        <h2>部屋コードで入る</h2>
+        <div class="row">
+          <input id="joinCode" class="grow" placeholder="部屋コード（例: ABC123）" maxlength="6" autocapitalize="characters" />
+          <button id="goJoin" class="secondary">入る</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 参加者: 名前入力 -->
+    <section id="joinForm" class="hidden">
+      <h1>入室</h1>
+      <p class="muted">部屋コード: <span id="joinRoomCode" class="roomcode"></span></p>
+      <div class="card">
+        <label class="muted" for="nameInput">あなたの名前</label>
+        <div class="row" style="margin-top:6px;">
+          <input id="nameInput" class="grow" placeholder="名前を入力" maxlength="30" />
+          <button id="enterBtn">入室</button>
+        </div>
+        <p id="joinError" class="error"></p>
+      </div>
+    </section>
+
+    <!-- 参加者: 閲覧専用ボード -->
+    <section id="viewer" class="hidden">
+      <h1>得点表</h1>
+      <p class="muted">部屋 <span id="viewerRoomCode" class="roomcode" style="font-size:1.1rem;"></span> ・ <span id="viewerName"></span> として閲覧中（更新は自動）</p>
+
+      <div id="teamsSection" class="hidden">
+        <h2>チーム得点</h2>
+        <ul id="teamBoard" class="board"></ul>
+      </div>
+
+      <h2>個人得点</h2>
+      <ul id="playerBoard" class="board"></ul>
+    </section>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/participant.js"></script>
+</body>
+</html>
