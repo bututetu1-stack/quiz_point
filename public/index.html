@@ -7,7 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style> html, body { background: #030712; margin: 0; } </style>
 </head>
 <body>
@@ -21,7 +22,7 @@
     });
     setTimeout(function () {
       var b = document.getElementById("boot");
-      if (b && b.textContent === "読み込み中…") { b.style.color = "#ffd24a"; b.textContent = "読み込みに失敗しました。react/tailwind の CDN に接続できていない可能性があります。"; }
+      if (b && b.textContent === "読み込み中…") { b.style.color = "#ffd24a"; b.textContent = "読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; }
     }, 7000);
   </script>
   <script>
@@ -302,10 +303,545 @@ class MockSocket {
   }
 }
 let socketInstance = null;
-const getSocket = () => {
-  if (!socketInstance) {
-    socketInstance = typeof window.io !== 'undefined' ? window.io() : new MockSocket();
+
+// ==========================================
+// Firebase 設定（★ここにあなたの Firebase 設定を貼る）
+// ==========================================
+const firebaseConfig = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE.firebaseapp.com",
+  databaseURL: "https://PASTE-default-rtdb.firebaseio.com",
+  projectId: "PASTE",
+  appId: "PASTE_APP_ID"
+};
+const FB_CONFIGURED = typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'PASTE_API_KEY' && firebaseConfig.databaseURL && firebaseConfig.databaseURL.indexOf('PASTE') === -1;
+let _db = null;
+const getDb = () => {
+  if (!_db && FB_CONFIGURED) {
+    firebase.initializeApp(firebaseConfig);
+    _db = firebase.database();
   }
+  return _db;
+};
+
+// ---- 有理数（分数）演算：得点を厳密に保持 ----
+const _gcd = (a, b) => {
+  a = a < 0n ? -a : a;
+  b = b < 0n ? -b : b;
+  while (b) {
+    [a, b] = [b, a % b];
+  }
+  return a;
+};
+const _rMake = (n, d) => {
+  if (d === 0n) return null;
+  if (d < 0n) {
+    n = -n;
+    d = -d;
+  }
+  if (n === 0n) return "0/1";
+  const g = _gcd(n, d) || 1n;
+  return `${n / g}/${d / g}`;
+};
+const _rParse = s => {
+  const [a, b] = String(s == null ? "0" : s).split('/');
+  return {
+    n: BigInt(a || "0"),
+    d: b === undefined ? 1n : BigInt(b)
+  };
+};
+const _decToRat = s => {
+  if (!/^[+-]?(\d+(\.\d+)?|\.\d+)$/.test(s)) return null;
+  let sign = 1n;
+  if (s[0] === '+') s = s.slice(1);else if (s[0] === '-') {
+    sign = -1n;
+    s = s.slice(1);
+  }
+  if (s.indexOf('.') >= 0) {
+    const [i, f] = s.split('.');
+    return {
+      n: BigInt((i || '0') + f) * sign,
+      d: 10n ** BigInt(f.length)
+    };
+  }
+  return {
+    n: BigInt(s) * sign,
+    d: 1n
+  };
+};
+const parseValue = input => {
+  if (input == null) return null;
+  let s = String(input).trim();
+  if (s === '') return null;
+  if (s.indexOf('/') >= 0) {
+    const p = s.split('/');
+    if (p.length !== 2) return null;
+    const a = _decToRat(p[0].trim()),
+      b = _decToRat(p[1].trim());
+    if (!a || !b) return null;
+    return _rMake(a.n * b.d, a.d * b.n);
+  }
+  const r = _decToRat(s);
+  return r ? _rMake(r.n, r.d) : null;
+};
+const applyOp = (scoreStr, op, valStr) => {
+  const a = _rParse(scoreStr || "0/1"),
+    b = _rParse(valStr);
+  let n, d;
+  switch (op) {
+    case '+':
+      n = a.n * b.d + b.n * a.d;
+      d = a.d * b.d;
+      break;
+    case '-':
+      n = a.n * b.d - b.n * a.d;
+      d = a.d * b.d;
+      break;
+    case '*':
+      n = a.n * b.n;
+      d = a.d * b.d;
+      break;
+    case '/':
+      if (b.n === 0n) return scoreStr;
+      n = a.n * b.d;
+      d = a.d * b.n;
+      break;
+    default:
+      return scoreStr;
+  }
+  return _rMake(n, d);
+};
+
+// ---- ID/コード生成 ----
+const _clone = o => JSON.parse(JSON.stringify(o || {}));
+const genRoomCode = () => {
+  const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random() * a.length)];
+  return s;
+};
+const genToken = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+const genId = p => p + '_' + Math.random().toString(36).slice(2, 10);
+
+// ==========================================
+// Firebase 版「ソケット」：既存の emit/on インターフェースを踏襲
+// ==========================================
+class FirebaseSocket {
+  constructor() {
+    this.handlers = {};
+    this.history = [];
+    this.latestVal = {};
+    this.roomId = null;
+    this._connected = false;
+    this._subRef = null;
+    this._sub = null;
+    this.db = getDb();
+    if (this.db) {
+      this.db.ref('.info/connected').on('value', s => {
+        this._connected = !!s.val();
+        const h = this.handlers[this._connected ? 'connect' : 'disconnect'];
+        if (h) h();
+      });
+    }
+  }
+  on(e, h) {
+    this.handlers[e] = h;
+    if (e === 'connect' && this._connected) h();
+  }
+  off(e) {
+    delete this.handlers[e];
+  }
+  _stateObj() {
+    const v = this.latestVal || {};
+    return {
+      roomId: this.roomId,
+      players: Object.values(v.players || {}),
+      teams: Object.values(v.teams || {}),
+      timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
+    };
+  }
+  _emitState() {
+    const h = this.handlers['state'];
+    if (h) h(this._stateObj());
+  }
+  _subscribe(roomId) {
+    if (this.roomId === roomId && this._sub) return;
+    if (this._sub && this._subRef) this._subRef.off('value', this._sub);
+    this.roomId = roomId;
+    this._subRef = this.db.ref('rooms/' + roomId);
+    this._sub = this._subRef.on('value', s => {
+      this.latestVal = s.val() || {};
+      this._emitState();
+    });
+  }
+  emit(event, data, ack) {
+    if (typeof data === 'function' && ack === undefined) {
+      ack = data;
+      data = {};
+    }
+    data = data || {};
+    const A = x => {
+      if (typeof ack === 'function') ack(x);
+    };
+    if (!this.db) {
+      A({
+        ok: false,
+        error: 'firebase_not_configured'
+      });
+      return;
+    }
+    try {
+      if (event === 'createRoom') {
+        const roomId = genRoomCode(),
+          hostToken = genToken();
+        this.db.ref('rooms/' + roomId).set({
+          hostToken,
+          createdAt: Date.now(),
+          players: {},
+          teams: {},
+          timeline: {}
+        }).then(() => A({
+          ok: true,
+          roomId,
+          hostToken
+        })).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
+      } else if (event === 'checkRoom') {
+        this.db.ref('rooms/' + data.roomId).get().then(s => A({
+          ok: s.exists()
+        })).catch(() => A({
+          ok: false
+        }));
+      } else if (event === 'hostJoin') {
+        const ref = this.db.ref('rooms/' + data.roomId);
+        ref.get().then(s => {
+          if (!s.exists()) {
+            // サーバ側の状態が無くてもホストのトークンで同じコードを復元
+            return ref.set({
+              hostToken: data.hostToken,
+              createdAt: Date.now(),
+              players: {},
+              teams: {},
+              timeline: {}
+            }).then(() => {
+              this._subscribe(data.roomId);
+              A({
+                ok: true,
+                state: {
+                  roomId: data.roomId,
+                  players: [],
+                  teams: [],
+                  timeline: []
+                }
+              });
+            });
+          }
+          const v = s.val();
+          if (v.hostToken !== data.hostToken) {
+            A({
+              ok: false,
+              error: 'unauthorized'
+            });
+            return;
+          }
+          this._subscribe(data.roomId);
+          A({
+            ok: true,
+            state: this._stateFromVal(data.roomId, v)
+          });
+        }).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
+      } else if (event === 'joinRoom') {
+        const ref = this.db.ref('rooms/' + data.roomId);
+        ref.get().then(s => {
+          if (!s.exists()) {
+            A({
+              ok: false,
+              error: 'room_not_found'
+            });
+            return;
+          }
+          const v = s.val();
+          const name = (data.name || '').trim().slice(0, 30);
+          if (!name) {
+            A({
+              ok: false,
+              error: 'invalid_name'
+            });
+            return;
+          }
+          let pid = data.playerId;
+          const existing = pid && v.players && v.players[pid];
+          if (!existing) pid = genId('p');
+          const playerObj = existing ? Object.assign({}, v.players[pid], {
+            name
+          }) : {
+            id: pid,
+            name,
+            score: '0/1',
+            teamId: null,
+            joinedAt: Date.now()
+          };
+          ref.child('players/' + pid).set(playerObj).then(() => {
+            this._subscribe(data.roomId);
+            const merged = Object.assign({}, v.players || {});
+            merged[pid] = playerObj;
+            A({
+              ok: true,
+              playerId: pid,
+              state: this._stateFromVal(data.roomId, Object.assign({}, v, {
+                players: merged
+              }))
+            });
+          }).catch(e => A({
+            ok: false,
+            error: e.message
+          }));
+        }).catch(e => A({
+          ok: false,
+          error: e.message
+        }));
+      } else if (event === 'op') {
+        this._handleOp(data, A);
+      }
+    } catch (e) {
+      A({
+        ok: false,
+        error: e.message
+      });
+    }
+  }
+  _stateFromVal(roomId, v) {
+    return {
+      roomId,
+      players: Object.values(v.players || {}),
+      teams: Object.values(v.teams || {}),
+      timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
+    };
+  }
+  _pushHistory() {
+    this.history.push({
+      players: _clone(this.latestVal.players),
+      teams: _clone(this.latestVal.teams)
+    });
+    if (this.history.length > 50) this.history.shift();
+  }
+  _handleOp(data, A) {
+    const {
+      type,
+      payload = {}
+    } = data;
+    const ref = this.db.ref('rooms/' + data.roomId);
+    const players = _clone(this.latestVal.players);
+    const appendTimeline = pmap => {
+      const scores = {};
+      Object.values(pmap || {}).forEach(p => {
+        scores[p.id] = p.score;
+      });
+      ref.child('timeline').push({
+        t: Date.now(),
+        scores
+      });
+    };
+    try {
+      if (type === 'score') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        const val = parseValue(payload.valueStr);
+        if (val === null) {
+          A({
+            ok: false,
+            error: 'invalid_value'
+          });
+          return;
+        }
+        this._pushHistory();
+        p.score = applyOp(p.score, payload.operator, val);
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'setScore') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        const val = parseValue(payload.valueStr);
+        if (val === null) {
+          A({
+            ok: false,
+            error: 'invalid_value'
+          });
+          return;
+        }
+        this._pushHistory();
+        p.score = val;
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'setAll') {
+        const val = parseValue(payload.valueStr);
+        if (val === null) {
+          A({
+            ok: false,
+            error: 'invalid_value'
+          });
+          return;
+        }
+        this._pushHistory();
+        Object.values(players).forEach(p => {
+          p.score = val;
+        });
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'resetAll') {
+        this._pushHistory();
+        Object.values(players).forEach(p => {
+          p.score = '0/1';
+        });
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'removePlayer') {
+        this._pushHistory();
+        ref.child('players/' + payload.playerId).remove();
+        A({
+          ok: true
+        });
+      } else if (type === 'renamePlayer') {
+        const nm = (payload.name || '').trim().slice(0, 30);
+        if (!nm) {
+          A({
+            ok: false,
+            error: 'invalid_name'
+          });
+          return;
+        }
+        this._pushHistory();
+        ref.child('players/' + payload.playerId + '/name').set(nm);
+        A({
+          ok: true
+        });
+      } else if (type === 'createTeam') {
+        const nm = (payload.name || '').trim().slice(0, 30);
+        if (!nm) {
+          A({
+            ok: false,
+            error: 'invalid_name'
+          });
+          return;
+        }
+        const tid = genId('t');
+        this._pushHistory();
+        ref.child('teams/' + tid).set({
+          id: tid,
+          name: nm
+        });
+        A({
+          ok: true
+        });
+      } else if (type === 'renameTeam') {
+        const nm = (payload.name || '').trim().slice(0, 30);
+        if (!nm) {
+          A({
+            ok: false,
+            error: 'invalid_name'
+          });
+          return;
+        }
+        this._pushHistory();
+        ref.child('teams/' + payload.teamId + '/name').set(nm);
+        A({
+          ok: true
+        });
+      } else if (type === 'removeTeam') {
+        this._pushHistory();
+        ref.child('teams/' + payload.teamId).remove();
+        Object.values(players).forEach(p => {
+          if (p.teamId === payload.teamId) ref.child('players/' + p.id + '/teamId').set(null);
+        });
+        A({
+          ok: true
+        });
+      } else if (type === 'assignTeam') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        this._pushHistory();
+        ref.child('players/' + payload.playerId + '/teamId').set(payload.teamId || null);
+        A({
+          ok: true
+        });
+      } else if (type === 'undo') {
+        if (this.history.length === 0) {
+          A({
+            ok: false,
+            error: 'nothing_to_undo'
+          });
+          return;
+        }
+        const snap = this.history.pop();
+        ref.child('players').set(snap.players || {});
+        ref.child('teams').set(snap.teams || {});
+        A({
+          ok: true
+        });
+      } else {
+        A({
+          ok: false,
+          error: 'unknown_op'
+        });
+      }
+    } catch (e) {
+      A({
+        ok: false,
+        error: e.message
+      });
+    }
+  }
+}
+
+// Firebase 未設定時のダミー（画面は出るが操作はエラーになる）
+class DeadSocket {
+  on() {}
+  off() {}
+  emit(event, data, ack) {
+    if (typeof data === 'function') ack = data;
+    if (typeof ack === 'function') ack({
+      ok: false,
+      error: 'firebase_not_configured'
+    });
+  }
+}
+const getSocket = () => {
+  if (!socketInstance) socketInstance = FB_CONFIGURED ? new FirebaseSocket() : new DeadSocket();
   return socketInstance;
 };
 
@@ -325,8 +861,8 @@ const App = () => {
   });
   const [soundEnabled, setSoundEnabled] = useState(false);
 
-  // サーバ接続状態（本物の Socket.IO があるか・つながっているか）
-  const hasBackend = typeof window.io !== 'undefined';
+  // サーバ接続状態（Firebase が設定済みか・つながっているか）
+  const hasBackend = FB_CONFIGURED;
   const [connected, setConnected] = useState(false);
 
   // サーバが timeline を送らない場合に備え、フロントで得点推移を蓄積（仕様書 方式②）
@@ -461,7 +997,7 @@ const App = () => {
     className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
   }, !connected && /*#__PURE__*/React.createElement("div", {
     className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
-  }, hasBackend ? '⏳ サーバに接続中… つながらない場合は再読み込みしてください' : '⚠ サーバに接続できていません。これは Node サーバ上で公開していない（静的ホスティング等）と起きます。Render など Node が動く環境で公開してください。'), /*#__PURE__*/React.createElement("div", {
+  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), /*#__PURE__*/React.createElement("div", {
     className: "absolute top-4 right-4 z-50"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: toggleSound,
