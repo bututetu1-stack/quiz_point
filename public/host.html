@@ -42,6 +42,22 @@
         </div>
       </div>
 
+      <!-- ○×モード -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h2 style="margin:0;">○×モード</h2>
+          <label class="switch">
+            <input type="checkbox" id="maruBatsuToggle" />
+            <span>有効にする</span>
+          </label>
+        </div>
+        <div class="row" style="margin-top:10px; gap:8px; align-items:center;">
+          <span class="muted">1問の得点</span>
+          <input id="pointValue" type="text" inputmode="decimal" value="10" style="max-width:120px;" />
+        </div>
+        <p class="muted" style="margin-top:8px;">有効にすると各プレイヤーに <b>○（＋）</b>／<b>×（−）</b> ボタンが出て、ワンタップで得点を上下できます。</p>
+      </div>
+
       <!-- チーム -->
       <div class="card">
         <h2 style="margin-top:0;">チーム</h2>
