@@ -1,29 +1,26 @@
 <!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Quiz Scoreboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <style> html, body { background: #030712; margin: 0; } </style>
-</head>
-<body>
-  <div id="root"><div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div></div>
-  <script>
-    window.addEventListener("error", function (e) { var b=document.getElementById("boot"); if(b){ b.style.color="#ff6b6b"; b.textContent="エラー: "+(e.message||e.error)+(e.filename?" @ "+e.filename:""); } });
-    setTimeout(function(){ var b=document.getElementById("boot"); if(b&&b.textContent==="読み込み中…"){ b.style.color="#ffd24a"; b.textContent="読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; } }, 7000);
-  </script>
-  <script>
+<html lang="ja"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" /><title>Quiz Scoreboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style> html, body { background: #030712; margin: 0; } </style></head>
+<body><div id="root"><div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div></div>
+<script>
+  window.addEventListener("error", function (e) { var b=document.getElementById("boot"); if(b){ b.style.color="#ff6b6b"; b.textContent="エラー: "+(e.message||e.error)+(e.filename?" @ "+e.filename:""); } });
+  setTimeout(function(){ var b=document.getElementById("boot"); if(b&&b.textContent==="読み込み中…"){ b.style.color="#ffd24a"; b.textContent="読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; } }, 7000);
+</script>
+<script>
 const {
   useState,
   useEffect,
   useRef,
   useMemo
 } = React;
+
+// 反映確認用バージョン（更新のたびに番号を上げる）
+const BUILD = "v8 ・ 4得点モード / チーム削除・改名 / Undo再実装";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1047,7 +1044,9 @@ const HomeView = ({
     className: "text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
   }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-400"
-  }, "リアルタイム得点表示システム")), /*#__PURE__*/React.createElement("div", {
+  }, "リアルタイム得点表示システム"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600 text-xs"
+  }, BUILD)), /*#__PURE__*/React.createElement("div", {
     className: "w-full max-w-md space-y-8"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800"
@@ -1224,7 +1223,9 @@ const HostView = ({
     className: "bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-lg"
   }, "HOST"), /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-xl tracking-widest text-white"
-  }, roomId), /*#__PURE__*/React.createElement("button", {
+  }, roomId), /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600 text-[10px] hidden sm:inline"
+  }, BUILD), /*#__PURE__*/React.createElement("button", {
     onClick: copyUrl,
     className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700"
   }, "URLコピー")), /*#__PURE__*/React.createElement("button", {
@@ -1383,8 +1384,28 @@ const HostTeamsPanel = ({
     key: team.id,
     className: "bg-gray-800 rounded-xl p-3 border border-gray-700"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-white mb-2"
+    className: "flex items-center justify-between mb-2 gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-white truncate"
   }, team.name), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1 shrink-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      const n = prompt('新しいチーム名', team.name);
+      if (n && n.trim()) onOp('renameTeam', {
+        teamId: team.id,
+        name: n.trim()
+      });
+    },
+    className: "text-xs text-gray-400 hover:text-yellow-400 border border-gray-700 rounded-md px-2 py-1"
+  }, "改名"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm(`チーム「${team.name}」を削除しますか？（メンバーは未所属に戻ります）`)) onOp('removeTeam', {
+        teamId: team.id
+      });
+    },
+    className: "text-xs text-red-400 hover:text-red-300 border border-red-900 rounded-md px-2 py-1"
+  }, "削除"))), /*#__PURE__*/React.createElement("div", {
     className: "space-y-1"
   }, state.players.filter(p => p.teamId === team.id).map(p => /*#__PURE__*/React.createElement("div", {
     key: p.id,
@@ -1740,6 +1761,4 @@ const ScoreGraph = ({
 };
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(/*#__PURE__*/React.createElement(App, null));
-  </script>
-</body>
-</html>
+</script></body></html>
