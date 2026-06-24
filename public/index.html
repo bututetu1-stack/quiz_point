@@ -21,10 +21,7 @@
     });
     setTimeout(function () {
       var b = document.getElementById("boot");
-      if (b && b.textContent === "読み込み中…") {
-        b.style.color = "#ffd24a";
-        b.textContent = "読み込みに失敗しました。react/tailwind の CDN に接続できていない可能性があります（社内ネットや広告ブロッカー等）。";
-      }
+      if (b && b.textContent === "読み込み中…") { b.style.color = "#ffd24a"; b.textContent = "読み込みに失敗しました。react/tailwind の CDN に接続できていない可能性があります。"; }
     }, 7000);
   </script>
   <script>
@@ -328,10 +325,17 @@ const App = () => {
   });
   const [soundEnabled, setSoundEnabled] = useState(false);
 
+  // サーバ接続状態（本物の Socket.IO があるか・つながっているか）
+  const hasBackend = typeof window.io !== 'undefined';
+  const [connected, setConnected] = useState(false);
+
   // サーバが timeline を送らない場合に備え、フロントで得点推移を蓄積（仕様書 方式②）
   const timelineRef = useRef([]);
   useEffect(() => {
     const socket = getSocket();
+    if (socket.connected) setConnected(true);
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
     socket.on('state', newState => {
       let tl = newState.timeline;
       if (!tl || tl.length === 0) {
@@ -358,7 +362,7 @@ const App = () => {
   // 初期ロード時に URL の ?room= で自動参加
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const roomFromUrl = urlParams.get('room');
+    const roomFromUrl = (urlParams.get('room') || '').trim().toUpperCase() || null;
     const savedHostToken = roomFromUrl ? localStorage.getItem(`hostToken_${roomFromUrl}`) : null;
     const savedPlayerId = roomFromUrl ? localStorage.getItem(`playerId_${roomFromUrl}`) : null;
     const savedName = localStorage.getItem('playerName');
@@ -435,7 +439,7 @@ const App = () => {
         window.history.pushState({}, '', url);
         setView('participant');
       } else {
-        alert('入室に失敗しました: ' + (res && res.error === 'room_not_found' ? '部屋が見つかりません' : res && res.error));
+        alert(res && res.error === 'room_not_found' ? '部屋が見つかりませんでした。\n・司会者に最新の招待リンクを発行してもらってください\n（サーバが再起動・スリープすると部屋は消えます）' : '入室に失敗しました: ' + (res && res.error));
       }
     });
   };
@@ -455,7 +459,9 @@ const App = () => {
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, !connected && /*#__PURE__*/React.createElement("div", {
+    className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
+  }, hasBackend ? '⏳ サーバに接続中… つながらない場合は再読み込みしてください' : '⚠ サーバに接続できていません。これは Node サーバ上で公開していない（静的ホスティング等）と起きます。Render など Node が動く環境で公開してください。'), /*#__PURE__*/React.createElement("div", {
     className: "absolute top-4 right-4 z-50"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: toggleSound,
