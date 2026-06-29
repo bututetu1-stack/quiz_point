@@ -4,6 +4,7 @@
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style> html, body { background: #030712; margin: 0; } </style></head>
 <body><div id="root"><div id="boot">読み込み中…</div></div>
 <script>window.addEventListener("error",function(e){var b=document.getElementById("boot");if(b)b.textContent="エラー: "+(e.message||e.error);});</script>
@@ -16,7 +17,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v14 ・ Simple/＋M−Nモード / 自分のみ採点 / 名前表示改善";
+const BUILD = "v15 ・ Simpleチーム集計(○計－×計) / ドラッグでチーム移動";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1405,7 +1406,8 @@ const HostView = ({
     className: "w-80 bg-gray-900 border-l border-gray-800 p-4 hidden md:flex flex-col overflow-y-auto"
   }, /*#__PURE__*/React.createElement(HostTeamsPanel, {
     state: state,
-    onOp: onOp
+    onOp: onOp,
+    instanceId: "side"
   }))), /*#__PURE__*/React.createElement("div", {
     className: "absolute bottom-0 left-0 right-0 md:right-80 bg-gray-900 border-t border-gray-800 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1473,14 +1475,96 @@ const HostView = ({
     className: "text-gray-400 hover:text-white text-sm bg-gray-800 px-3 py-1 rounded-lg border border-gray-700"
   }, "閉じる")), /*#__PURE__*/React.createElement(HostTeamsPanel, {
     state: state,
-    onOp: onOp
+    onOp: onOp,
+    instanceId: "modal"
   }))));
 };
+
+// ドラッグ＆ドロップのドロップ先（SortableJS）。子に data-player-id 付きチップを並べる
+const TeamDropZone = ({
+  teamId,
+  groupName,
+  onMove,
+  className,
+  children
+}) => {
+  const ref = useRef(null);
+  const moveRef = useRef(onMove);
+  moveRef.current = onMove;
+  useEffect(() => {
+    if (!ref.current || typeof Sortable === 'undefined') return;
+    const s = Sortable.create(ref.current, {
+      group: groupName,
+      animation: 150,
+      delay: 150,
+      delayOnTouchOnly: true,
+      filter: '.nodrag',
+      preventOnFilter: false,
+      ghostClass: 'opacity-30',
+      onEnd: evt => {
+        const playerId = evt.item.dataset.playerId;
+        const destTeamId = evt.to.dataset.teamId || null;
+        const srcTeamId = evt.from.dataset.teamId || null;
+        // Reactを正にするためDOMの移動を取り消す
+        evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+        if (playerId && destTeamId !== srcTeamId) moveRef.current(playerId, destTeamId);
+      }
+    });
+    return () => s.destroy();
+  }, [groupName]);
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    "data-team-id": teamId || '',
+    className: className
+  }, children);
+};
+const PlayerChip = ({
+  player,
+  onOp
+}) => /*#__PURE__*/React.createElement("div", {
+  "data-player-id": player.id,
+  className: "cursor-grab active:cursor-grabbing text-sm text-gray-200 flex items-center gap-2 bg-gray-900 p-2 rounded-md border border-gray-700"
+}, /*#__PURE__*/React.createElement("span", {
+  className: "text-gray-500 select-none"
+}, "⠿"), /*#__PURE__*/React.createElement("span", {
+  className: "truncate flex-1"
+}, player.name), player.teamId && /*#__PURE__*/React.createElement("button", {
+  onClick: () => onOp('assignTeam', {
+    playerId: player.id,
+    teamId: null
+  }),
+  className: "nodrag text-red-400 hover:text-red-300 text-xs"
+}, "外す"));
 const HostTeamsPanel = ({
   state,
-  onOp
+  onOp,
+  instanceId
 }) => {
   const [newTeam, setNewTeam] = useState('');
+  const simple = state.scoreMode === 'simple';
+  const group = 'teams-' + (instanceId || 'side');
+  const move = (playerId, teamId) => onOp('assignTeam', {
+    playerId,
+    teamId
+  });
+  const unassigned = state.players.filter(p => !p.teamId);
+  const teamScoreEl = members => {
+    if (simple) {
+      const mb = calcTeamMaruBatsu(members);
+      return /*#__PURE__*/React.createElement("span", {
+        className: "ml-2 font-black"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "text-blue-400"
+      }, mb.maru), /*#__PURE__*/React.createElement("span", {
+        className: "text-gray-500"
+      }, "－"), /*#__PURE__*/React.createElement("span", {
+        className: "text-red-400"
+      }, mb.batsu));
+    }
+    return /*#__PURE__*/React.createElement("span", {
+      className: "text-yellow-400 ml-2"
+    }, fmtNum(calcTeamScore(members, state.teamMode, state.scoreMode)));
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "space-y-8"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1497,7 +1581,7 @@ const HostTeamsPanel = ({
     className: `flex-1 px-2 py-1.5 rounded-md font-bold text-xs transition-colors ${(state.scoreMode || 'addsub') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
   }, l))), /*#__PURE__*/React.createElement("div", {
     className: "text-xs text-gray-500"
-  }, (state.scoreMode || 'addsub') === 'simple' ? '○と×を別々にカウント（例 3－1）' : '○で加点・×で減点（合計1つ）')), /*#__PURE__*/React.createElement("div", {
+  }, simple ? '○と×を別々にカウント（例 3－1）' : '○で加点・×で減点（合計1つ）')), /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-800/50 border border-gray-700 rounded-xl p-3 flex items-center justify-between gap-2"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "text-sm font-bold text-white"
@@ -1528,7 +1612,7 @@ const HostTeamsPanel = ({
   }), /*#__PURE__*/React.createElement("path", {
     d: "M16 3.13a4 4 0 0 1 0 7.75"
   })), "チーム管理"), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 mb-4"
+    className: "flex gap-2 mb-3"
   }, /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: newTeam,
@@ -1545,7 +1629,7 @@ const HostTeamsPanel = ({
       }
     },
     className: "bg-gray-700 hover:bg-gray-600 px-3 rounded-lg text-sm font-bold transition-colors"
-  }, "+")), /*#__PURE__*/React.createElement("div", {
+  }, "+")), !simple && /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2 mb-4"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-500 text-xs"
@@ -1558,60 +1642,74 @@ const HostTeamsPanel = ({
     }),
     className: `px-3 py-1 rounded-md font-bold text-xs transition-colors ${(state.teamMode || 'product') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
   }, l)))), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-gray-500 mb-2"
+  }, "名前をドラッグしてチーム間／未所属へ移動できます"), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-800 rounded-xl p-3 border border-gray-700 border-dashed mb-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-bold text-gray-400 mb-2"
+  }, "未所属（", unassigned.length, "）"), /*#__PURE__*/React.createElement(TeamDropZone, {
+    teamId: null,
+    groupName: group,
+    onMove: move,
+    className: "space-y-1 min-h-[36px]"
+  }, unassigned.map(p => /*#__PURE__*/React.createElement(PlayerChip, {
+    key: p.id,
+    player: p,
+    onOp: onOp
+  })))), /*#__PURE__*/React.createElement("div", {
     className: "space-y-4"
-  }, state.teams.map(team => /*#__PURE__*/React.createElement("div", {
-    key: team.id,
-    className: "bg-gray-800 rounded-xl p-3 border border-gray-700"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-2 gap-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-white truncate"
-  }, team.name, /*#__PURE__*/React.createElement("span", {
-    className: "text-yellow-400 ml-2"
-  }, fmtNum(calcTeamScore(state.players.filter(p => p.teamId === team.id), state.teamMode, state.scoreMode)))), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-1 shrink-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      const n = prompt('新しいチーム名', team.name);
-      if (n && n.trim()) onOp('renameTeam', {
-        teamId: team.id,
-        name: n.trim()
-      });
-    },
-    className: "text-xs text-gray-400 hover:text-yellow-400 border border-gray-700 rounded-md px-2 py-1"
-  }, "改名"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (window.confirm(`チーム「${team.name}」を削除しますか？（メンバーは未所属に戻ります）`)) onOp('removeTeam', {
-        teamId: team.id
-      });
-    },
-    className: "text-xs text-red-400 hover:text-red-300 border border-red-900 rounded-md px-2 py-1"
-  }, "削除"))), /*#__PURE__*/React.createElement("div", {
-    className: "space-y-1"
-  }, state.players.filter(p => p.teamId === team.id).map(p => /*#__PURE__*/React.createElement("div", {
-    key: p.id,
-    className: "text-xs text-gray-400 flex justify-between items-center bg-gray-900 p-1.5 rounded-md"
-  }, /*#__PURE__*/React.createElement("span", null, p.name), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onOp('assignTeam', {
-      playerId: p.id,
-      teamId: null
-    }),
-    className: "text-red-400 hover:text-red-300"
-  }, "外す"))), /*#__PURE__*/React.createElement("select", {
-    className: "w-full bg-gray-900 border border-gray-700 text-xs text-gray-300 p-1.5 rounded-md mt-2 outline-none",
-    value: "",
-    onChange: e => {
-      if (e.target.value) onOp('assignTeam', {
-        playerId: e.target.value,
-        teamId: team.id
-      });
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "+ メンバー追加..."), state.players.filter(p => p.teamId !== team.id).map(p => /*#__PURE__*/React.createElement("option", {
-    key: p.id,
-    value: p.id
-  }, p.name)))))))));
+  }, state.teams.map(team => {
+    const members = state.players.filter(p => p.teamId === team.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: team.id,
+      className: "bg-gray-800 rounded-xl p-3 border border-gray-700"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-2 gap-2"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "font-bold text-white truncate"
+    }, team.name, teamScoreEl(members)), /*#__PURE__*/React.createElement("div", {
+      className: "flex gap-1 shrink-0"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        const n = prompt('新しいチーム名', team.name);
+        if (n && n.trim()) onOp('renameTeam', {
+          teamId: team.id,
+          name: n.trim()
+        });
+      },
+      className: "text-xs text-gray-400 hover:text-yellow-400 border border-gray-700 rounded-md px-2 py-1"
+    }, "改名"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        if (window.confirm(`チーム「${team.name}」を削除しますか？（メンバーは未所属に戻ります）`)) onOp('removeTeam', {
+          teamId: team.id
+        });
+      },
+      className: "text-xs text-red-400 hover:text-red-300 border border-red-900 rounded-md px-2 py-1"
+    }, "削除"))), /*#__PURE__*/React.createElement(TeamDropZone, {
+      teamId: team.id,
+      groupName: group,
+      onMove: move,
+      className: "space-y-1 min-h-[36px]"
+    }, members.map(p => /*#__PURE__*/React.createElement(PlayerChip, {
+      key: p.id,
+      player: p,
+      onOp: onOp
+    }))), /*#__PURE__*/React.createElement("select", {
+      className: "w-full bg-gray-900 border border-gray-700 text-xs text-gray-300 p-1.5 rounded-md mt-2 outline-none",
+      value: "",
+      onChange: e => {
+        if (e.target.value) onOp('assignTeam', {
+          playerId: e.target.value,
+          teamId: team.id
+        });
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "+ メンバー追加..."), state.players.filter(p => p.teamId !== team.id).map(p => /*#__PURE__*/React.createElement("option", {
+      key: p.id,
+      value: p.id
+    }, p.name))));
+  }))));
 };
 
 // ==========================================
@@ -1625,6 +1723,14 @@ const calcTeamScore = (members, mode, scoreMode) => {
   if (mode === 'sum') return members.reduce((s, m) => s + memberValue(m, scoreMode), 0);
   return members.reduce((p, m) => p * memberValue(m, scoreMode), 1);
 };
+// Simpleモード: チームの ○合計 / ×合計
+const calcTeamMaruBatsu = members => members.reduce((a, m) => ({
+  maru: a.maru + (m.maru || 0),
+  batsu: a.batsu + (m.batsu || 0)
+}), {
+  maru: 0,
+  batsu: 0
+});
 const fmtNum = v => Number.isInteger(v) ? v : Number(v.toFixed(2));
 
 // 得点操作ボタン群（行内・自分用バーで共用）。onAct(operator, valueStr, sound)
@@ -1684,15 +1790,25 @@ const TeamBoard = ({
   teamMode,
   scoreMode
 }) => {
+  const simple = scoreMode === 'simple';
   const teamScores = useMemo(() => {
     return teams.map(t => {
       const members = players.filter(p => p.teamId === t.id);
+      if (simple) {
+        const mb = calcTeamMaruBatsu(members);
+        return {
+          ...t,
+          maru: mb.maru,
+          batsu: mb.batsu,
+          score: mb.maru - mb.batsu
+        };
+      }
       return {
         ...t,
         score: calcTeamScore(members, teamMode, scoreMode)
       };
     }).sort((a, b) => b.score - a.score);
-  }, [teams, players, teamMode, scoreMode]);
+  }, [teams, players, teamMode, scoreMode, simple]);
   return /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -1706,7 +1822,7 @@ const TeamBoard = ({
     strokeWidth: "2"
   }, /*#__PURE__*/React.createElement("path", {
     d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-  })), "チームランキング（", teamMode === 'sum' ? '和' : '積', "）"), /*#__PURE__*/React.createElement("div", {
+  })), "チームランキング（", simple ? '○×' : teamMode === 'sum' ? '和' : '積', "）"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-4"
   }, teamScores.map((t, i) => /*#__PURE__*/React.createElement("div", {
     key: t.id,
@@ -1715,7 +1831,15 @@ const TeamBoard = ({
     className: "absolute top-0 left-0 w-full h-1 bg-yellow-400"
   }), /*#__PURE__*/React.createElement("div", {
     className: "text-gray-400 text-sm font-bold mb-1 truncate w-full text-center"
-  }, t.name), /*#__PURE__*/React.createElement("div", {
+  }, t.name), simple ? /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-1 font-black tracking-tighter"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-blue-400 text-3xl"
+  }, t.maru), /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-500 text-xl"
+  }, "－"), /*#__PURE__*/React.createElement("span", {
+    className: "text-red-400 text-3xl"
+  }, t.batsu)) : /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-black text-white tracking-tighter"
   }, fmtNum(t.score))))));
 };
