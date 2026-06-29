@@ -17,7 +17,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v18 ・ Simpleは○の数順 / 退出 / 表示名入力 / 1つ戻す";
+const BUILD = "v19 ・ 再入室の分裂修正 / ホストにもグラフ・チーム得点";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1057,13 +1057,13 @@ const App = () => {
     className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
   }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
     onCreate: handleCreateRoom,
-    onJoin: (r, n) => handleJoin(r, n),
+    onJoin: (r, n) => handleJoin(r, n, localStorage.getItem('playerId_' + r)),
     defaultRoom: roomId,
     defaultName: myName
   }), view === 'join' && /*#__PURE__*/React.createElement(JoinView, {
     roomId: roomId,
     defaultName: myName,
-    onJoin: n => handleJoin(roomId, n),
+    onJoin: n => handleJoin(roomId, n, localStorage.getItem('playerId_' + roomId)),
     onBack: () => setView('home')
   }), view === 'host' && /*#__PURE__*/React.createElement(HostView, {
     state: state,
@@ -1417,6 +1417,7 @@ const HostView = ({
   const [calcVal, setCalcVal] = useState('2');
   const [oxPoint, setOxPoint] = useState('1');
   const [showTeams, setShowTeams] = useState(false);
+  const [tab, setTab] = useState('ranking'); // ranking, graph
   const simple = state.scoreMode === 'simple';
   const copyUrl = () => {
     const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
@@ -1472,11 +1473,26 @@ const HostView = ({
   }, BUILD), /*#__PURE__*/React.createElement("button", {
     onClick: copyUrl,
     className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700 shrink-0"
-  }, "URLコピー"))), /*#__PURE__*/React.createElement("div", {
+  }, "URLコピー")), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1 bg-gray-800 p-1 rounded-lg shrink-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab('ranking'),
+    className: `px-3 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
+  }, "ランキング"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab('graph'),
+    className: `px-3 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
+  }, "グラフ"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-1 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 overflow-y-auto p-4 pb-40"
-  }, /*#__PURE__*/React.createElement(PlayerList, {
+    className: `flex-1 overflow-y-auto p-4 ${tab === 'ranking' ? 'pb-40' : 'pb-4'}`
+  }, tab === 'ranking' ? /*#__PURE__*/React.createElement("div", {
+    className: "space-y-6"
+  }, state.teams.length > 0 && /*#__PURE__*/React.createElement(TeamBoard, {
+    teams: state.teams,
+    players: state.players,
+    teamMode: state.teamMode,
+    scoreMode: state.scoreMode
+  }), /*#__PURE__*/React.createElement(PlayerList, {
     players: state.players,
     teams: state.teams,
     isHost: true,
@@ -1496,13 +1512,16 @@ const HostView = ({
         playerId: id
       });
     }
+  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
+    timeline: state.timeline,
+    players: state.players
   })), /*#__PURE__*/React.createElement("div", {
     className: "w-80 bg-gray-900 border-l border-gray-800 p-4 hidden md:flex flex-col overflow-y-auto"
   }, /*#__PURE__*/React.createElement(HostTeamsPanel, {
     state: state,
     onOp: onOp,
     instanceId: "side"
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))), tab === 'ranking' && /*#__PURE__*/React.createElement("div", {
     className: "absolute bottom-0 left-0 right-0 md:right-80 bg-gray-900 border-t border-gray-800 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
   }, /*#__PURE__*/React.createElement("div", {
     className: "max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between"
