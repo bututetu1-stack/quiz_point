@@ -17,7 +17,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v17 ・ 退出してタイトルへ / 入室時に表示名入力";
+const BUILD = "v18 ・ Simpleは○の数順 / 退出 / 表示名入力 / 1つ戻す";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1901,7 +1901,7 @@ const TeamBoard = ({
         ...t,
         score: calcTeamScore(members, teamMode, scoreMode)
       };
-    }).sort((a, b) => b.score - a.score);
+    }).sort((a, b) => simple ? b.maru - a.maru || a.batsu - b.batsu : b.score - a.score);
   }, [teams, players, teamMode, scoreMode, simple]);
   return /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl"
@@ -1921,7 +1921,7 @@ const TeamBoard = ({
   }, teamScores.map((t, i) => /*#__PURE__*/React.createElement("div", {
     key: t.id,
     className: "flex-1 min-w-[120px] bg-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden border border-gray-700"
-  }, i === 0 && t.score > 0 && /*#__PURE__*/React.createElement("div", {
+  }, i === 0 && (simple ? t.maru > 0 : t.score > 0) && /*#__PURE__*/React.createElement("div", {
     className: "absolute top-0 left-0 w-full h-1 bg-yellow-400"
   }), /*#__PURE__*/React.createElement("div", {
     className: "text-gray-400 text-sm font-bold mb-1 truncate w-full text-center"
@@ -1948,7 +1948,14 @@ const PlayerList = ({
   scoreMode
 }) => {
   const sortedPlayers = useMemo(() => {
+    const simple = scoreMode === 'simple';
     return [...players].sort((a, b) => {
+      if (simple) {
+        // ○の数が多い順、同数なら×が少ない順
+        if ((b.maru || 0) !== (a.maru || 0)) return (b.maru || 0) - (a.maru || 0);
+        if ((a.batsu || 0) !== (b.batsu || 0)) return (a.batsu || 0) - (b.batsu || 0);
+        return (a.name || '').localeCompare(b.name || '');
+      }
       const sA = memberValue(a, scoreMode),
         sB = memberValue(b, scoreMode);
       if (sB !== sA) return sB - sA;
@@ -2003,7 +2010,7 @@ const PlayerRow = ({
   const simple = scoreMode === 'simple';
   const val = memberValue(player, scoreMode);
   const prev = useRef(val);
-  const isTop = index === 0 && val > 0;
+  const isTop = index === 0 && (simple ? (player.maru || 0) > 0 : val > 0);
   useEffect(() => {
     if (val > prev.current) {
       setFlash('green');
