@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>クイズ得点 - ホスト</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>🎛️ ホスト操作パネル</h1>
+
+    <!-- 認証エラー -->
+    <section id="authError" class="hidden">
+      <div class="card center">
+        <p>このブラウザにホスト権限がありません。</p>
+        <p class="muted">部屋を作成したブラウザから開いてください。</p>
+        <button onclick="location.href='/'">トップへ</button>
+      </div>
+    </section>
+
+    <section id="panel" class="hidden">
+      <!-- 共有 -->
+      <div class="card">
+        <h2 style="margin-top:0;">参加者へ共有</h2>
+        <div class="center" style="margin-bottom:10px;">
+          部屋コード <span id="roomCode" class="roomcode"></span>
+        </div>
+        <div class="share">
+          <code id="shareUrl"></code>
+          <button id="copyBtn" class="small">コピー</button>
+        </div>
+        <p class="muted" style="margin-top:8px;">このリンクを LINE 等で共有 → 参加者が名前を入れて入室します。</p>
+      </div>
+
+      <!-- グローバル操作 -->
+      <div class="card">
+        <div class="toolbar">
+          <button id="setAllOneBtn" class="secondary">全員を 1 に</button>
+          <button id="resetAllBtn" class="secondary">全員 0 にリセット</button>
+          <button id="undoBtn" class="secondary">↩ 一つ戻す</button>
+        </div>
+      </div>
+
+      <!-- ○×モード -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h2 style="margin:0;">○×モード</h2>
+          <label class="switch">
+            <input type="checkbox" id="maruBatsuToggle" />
+            <span>有効にする</span>
+          </label>
+        </div>
+        <div class="row" style="margin-top:10px; gap:8px; align-items:center;">
+          <span class="muted">1問の得点</span>
+          <input id="pointValue" type="text" inputmode="decimal" value="10" style="max-width:120px;" />
+        </div>
+        <p class="muted" style="margin-top:8px;">有効にすると各プレイヤーに <b>○（＋）</b>／<b>×（−）</b> ボタンが出て、ワンタップで得点を上下できます。</p>
+      </div>
+
+      <!-- チーム -->
+      <div class="card">
+        <h2 style="margin-top:0;">チーム</h2>
+        <div class="row" style="margin-bottom:8px;">
+          <input id="newTeamName" class="grow" placeholder="新しいチーム名" maxlength="30" />
+          <button id="addTeamBtn" class="small">追加</button>
+        </div>
+        <ul id="teamList" class="board"></ul>
+        <p id="noTeams" class="muted">チームを作るとチーム得点（メンバーの積）を表示します。</p>
+      </div>
+
+      <!-- プレイヤー操作 -->
+      <h2>個人得点（クリックで操作）</h2>
+      <p id="noPlayers" class="muted">まだ参加者がいません。共有リンクから入室を待ちましょう。</p>
+      <ul id="playerList" class="board"></ul>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/host.js"></script>
+</body>
+</html>

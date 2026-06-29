@@ -1,29 +1,22 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Quiz Scoreboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <style> html, body { background: #030712; margin: 0; } </style>
-</head>
-<body>
-  <div id="root"><div id="boot" style="color:#9aa0c8;font-family:-apple-system,sans-serif;padding:24px;font-size:15px;">読み込み中…</div></div>
-  <script>
-    window.addEventListener("error", function (e) { var b=document.getElementById("boot"); if(b){ b.style.color="#ff6b6b"; b.textContent="エラー: "+(e.message||e.error)+(e.filename?" @ "+e.filename:""); } });
-    setTimeout(function(){ var b=document.getElementById("boot"); if(b&&b.textContent==="読み込み中…"){ b.style.color="#ffd24a"; b.textContent="読み込みに失敗しました。CDN(react/firebase/tailwind)に接続できていない可能性があります。"; } }, 7000);
-  </script>
-  <script>
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" /><title>Quiz Scoreboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style> html, body { background: #030712; margin: 0; } </style></head>
+<body><div id="root"><div id="boot">読み込み中…</div></div>
+<script>window.addEventListener("error",function(e){var b=document.getElementById("boot");if(b)b.textContent="エラー: "+(e.message||e.error);});</script>
+<script>
 const {
   useState,
   useEffect,
   useRef,
   useMemo
 } = React;
+
+// 反映確認用バージョン（更新のたびに番号を上げる）
+const BUILD = "v14 ・ Simple/＋M−Nモード / 自分のみ採点 / 名前表示改善";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -451,6 +444,9 @@ class FirebaseSocket {
       roomId: this.roomId,
       players: Object.values(v.players || {}),
       teams: Object.values(v.teams || {}),
+      teamMode: v.teamMode || 'product',
+      guestScoring: !!v.guestScoring,
+      scoreMode: v.scoreMode || 'addsub',
       timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
     };
   }
@@ -577,6 +573,8 @@ class FirebaseSocket {
             id: pid,
             name,
             score: '0/1',
+            maru: 0,
+            batsu: 0,
             teamId: null,
             joinedAt: Date.now()
           };
@@ -614,6 +612,9 @@ class FirebaseSocket {
       roomId,
       players: Object.values(v.players || {}),
       teams: Object.values(v.teams || {}),
+      teamMode: v.teamMode || 'product',
+      guestScoring: !!v.guestScoring,
+      scoreMode: v.scoreMode || 'addsub',
       timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
     };
   }
@@ -630,10 +631,11 @@ class FirebaseSocket {
     } = data;
     const ref = this.db.ref('rooms/' + data.roomId);
     const players = _clone(this.latestVal.players);
+    const simple = (this.latestVal.scoreMode || 'addsub') === 'simple';
     const appendTimeline = pmap => {
       const scores = {};
       Object.values(pmap || {}).forEach(p => {
-        scores[p.id] = p.score;
+        scores[p.id] = simple ? String((p.maru || 0) - (p.batsu || 0)) : p.score;
       });
       ref.child('timeline').push({
         t: Date.now(),
@@ -641,7 +643,28 @@ class FirebaseSocket {
       });
     };
     try {
-      if (type === 'score') {
+      if (type === 'maru' || type === 'batsu') {
+        const p = players[payload.playerId];
+        if (!p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        this._pushHistory(data.roomId);
+        p[type] = (p[type] || 0) + 1;
+        ref.child('players').set(players);
+        appendTimeline(players);
+        A({
+          ok: true
+        });
+      } else if (type === 'setScoreMode') {
+        ref.child('scoreMode').set(payload.mode === 'simple' ? 'simple' : 'addsub');
+        A({
+          ok: true
+        });
+      } else if (type === 'score') {
         const p = players[payload.playerId];
         if (!p) {
           A({
@@ -711,6 +734,8 @@ class FirebaseSocket {
         this._pushHistory(data.roomId);
         Object.values(players).forEach(p => {
           p.score = '0/1';
+          p.maru = 0;
+          p.batsu = 0;
         });
         ref.child('players').set(players);
         appendTimeline(players);
@@ -792,6 +817,16 @@ class FirebaseSocket {
         A({
           ok: true
         });
+      } else if (type === 'setTeamMode') {
+        ref.child('teamMode').set(payload.mode === 'sum' ? 'sum' : 'product');
+        A({
+          ok: true
+        });
+      } else if (type === 'setGuestScoring') {
+        ref.child('guestScoring').set(!!payload.on);
+        A({
+          ok: true
+        });
       } else if (type === 'undo') {
         const href = this.db.ref('history/' + data.roomId);
         href.get().then(s => {
@@ -862,7 +897,6 @@ const App = () => {
     teams: [],
     timeline: []
   });
-  const [soundEnabled, setSoundEnabled] = useState(false);
 
   // サーバ接続状態（Firebase が設定済みか・つながっているか）
   const hasBackend = FB_CONFIGURED;
@@ -992,20 +1026,11 @@ const App = () => {
       if (!res || !res.ok) console.error("Op failed:", res && res.error);
     });
   };
-  const toggleSound = () => {
-    setSoundEnabled(!soundEnabled);
-    if (!soundEnabled) playSound('pop', true);
-  };
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
   }, !connected && /*#__PURE__*/React.createElement("div", {
     className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
-  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), /*#__PURE__*/React.createElement("div", {
-    className: "absolute top-4 right-4 z-50"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: toggleSound,
-    className: "p-2 rounded-full bg-gray-800 text-gray-400 hover:text-yellow-400 transition-colors"
-  }, soundEnabled ? '🔊 音声ON' : '🔇 音声OFF')), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
+  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
     onCreate: handleCreateRoom,
     onJoin: (r, n) => handleJoin(r, n),
     defaultRoom: roomId,
@@ -1019,12 +1044,13 @@ const App = () => {
     state: state,
     roomId: roomId,
     onOp: executeOp,
-    playSound: type => playSound(type, soundEnabled)
+    playSound: () => {}
   }), view === 'participant' && /*#__PURE__*/React.createElement(ParticipantView, {
     state: state,
     roomId: roomId,
     myPlayerId: myPlayerId,
-    playSound: type => playSound(type, soundEnabled)
+    onOp: executeOp,
+    playSound: () => {}
   }));
 };
 
@@ -1047,7 +1073,9 @@ const HomeView = ({
     className: "text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
   }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-400"
-  }, "リアルタイム得点表示システム")), /*#__PURE__*/React.createElement("div", {
+  }, "リアルタイム得点表示システム"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600 text-xs"
+  }, BUILD)), /*#__PURE__*/React.createElement("div", {
     className: "w-full max-w-md space-y-8"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800"
@@ -1139,18 +1167,97 @@ const JoinView = ({
 };
 
 // ==========================================
+// 得点モード切替バー（ホスト・参加者で共用）
+// ==========================================
+const QUICK_PRESETS = [1, 2, 3, 4, 5];
+const ModeBar = ({
+  mode,
+  setMode,
+  calcOp,
+  setCalcOp,
+  calcVal,
+  setCalcVal,
+  oxPoint,
+  setOxPoint
+}) => /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  className: "flex flex-wrap gap-1 bg-gray-950 p-1 rounded-xl border border-gray-800"
+}, [['ox', '○×'], ['plus', '加点のみ'], ['calc', '自由計算'], ['quick', 'クイック']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  key: k,
+  onClick: () => setMode(k),
+  className: `px-3 py-2 rounded-lg font-bold text-sm transition-all ${mode === k ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`
+}, l))), /*#__PURE__*/React.createElement("div", {
+  className: "flex-1 flex justify-center items-center"
+}, mode === 'calc' ? /*#__PURE__*/React.createElement("div", {
+  className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
+}, /*#__PURE__*/React.createElement("select", {
+  value: calcOp,
+  onChange: e => setCalcOp(e.target.value),
+  className: "bg-gray-900 text-white text-xl font-bold p-2 rounded-lg outline-none appearance-none text-center w-12 cursor-pointer"
+}, /*#__PURE__*/React.createElement("option", {
+  value: "×"
+}, "×"), /*#__PURE__*/React.createElement("option", {
+  value: "÷"
+}, "÷"), /*#__PURE__*/React.createElement("option", {
+  value: "+"
+}, "＋"), /*#__PURE__*/React.createElement("option", {
+  value: "-"
+}, "－")), /*#__PURE__*/React.createElement("input", {
+  type: "text",
+  value: calcVal,
+  onChange: e => setCalcVal(e.target.value),
+  className: "bg-gray-900 text-white text-xl font-bold p-2 w-20 rounded-lg outline-none text-center placeholder-gray-600",
+  placeholder: "値"
+}), /*#__PURE__*/React.createElement("div", {
+  className: "text-gray-400 text-sm px-2 hidden sm:block"
+}, "を適用")) : mode === 'quick' ? /*#__PURE__*/React.createElement("div", {
+  className: "text-gray-400 text-sm text-center px-2"
+}, "各行の ", /*#__PURE__*/React.createElement("span", {
+  className: "text-gray-200 font-bold"
+}, "＋1〜＋5 ／ −1"), " ボタンで素早く加減点") : /*#__PURE__*/React.createElement("div", {
+  className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
+}, /*#__PURE__*/React.createElement("span", {
+  className: "text-gray-400 text-sm font-bold pl-2"
+}, mode === 'plus' ? '加点' : '規定点', ":"), /*#__PURE__*/React.createElement("input", {
+  type: "text",
+  value: oxPoint,
+  onChange: e => setOxPoint(e.target.value),
+  className: "bg-gray-900 text-yellow-400 text-xl font-bold p-2 w-20 rounded-lg outline-none text-center"
+}))));
+
+// ==========================================
 // Participant View
 // ==========================================
 const ParticipantView = ({
   state,
   roomId,
   myPlayerId,
+  onOp,
   playSound
 }) => {
   const [tab, setTab] = useState('ranking'); // ranking, graph
-
+  const [actionMode, setActionMode] = useState('ox');
+  const [calcOp, setCalcOp] = useState('×');
+  const [calcVal, setCalcVal] = useState('2');
+  const [oxPoint, setOxPoint] = useState('1');
+  const simple = state.scoreMode === 'simple';
+  const myPlayer = (state.players || []).find(p => p.id === myPlayerId);
+  const canScore = !!state.guestScoring && !!myPlayer;
+  // 自分の得点だけを操作
+  const selfAct = (op, valueStr) => {
+    if (!myPlayer) return;
+    if (op === 'maru' || op === 'batsu') onOp(op, {
+      playerId: myPlayer.id
+    });else onOp('score', {
+      playerId: myPlayer.id,
+      operator: op,
+      valueStr
+    });
+  };
   return /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col min-h-screen bg-gray-950 pb-8"
+    className: "flex flex-col min-h-screen bg-gray-950",
+    style: {
+      paddingBottom: canScore ? 150 : 32
+    }
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-20 flex justify-between items-center"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1173,24 +1280,61 @@ const ParticipantView = ({
     className: "space-y-8"
   }, state.teams.length > 0 && /*#__PURE__*/React.createElement(TeamBoard, {
     teams: state.teams,
-    players: state.players
+    players: state.players,
+    teamMode: state.teamMode,
+    scoreMode: state.scoreMode
   }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
     className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider"
   }, "個人ランキング"), /*#__PURE__*/React.createElement(PlayerList, {
     players: state.players,
     teams: state.teams,
     myPlayerId: myPlayerId,
-    playSound: playSound
+    scoreMode: state.scoreMode
   }))) : /*#__PURE__*/React.createElement(ScoreGraph, {
     timeline: state.timeline,
     players: state.players
-  })));
+  })), canScore && /*#__PURE__*/React.createElement("div", {
+    className: "fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-3 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-3xl mx-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center text-xs text-blue-300 font-bold mb-2"
+  }, "あなた（", myPlayer.name, "）の得点を操作"), simple ? /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-3"
+  }, /*#__PURE__*/React.createElement(ScorerButtons, {
+    mode: "simple",
+    config: {},
+    onAct: selfAct,
+    size: "big"
+  })) : /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col sm:flex-row gap-3 items-center"
+  }, /*#__PURE__*/React.createElement(ModeBar, {
+    mode: actionMode,
+    setMode: setActionMode,
+    calcOp: calcOp,
+    setCalcOp: setCalcOp,
+    calcVal: calcVal,
+    setCalcVal: setCalcVal,
+    oxPoint: oxPoint,
+    setOxPoint: setOxPoint
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 w-full sm:w-auto"
+  }, /*#__PURE__*/React.createElement(ScorerButtons, {
+    mode: actionMode,
+    config: {
+      op: calcOp,
+      val: calcVal,
+      pt: oxPoint,
+      quick: QUICK_PRESETS
+    },
+    onAct: selfAct,
+    size: "big"
+  }))))));
 };
 
 // ==========================================
 // Host View
 // ==========================================
-const QUICK_PRESETS = [1, 2, 3, 5];
 const HostView = ({
   state,
   roomId,
@@ -1201,13 +1345,17 @@ const HostView = ({
   const [calcOp, setCalcOp] = useState('×');
   const [calcVal, setCalcVal] = useState('2');
   const [oxPoint, setOxPoint] = useState('1');
+  const [showTeams, setShowTeams] = useState(false);
+  const simple = state.scoreMode === 'simple';
   const copyUrl = () => {
     const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
     navigator.clipboard.writeText(url);
     alert('共有URLをコピーしました');
   };
   const handleAction = (player, operator, valueStr, sound) => {
-    onOp('score', {
+    if (operator === 'maru' || operator === 'batsu') onOp(operator, {
+      playerId: player.id
+    });else onOp('score', {
       playerId: player.id,
       operator,
       valueStr
@@ -1224,26 +1372,12 @@ const HostView = ({
     className: "bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-lg"
   }, "HOST"), /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-xl tracking-widest text-white"
-  }, roomId), /*#__PURE__*/React.createElement("button", {
+  }, roomId), /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600 text-[10px] hidden sm:inline"
+  }, BUILD), /*#__PURE__*/React.createElement("button", {
     onClick: copyUrl,
     className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700"
-  }, "URLコピー")), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onOp('undo'),
-    className: "text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-gray-700 text-gray-300"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M3 7v6h6"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
-  })), "UNDO")), /*#__PURE__*/React.createElement("div", {
+  }, "URLコピー"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-1 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1 overflow-y-auto p-4 pb-40"
@@ -1251,7 +1385,10 @@ const HostView = ({
     players: state.players,
     teams: state.teams,
     isHost: true,
-    actionConfig: {
+    scoreMode: state.scoreMode,
+    actionConfig: simple ? {
+      mode: 'simple'
+    } : {
       mode: actionMode,
       op: calcOp,
       val: calcVal,
@@ -1259,7 +1396,6 @@ const HostView = ({
       quick: QUICK_PRESETS
     },
     onAction: handleAction,
-    playSound: playSound,
     onRemove: id => {
       if (window.confirm('削除しますか？')) onOp('removePlayer', {
         playerId: id
@@ -1274,52 +1410,43 @@ const HostView = ({
     className: "absolute bottom-0 left-0 right-0 md:right-80 bg-gray-900 border-t border-gray-800 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
   }, /*#__PURE__*/React.createElement("div", {
     className: "max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap gap-1 bg-gray-950 p-1 rounded-xl border border-gray-800"
-  }, [['ox', '○×'], ['plus', '加点のみ'], ['calc', '自由計算'], ['quick', 'クイック']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    onClick: () => setActionMode(k),
-    className: `px-3 py-2 rounded-lg font-bold text-sm transition-all ${actionMode === k ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`
-  }, l))), /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 flex justify-center items-center"
-  }, actionMode === 'calc' ? /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
-  }, /*#__PURE__*/React.createElement("select", {
-    value: calcOp,
-    onChange: e => setCalcOp(e.target.value),
-    className: "bg-gray-900 text-white text-xl font-bold p-2 rounded-lg outline-none appearance-none text-center w-12 cursor-pointer"
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "×"
-  }, "×"), /*#__PURE__*/React.createElement("option", {
-    value: "÷"
-  }, "÷"), /*#__PURE__*/React.createElement("option", {
-    value: "+"
-  }, "＋"), /*#__PURE__*/React.createElement("option", {
-    value: "-"
-  }, "－")), /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    value: calcVal,
-    onChange: e => setCalcVal(e.target.value),
-    className: "bg-gray-900 text-white text-xl font-bold p-2 w-20 rounded-lg outline-none text-center placeholder-gray-600",
-    placeholder: "値"
+  }, simple ? /*#__PURE__*/React.createElement("div", {
+    className: "text-gray-400 text-sm text-center sm:text-left flex-1"
+  }, "Simpleモード：各行の ", /*#__PURE__*/React.createElement("span", {
+    className: "text-blue-400 font-bold"
+  }, "○"), " / ", /*#__PURE__*/React.createElement("span", {
+    className: "text-red-400 font-bold"
+  }, "×"), " で加算（別々にカウント）") : /*#__PURE__*/React.createElement(ModeBar, {
+    mode: actionMode,
+    setMode: setActionMode,
+    calcOp: calcOp,
+    setCalcOp: setCalcOp,
+    calcVal: calcVal,
+    setCalcVal: setCalcVal,
+    oxPoint: oxPoint,
+    setOxPoint: setOxPoint
   }), /*#__PURE__*/React.createElement("div", {
-    className: "text-gray-400 text-sm px-2 hidden sm:block"
-  }, "を適用")) : actionMode === 'quick' ? /*#__PURE__*/React.createElement("div", {
-    className: "text-gray-400 text-sm text-center px-2"
-  }, "各行の ", /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-200 font-bold"
-  }, "＋1〜＋5 ／ −1"), " ボタンで素早く加減点") : /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-400 text-sm font-bold pl-2"
-  }, actionMode === 'plus' ? '加点' : '規定点', ":"), /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    value: oxPoint,
-    onChange: e => setOxPoint(e.target.value),
-    className: "bg-gray-900 text-yellow-400 text-xl font-bold p-2 w-20 rounded-lg outline-none text-center"
-  }))), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowTeams(true),
+    className: "md:hidden bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700"
+  }, "👥 チーム"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('undo'),
+    className: "bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700 flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "14",
+    height: "14",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M3 7v6h6"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
+  })), "1つ戻す"), !simple && /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       if (window.confirm('全員を1にしますか？')) onOp('setAll', {
         valueStr: '1'
@@ -1331,7 +1458,23 @@ const HostView = ({
       if (window.confirm('全員の得点を0にリセットしますか？')) onOp('resetAll');
     },
     className: "bg-red-950/50 hover:bg-red-900/50 text-red-400 text-xs font-bold px-3 py-2 rounded-lg border border-red-900"
-  }, "0リセット")))));
+  }, "0リセット")))), showTeams && /*#__PURE__*/React.createElement("div", {
+    className: "md:hidden fixed inset-0 z-50 bg-black/70 flex items-end",
+    onClick: () => setShowTeams(false)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-900 w-full max-h-[85vh] overflow-y-auto rounded-t-2xl p-4 border-t border-gray-700",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center mb-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-white"
+  }, "チーム管理"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowTeams(false),
+    className: "text-gray-400 hover:text-white text-sm bg-gray-800 px-3 py-1 rounded-lg border border-gray-700"
+  }, "閉じる")), /*#__PURE__*/React.createElement(HostTeamsPanel, {
+    state: state,
+    onOp: onOp
+  }))));
 };
 const HostTeamsPanel = ({
   state,
@@ -1340,7 +1483,32 @@ const HostTeamsPanel = ({
   const [newTeam, setNewTeam] = useState('');
   return /*#__PURE__*/React.createElement("div", {
     className: "space-y-8"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-800/50 border border-gray-700 rounded-xl p-3 space-y-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm font-bold text-white mb-1"
+  }, "得点表示モード"), /*#__PURE__*/React.createElement("div", {
+    className: "flex bg-gray-950 p-1 rounded-lg border border-gray-800"
+  }, [['addsub', '＋M／−N'], ['simple', 'Simple（○×別計）']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => onOp('setScoreMode', {
+      mode: k
+    }),
+    className: `flex-1 px-2 py-1.5 rounded-md font-bold text-xs transition-colors ${(state.scoreMode || 'addsub') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
+  }, l))), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-gray-500"
+  }, (state.scoreMode || 'addsub') === 'simple' ? '○と×を別々にカウント（例 3－1）' : '○で加点・×で減点（合計1つ）')), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gray-800/50 border border-gray-700 rounded-xl p-3 flex items-center justify-between gap-2"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm font-bold text-white"
+  }, "参加者も採点可"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-gray-500"
+  }, "ONにすると参加者が自分の得点を操作できます")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('setGuestScoring', {
+      on: !state.guestScoring
+    }),
+    className: `px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${state.guestScoring ? 'bg-green-700 text-white border-green-600' : 'bg-gray-900 text-gray-400 border-gray-700'}`
+  }, state.guestScoring ? 'ON' : 'OFF')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
     className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("svg", {
     width: "16",
@@ -1378,13 +1546,47 @@ const HostTeamsPanel = ({
     },
     className: "bg-gray-700 hover:bg-gray-600 px-3 rounded-lg text-sm font-bold transition-colors"
   }, "+")), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 mb-4"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-500 text-xs"
+  }, "チーム得点の計算:"), /*#__PURE__*/React.createElement("div", {
+    className: "flex bg-gray-950 p-1 rounded-lg border border-gray-800"
+  }, [['product', '積（×）'], ['sum', '和（＋）']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => onOp('setTeamMode', {
+      mode: k
+    }),
+    className: `px-3 py-1 rounded-md font-bold text-xs transition-colors ${(state.teamMode || 'product') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
+  }, l)))), /*#__PURE__*/React.createElement("div", {
     className: "space-y-4"
   }, state.teams.map(team => /*#__PURE__*/React.createElement("div", {
     key: team.id,
     className: "bg-gray-800 rounded-xl p-3 border border-gray-700"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-white mb-2"
-  }, team.name), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between mb-2 gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold text-white truncate"
+  }, team.name, /*#__PURE__*/React.createElement("span", {
+    className: "text-yellow-400 ml-2"
+  }, fmtNum(calcTeamScore(state.players.filter(p => p.teamId === team.id), state.teamMode, state.scoreMode)))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1 shrink-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      const n = prompt('新しいチーム名', team.name);
+      if (n && n.trim()) onOp('renameTeam', {
+        teamId: team.id,
+        name: n.trim()
+      });
+    },
+    className: "text-xs text-gray-400 hover:text-yellow-400 border border-gray-700 rounded-md px-2 py-1"
+  }, "改名"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm(`チーム「${team.name}」を削除しますか？（メンバーは未所属に戻ります）`)) onOp('removeTeam', {
+        teamId: team.id
+      });
+    },
+    className: "text-xs text-red-400 hover:text-red-300 border border-red-900 rounded-md px-2 py-1"
+  }, "削除"))), /*#__PURE__*/React.createElement("div", {
     className: "space-y-1"
   }, state.players.filter(p => p.teamId === team.id).map(p => /*#__PURE__*/React.createElement("div", {
     key: p.id,
@@ -1415,25 +1617,82 @@ const HostTeamsPanel = ({
 // ==========================================
 // Board & FLIP List
 // ==========================================
+// チーム得点：積（product）または和（sum）。表示用に数値で返す。
+// プレイヤーの実効値：Simpleモードは ○−×、通常は得点
+const memberValue = (p, scoreMode) => scoreMode === 'simple' ? (p.maru || 0) - (p.batsu || 0) : parseScoreToNumber(p.score);
+const calcTeamScore = (members, mode, scoreMode) => {
+  if (!members.length) return 0;
+  if (mode === 'sum') return members.reduce((s, m) => s + memberValue(m, scoreMode), 0);
+  return members.reduce((p, m) => p * memberValue(m, scoreMode), 1);
+};
+const fmtNum = v => Number.isInteger(v) ? v : Number(v.toFixed(2));
+
+// 得点操作ボタン群（行内・自分用バーで共用）。onAct(operator, valueStr, sound)
+const ScorerButtons = ({
+  mode,
+  config,
+  onAct,
+  size
+}) => {
+  const big = size === 'big';
+  const oxCls = big ? 'py-4 text-2xl flex-1' : 'py-2 px-4 text-xl';
+  if (mode === 'simple') {
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('maru'),
+      className: `bg-blue-600 hover:bg-blue-500 text-white font-black rounded-lg active:scale-95 ${oxCls}`
+    }, "○"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('batsu'),
+      className: `bg-red-500 hover:bg-red-400 text-white font-black rounded-lg active:scale-95 ${oxCls}`
+    }, "×"));
+  }
+  if (mode === 'calc') {
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct(config.op === '×' ? '*' : config.op === '÷' ? '/' : config.op, config.val, 'pop'),
+      className: `bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg border border-gray-600 active:scale-95 ${big ? 'py-4 text-xl flex-1' : 'py-2 px-3 sm:px-4 min-w-[60px]'}`
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "text-yellow-400 mr-1"
+    }, config.op), config.val);
+  }
+  if (mode === 'plus') {
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('+', config.pt, 'correct'),
+      className: `bg-green-700 hover:bg-green-600 text-white font-black rounded-lg active:scale-95 whitespace-nowrap ${big ? 'py-4 text-xl flex-1' : 'py-2 px-4'}`
+    }, "○ ＋", config.pt);
+  }
+  if (mode === 'quick') {
+    return /*#__PURE__*/React.createElement(React.Fragment, null, (config.quick || []).map(n => /*#__PURE__*/React.createElement("button", {
+      key: n,
+      onClick: () => onAct('+', String(n), 'pop'),
+      className: `bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg border border-gray-600 active:scale-95 ${big ? 'py-4 flex-1' : 'py-2 px-2 sm:px-3'}`
+    }, "＋", n)), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('-', '1', 'wrong'),
+      className: `bg-red-900/60 hover:bg-red-800/60 text-red-300 font-bold rounded-lg border border-red-700/50 active:scale-95 ${big ? 'py-4 flex-1' : 'py-2 px-2 sm:px-3'}`
+    }, "−1"));
+  }
+  // ox
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAct('+', config.pt, 'correct'),
+    className: `bg-green-700 hover:bg-green-600 text-white font-black rounded-lg active:scale-95 ${oxCls}`
+  }, "○"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAct('-', config.pt, 'wrong'),
+    className: `bg-red-500 hover:bg-red-400 text-white font-black rounded-lg active:scale-95 ${oxCls}`
+  }, "×"));
+};
 const TeamBoard = ({
   teams,
-  players
+  players,
+  teamMode,
+  scoreMode
 }) => {
   const teamScores = useMemo(() => {
     return teams.map(t => {
       const members = players.filter(p => p.teamId === t.id);
-      if (members.length === 0) return {
-        ...t,
-        score: 0
-      };
-      let product = 1;
-      members.forEach(m => product *= parseScoreToNumber(m.score));
       return {
         ...t,
-        score: product
+        score: calcTeamScore(members, teamMode, scoreMode)
       };
     }).sort((a, b) => b.score - a.score);
-  }, [teams, players]);
+  }, [teams, players, teamMode, scoreMode]);
   return /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -1447,7 +1706,7 @@ const TeamBoard = ({
     strokeWidth: "2"
   }, /*#__PURE__*/React.createElement("path", {
     d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-  })), "チームランキング (積)"), /*#__PURE__*/React.createElement("div", {
+  })), "チームランキング（", teamMode === 'sum' ? '和' : '積', "）"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-4"
   }, teamScores.map((t, i) => /*#__PURE__*/React.createElement("div", {
     key: t.id,
@@ -1458,7 +1717,7 @@ const TeamBoard = ({
     className: "text-gray-400 text-sm font-bold mb-1 truncate w-full text-center"
   }, t.name), /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-black text-white tracking-tighter"
-  }, Number.isInteger(t.score) ? t.score : Number(t.score.toFixed(2)))))));
+  }, fmtNum(t.score))))));
 };
 const PlayerList = ({
   players,
@@ -1467,17 +1726,18 @@ const PlayerList = ({
   isHost,
   onAction,
   actionConfig,
-  onRemove
+  onRemove,
+  scoreMode
 }) => {
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
-      const sA = parseScoreToNumber(a.score);
-      const sB = parseScoreToNumber(b.score);
+      const sA = memberValue(a, scoreMode),
+        sB = memberValue(b, scoreMode);
       if (sB !== sA) return sB - sA;
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     });
-  }, [players]);
-  const rowHeight = isHost ? 80 : 72;
+  }, [players, scoreMode]);
+  const rowHeight = actionConfig ? 116 : 64;
   const gap = 8;
   const containerHeight = sortedPlayers.length * (rowHeight + gap);
   if (players.length === 0) {
@@ -1503,7 +1763,8 @@ const PlayerList = ({
       isHost: isHost,
       onAction: onAction,
       actionConfig: actionConfig,
-      onRemove: onRemove
+      onRemove: onRemove,
+      scoreMode: scoreMode
     });
   }));
 };
@@ -1517,23 +1778,24 @@ const PlayerRow = ({
   isHost,
   onAction,
   actionConfig,
-  onRemove
+  onRemove,
+  scoreMode
 }) => {
   const [flash, setFlash] = useState(null);
-  const prevScore = useRef(parseScoreToNumber(player.score));
-  const scoreNum = parseScoreToNumber(player.score);
-  const isTop = index === 0 && scoreNum > 0;
+  const simple = scoreMode === 'simple';
+  const val = memberValue(player, scoreMode);
+  const prev = useRef(val);
+  const isTop = index === 0 && val > 0;
   useEffect(() => {
-    const current = parseScoreToNumber(player.score);
-    if (current > prevScore.current) {
+    if (val > prev.current) {
       setFlash('green');
       setTimeout(() => setFlash(null), 600);
-    } else if (current < prevScore.current) {
+    } else if (val < prev.current) {
       setFlash('red');
       setTimeout(() => setFlash(null), 600);
     }
-    prevScore.current = current;
-  }, [player.score]);
+    prev.current = val;
+  }, [val]);
   let bgClass = 'bg-gray-800';
   let borderClass = 'border-gray-700 border';
   if (isMe) {
@@ -1549,60 +1811,44 @@ const PlayerRow = ({
   });else if (flash === 'red') flashOverlay = /*#__PURE__*/React.createElement("div", {
     className: "absolute inset-0 bg-red-500/20 rounded-xl animate-pulse pointer-events-none"
   });
+  const scoreEl = simple ? /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-1 font-black tracking-tighter shrink-0"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-blue-400 text-2xl sm:text-3xl"
+  }, player.maru || 0), /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-500 text-lg"
+  }, "－"), /*#__PURE__*/React.createElement("span", {
+    className: "text-red-400 text-2xl sm:text-3xl"
+  }, player.batsu || 0)) : /*#__PURE__*/React.createElement("div", {
+    className: `text-2xl sm:text-3xl font-black tracking-tighter shrink-0 transition-colors duration-300 ${flash === 'green' ? 'text-green-400' : flash === 'red' ? 'text-red-400' : 'text-yellow-400'}`
+  }, formatScoreStr(player.score));
   return /*#__PURE__*/React.createElement("div", {
-    className: `absolute left-0 right-0 rounded-xl flex items-center px-3 sm:px-5 transition-all duration-500 ease-out z-10 ${bgClass} ${borderClass}`,
+    className: `absolute left-0 right-0 rounded-xl flex flex-col justify-center px-3 sm:px-4 transition-all duration-500 ease-out z-10 ${bgClass} ${borderClass}`,
     style: {
       top: `${top}px`,
       height: `${height}px`,
       transform: flash === 'red' ? 'translateX(2px)' : 'none'
     }
   }, flashOverlay, /*#__PURE__*/React.createElement("div", {
-    className: "w-8 sm:w-10 flex-shrink-0 flex items-center"
+    className: "flex items-center gap-2 relative"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-7 text-center flex-shrink-0"
   }, isTop ? /*#__PURE__*/React.createElement("span", {
-    className: "text-2xl",
+    className: "text-xl",
     title: "1位"
   }, "👑") : /*#__PURE__*/React.createElement("span", {
-    className: `text-lg sm:text-xl font-bold ${isMe ? 'text-blue-300' : 'text-gray-500'}`
+    className: `text-base sm:text-lg font-bold ${isMe ? 'text-blue-300' : 'text-gray-500'}`
   }, index + 1)), /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 min-w-0 pr-4"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 min-w-0 flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
     className: "text-base sm:text-lg font-bold text-white truncate"
   }, player.name), team && /*#__PURE__*/React.createElement("span", {
-    className: "text-[10px] sm:text-xs font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap border border-gray-600"
-  }, team.name)), isMe && /*#__PURE__*/React.createElement("div", {
-    className: "text-xs text-blue-400 font-bold mt-0.5"
-  }, "YOU")), /*#__PURE__*/React.createElement("div", {
-    className: "flex-shrink-0 flex items-center justify-end mr-2 sm:mr-4 w-20 sm:w-28"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `text-3xl sm:text-4xl font-black tracking-tighter transition-colors duration-300 ${flash === 'green' ? 'text-green-400' : flash === 'red' ? 'text-red-400' : 'text-yellow-400'}`
-  }, formatScoreStr(player.score))), isHost && /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-1.5 sm:gap-2 flex-shrink-0 border-l border-gray-700 pl-3 sm:pl-4 py-2"
-  }, actionConfig.mode === 'calc' && /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, actionConfig.op === '×' ? '*' : actionConfig.op === '÷' ? '/' : actionConfig.op, actionConfig.val, 'pop'),
-    className: "bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors border border-gray-600 active:scale-95 flex items-center justify-center min-w-[60px] sm:min-w-[80px]"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-yellow-400 mr-1"
-  }, actionConfig.op), actionConfig.val), actionConfig.mode === 'ox' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, '+', actionConfig.pt, 'correct'),
-    className: "bg-green-900/50 hover:bg-green-800/50 text-green-400 font-black py-2 px-4 rounded-lg border-2 border-green-700/50 active:scale-95 transition-all text-xl"
-  }, "○"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, '-', actionConfig.pt, 'wrong'),
-    className: "bg-red-900/50 hover:bg-red-800/50 text-red-400 font-black py-2 px-4 rounded-lg border-2 border-red-700/50 active:scale-95 transition-all text-xl"
-  }, "×")), actionConfig.mode === 'plus' && /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, '+', actionConfig.pt, 'correct'),
-    className: "bg-green-900/50 hover:bg-green-800/50 text-green-400 font-black py-2 px-4 rounded-lg border-2 border-green-700/50 active:scale-95 transition-all whitespace-nowrap"
-  }, "○ ＋", actionConfig.pt), actionConfig.mode === 'quick' && /*#__PURE__*/React.createElement(React.Fragment, null, (actionConfig.quick || []).map(n => /*#__PURE__*/React.createElement("button", {
-    key: n,
-    onClick: () => onAction(player, '+', String(n), 'pop'),
-    className: "bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-2 sm:px-3 rounded-lg border border-gray-600 active:scale-95"
-  }, "＋", n)), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAction(player, '-', '1', 'wrong'),
-    className: "bg-red-900/50 hover:bg-red-800/50 text-red-400 font-bold py-2 px-2 sm:px-3 rounded-lg border border-red-700/50 active:scale-95"
-  }, "−1")), /*#__PURE__*/React.createElement("button", {
+    className: "text-[10px] sm:text-xs font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap border border-gray-600 shrink-0"
+  }, team.name), isMe && /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] text-blue-400 font-bold shrink-0"
+  }, "YOU")), scoreEl, onRemove && /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(player.id),
-    className: "ml-1 p-2 text-gray-600 hover:text-red-400 transition-colors"
+    className: "p-1 text-gray-600 hover:text-red-400 transition-colors shrink-0"
   }, /*#__PURE__*/React.createElement("svg", {
     width: "16",
     height: "16",
@@ -1612,7 +1858,13 @@ const PlayerRow = ({
     strokeWidth: "2"
   }, /*#__PURE__*/React.createElement("path", {
     d: "M18 6L6 18M6 6l12 12"
-  })))));
+  })))), actionConfig && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1.5 sm:gap-2 mt-2 justify-end"
+  }, /*#__PURE__*/React.createElement(ScorerButtons, {
+    mode: simple ? 'simple' : actionConfig.mode,
+    config: actionConfig,
+    onAct: (op, val2, sound) => onAction(player, op, val2, sound)
+  })));
 };
 
 // ==========================================
@@ -1676,10 +1928,21 @@ const ScoreGraph = ({
     className: "bg-gray-900 rounded-2xl border border-gray-800 p-4 shadow-xl overflow-hidden w-full relative"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-sm font-bold text-gray-400 mb-2 px-2"
-  }, "得点推移"), /*#__PURE__*/React.createElement("svg", {
+  }, "得点推移"), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-x-3 gap-y-1 px-2 mb-3"
+  }, activePlayers.map((p, pIndex) => /*#__PURE__*/React.createElement("span", {
+    key: p.id,
+    className: "inline-flex items-center gap-1 text-xs text-gray-300 max-w-[45%]"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "inline-block w-3 h-3 rounded-full shrink-0",
+    style: {
+      background: colors[pIndex % colors.length]
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "truncate"
+  }, p.name)))), /*#__PURE__*/React.createElement("svg", {
     width: width,
-    height: height,
-    className: "overflow-visible"
+    height: height
   }, [0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
     const y = padding.top + innerHeight * ratio;
     const val = maxScore - (maxScore - minScore) * ratio;
@@ -1729,17 +1992,9 @@ const ScoreGraph = ({
       fill: color,
       stroke: "#111827",
       strokeWidth: "2"
-    }), /*#__PURE__*/React.createElement("text", {
-      x: getX(timeline.length - 1) + 10,
-      y: getY(lastVal) + 4,
-      fill: color,
-      fontSize: "12",
-      fontWeight: "bold"
-    }, p.name));
+    }));
   })));
 };
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(/*#__PURE__*/React.createElement(App, null));
-  </script>
-</body>
-</html>
+</script></body></html>
