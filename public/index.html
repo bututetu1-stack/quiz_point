@@ -17,7 +17,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v16 ・ 参加者にも1つ戻すボタン";
+const BUILD = "v17 ・ 退出してタイトルへ / 入室時に表示名入力";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -465,6 +465,13 @@ class FirebaseSocket {
       this._emitState();
     });
   }
+  leaveRoom() {
+    if (this._sub && this._subRef) this._subRef.off('value', this._sub);
+    this._sub = null;
+    this._subRef = null;
+    this.roomId = null;
+    this.latestVal = {};
+  }
   emit(event, data, ack) {
     if (typeof data === 'function' && ack === undefined) {
       ack = data;
@@ -871,6 +878,7 @@ class FirebaseSocket {
 class DeadSocket {
   on() {}
   off() {}
+  leaveRoom() {}
   emit(event, data, ack) {
     if (typeof data === 'function') ack = data;
     if (typeof ack === 'function') ack({
@@ -943,6 +951,7 @@ const App = () => {
     if (roomFromUrl) {
       setRoomId(roomFromUrl);
       if (savedHostToken) {
+        // ホストはトークンで自動復帰。失敗時は参加者として名前入力へ
         getSocket().emit('hostJoin', {
           roomId: roomFromUrl,
           hostToken: savedHostToken
@@ -954,16 +963,12 @@ const App = () => {
               ...res.state
             }));
             setView('host');
-          } else if (savedName) {
-            handleJoin(roomFromUrl, savedName, savedPlayerId);
           } else {
             setView('join');
           }
         });
-      } else if (savedName) {
-        handleJoin(roomFromUrl, savedName, savedPlayerId);
       } else {
-        // 招待リンク経由：ロビーではなく「この部屋に入室」画面へ
+        // 招待リンク経由：毎回「名前を入力して入室」画面を表示（表示名を選べる）
         setView('join');
       }
     }
@@ -1027,6 +1032,25 @@ const App = () => {
       if (!res || !res.ok) console.error("Op failed:", res && res.error);
     });
   };
+
+  // 部屋を退出してタイトルへ（データは残し、ローカル状態のみリセット）
+  const leaveRoom = () => {
+    const s = getSocket();
+    if (s.leaveRoom) s.leaveRoom();
+    const url = new URL(window.location);
+    url.searchParams.delete('room');
+    window.history.pushState({}, '', url);
+    setRoomId('');
+    setHostToken('');
+    setMyPlayerId(null);
+    setMyName('');
+    setState({
+      players: [],
+      teams: [],
+      timeline: []
+    });
+    setView('home');
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
   }, !connected && /*#__PURE__*/React.createElement("div", {
@@ -1045,12 +1069,14 @@ const App = () => {
     state: state,
     roomId: roomId,
     onOp: executeOp,
+    onLeave: leaveRoom,
     playSound: () => {}
   }), view === 'participant' && /*#__PURE__*/React.createElement(ParticipantView, {
     state: state,
     roomId: roomId,
     myPlayerId: myPlayerId,
     onOp: executeOp,
+    onLeave: leaveRoom,
     playSound: () => {}
   }));
 };
@@ -1130,7 +1156,7 @@ const JoinView = ({
   onJoin,
   onBack
 }) => {
-  const [name, setName] = useState(defaultName || '');
+  const [name, setName] = useState(defaultName || (typeof localStorage !== 'undefined' ? localStorage.getItem('playerName') || '' : ''));
   const submit = () => {
     const n = name.trim();
     if (n) onJoin(n);
@@ -1233,6 +1259,7 @@ const ParticipantView = ({
   roomId,
   myPlayerId,
   onOp,
+  onLeave,
   playSound
 }) => {
   const [tab, setTab] = useState('ranking'); // ranking, graph
@@ -1260,21 +1287,45 @@ const ParticipantView = ({
       paddingBottom: canScore ? 150 : 32
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-20 flex justify-between items-center"
+    className: "bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-20 flex justify-between items-center gap-2"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-gray-300 flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "w-2 h-2 rounded-full bg-green-500 animate-pulse"
-  }), "ROOM: ", /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-gray-300 flex items-center gap-2 min-w-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm('部屋を退出してタイトルに戻りますか？')) onLeave();
+    },
+    className: "text-gray-400 hover:text-white shrink-0",
+    title: "退出"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: "16 17 21 12 16 7"
+  }), /*#__PURE__*/React.createElement("line", {
+    x1: "21",
+    y1: "12",
+    x2: "9",
+    y2: "12"
+  }))), /*#__PURE__*/React.createElement("span", {
+    className: "truncate"
+  }, "ROOM ", /*#__PURE__*/React.createElement("span", {
     className: "text-yellow-400 font-mono tracking-widest"
-  }, roomId)), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 bg-gray-800 p-1 rounded-lg"
+  }, roomId))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 bg-gray-800 p-1 rounded-lg shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setTab('ranking'),
-    className: `px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
+    className: `px-3 sm:px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
   }, "ランキング"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setTab('graph'),
-    className: `px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
+    className: `px-3 sm:px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
   }, "グラフ"))), /*#__PURE__*/React.createElement("div", {
     className: "flex-1 p-4 max-w-4xl w-full mx-auto mt-4"
   }, tab === 'ranking' ? /*#__PURE__*/React.createElement("div", {
@@ -1358,6 +1409,7 @@ const HostView = ({
   state,
   roomId,
   onOp,
+  onLeave,
   playSound
 }) => {
   const [actionMode, setActionMode] = useState('ox'); // ox, plus, calc, quick
@@ -1384,18 +1436,42 @@ const HostView = ({
   return /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col h-screen bg-gray-950 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center shrink-0"
+    className: "bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center shrink-0 gap-2"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-4"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-lg"
+    className: "flex items-center gap-3 min-w-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm('ホスト画面を離れてタイトルに戻りますか？（部屋は残ります。同じ端末から再入室できます）')) onLeave();
+    },
+    className: "text-gray-400 hover:text-white shrink-0",
+    title: "退出"
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: "16 17 21 12 16 7"
+  }), /*#__PURE__*/React.createElement("line", {
+    x1: "21",
+    y1: "12",
+    x2: "9",
+    y2: "12"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-lg shrink-0"
   }, "HOST"), /*#__PURE__*/React.createElement("div", {
-    className: "font-mono text-xl tracking-widest text-white"
+    className: "font-mono text-xl tracking-widest text-white truncate"
   }, roomId), /*#__PURE__*/React.createElement("span", {
     className: "text-gray-600 text-[10px] hidden sm:inline"
   }, BUILD), /*#__PURE__*/React.createElement("button", {
     onClick: copyUrl,
-    className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700"
+    className: "text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-md transition-colors border border-gray-700 shrink-0"
   }, "URLコピー"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-1 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
