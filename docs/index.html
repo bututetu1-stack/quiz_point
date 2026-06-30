@@ -5,7 +5,6 @@
 <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style> html, body { background: #f8fafc; margin: 0; } </style></head>
 <body><div id="root"><div id="boot" style="padding:24px;color:#94a3b8;font-family:sans-serif">読み込み中…</div></div>
 <script>window.addEventListener("error",function(e){var b=document.getElementById("boot");if(b)b.textContent="エラー: "+(e.message||e.error);});</script>
@@ -18,7 +17,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v24 ・ Geminiデザイン忠実化 / スマホDnD・コード入力修正";
+const BUILD = "v25 ・ ドラッグ＆ドロップ刷新（Pointer Events）";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1657,6 +1656,94 @@ const ScoreGraph = ({
 };
 
 // ==========================================
+// ドラッグ＆ドロップ（自前・Pointer Events / マウス・タッチ・ペン共通）
+// ==========================================
+const usePlayerDnd = (onAssign, enabled) => {
+  const [ghost, setGhost] = useState(null);
+  const st = useRef({});
+  const assignRef = useRef(onAssign);
+  assignRef.current = onAssign;
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+  const api = useRef(null);
+  if (!api.current) {
+    const clearHover = () => {
+      const h = st.current.hover;
+      if (h) {
+        h.classList.remove('ring-4', 'ring-amber-400', 'ring-offset-2', 'z-30');
+        st.current.hover = null;
+      }
+    };
+    const onMove = e => {
+      const s = st.current;
+      if (!s.active) return;
+      if (!s.dragging) {
+        if (Math.abs(e.clientX - s.x0) + Math.abs(e.clientY - s.y0) < 6) return;
+        s.dragging = true;
+      }
+      if (e.cancelable) e.preventDefault();
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const drop = el && el.closest ? el.closest('[data-team-drop]') : null;
+      if (drop !== s.hover) {
+        clearHover();
+        if (drop) {
+          drop.classList.add('ring-4', 'ring-amber-400', 'ring-offset-2', 'z-30');
+          s.hover = drop;
+        }
+      }
+      setGhost({
+        name: s.name,
+        x: e.clientX,
+        y: e.clientY
+      });
+    };
+    const teardown = () => {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onCancel, true);
+    };
+    const commit = doAssign => {
+      const s = st.current;
+      teardown();
+      const playerId = s.playerId;
+      const dropEl = doAssign && s.dragging ? s.hover : null;
+      const teamId = dropEl ? dropEl.getAttribute('data-team-id') : undefined;
+      clearHover();
+      st.current = {};
+      setGhost(null);
+      if (teamId !== undefined && assignRef.current) assignRef.current(playerId, teamId === '' ? null : teamId);
+    };
+    const onUp = () => commit(true);
+    const onCancel = () => commit(false);
+    const startDrag = (e, playerId, name) => {
+      if (!enabledRef.current) return;
+      if (typeof e.button === 'number' && e.button !== 0) return;
+      st.current = {
+        active: true,
+        dragging: false,
+        playerId,
+        name,
+        x0: e.clientX,
+        y0: e.clientY,
+        hover: null
+      };
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
+    };
+    api.current = {
+      startDrag,
+      teardown
+    };
+  }
+  useEffect(() => () => api.current.teardown(), []);
+  return {
+    startDrag: api.current.startDrag,
+    ghost
+  };
+};
+
+// ==========================================
 // チームボード（Gemini通り）。onAssign を渡すとカードがドロップ先になる
 // ==========================================
 const TeamDrop = ({
@@ -1664,29 +1751,11 @@ const TeamDrop = ({
   active,
   className,
   children
-}) => {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!active || !ref.current || typeof Sortable === 'undefined') return;
-    const s = Sortable.create(ref.current, {
-      group: 'roster',
-      sort: false,
-      draggable: '[data-player-id]',
-      forceFallback: true,
-      fallbackOnBody: true,
-      fallbackTolerance: 5,
-      onEnd: evt => {
-        evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
-      }
-    });
-    return () => s.destroy();
-  }, [active]);
-  return /*#__PURE__*/React.createElement("div", {
-    ref: ref,
-    "data-team-id": teamId == null ? '' : teamId,
-    className: className
-  }, children);
-};
+}) => /*#__PURE__*/React.createElement("div", {
+  "data-team-drop": active ? '' : undefined,
+  "data-team-id": active ? teamId == null ? '' : teamId : undefined,
+  className: className
+}, children);
 const TeamBoard = ({
   state,
   onAssign
@@ -1731,7 +1800,8 @@ const PlayerRow = ({
   onRename,
   onRemove,
   actionConfig,
-  draggable
+  draggable,
+  onHandlePointerDown
 }) => {
   const team = state.teams.find(t => t.id === player.teamId);
   const simple = state.scoreMode === 'simple';
@@ -1746,9 +1816,16 @@ const PlayerRow = ({
     "data-player-id": player.id,
     className: `relative flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-3xl border-2 transition-all ${isMe ? 'border-amber-400 bg-amber-50' : 'border-transparent bg-slate-50'}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: `flex items-center gap-4 w-full md:flex-1 min-w-0 ${draggable ? 'drag-handle cursor-grab active:cursor-grabbing select-none' : ''}`,
-    title: draggable ? '名前をドラッグしてチームに割り当て' : undefined
-  }, /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center gap-3 w-full md:flex-1 min-w-0 ${draggable ? 'cursor-grab active:cursor-grabbing select-none' : ''}`,
+    style: draggable ? {
+      touchAction: 'none'
+    } : undefined,
+    onPointerDown: draggable ? e => onHandlePointerDown(e, player) : undefined,
+    title: draggable ? '名前をつかんでチームカードにドロップ' : undefined
+  }, draggable && /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-300 shrink-0 text-lg leading-none",
+    "aria-hidden": "true"
+  }, "⠿"), /*#__PURE__*/React.createElement("div", {
     className: "w-12 h-12 shrink-0 flex items-center justify-center rounded-2xl bg-white shadow-sm text-xl font-black text-slate-700 relative"
   }, isTop && /*#__PURE__*/React.createElement(Crown, {
     className: "absolute -top-4 -left-2 w-8 h-8 text-amber-400 drop-shadow-md",
@@ -1807,34 +1884,10 @@ const PlayerList = ({
   onAssign
 }) => {
   const simple = state.scoreMode === 'simple';
-  const listRef = useRef(null);
-  const assignRef = useRef(onAssign);
-  assignRef.current = onAssign;
-  useEffect(() => {
-    if (!draggable || !listRef.current || typeof Sortable === 'undefined') return;
-    const s = Sortable.create(listRef.current, {
-      group: 'roster',
-      sort: false,
-      draggable: '[data-player-id]',
-      handle: '.drag-handle',
-      forceFallback: true,
-      fallbackOnBody: true,
-      fallbackTolerance: 5,
-      delay: 120,
-      delayOnTouchOnly: true,
-      filter: '.nodrag',
-      preventOnFilter: false,
-      onEnd: evt => {
-        const playerId = evt.item.dataset.playerId,
-          to = evt.to;
-        evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
-        if (playerId && to !== evt.from && to.dataset.teamId !== undefined && assignRef.current) {
-          assignRef.current(playerId, to.dataset.teamId === '' ? null : to.dataset.teamId);
-        }
-      }
-    });
-    return () => s.destroy();
-  }, [draggable]);
+  const {
+    startDrag,
+    ghost
+  } = usePlayerDnd(onAssign, !!draggable);
   const sorted = useMemo(() => [...state.players].sort((a, b) => {
     if (simple) {
       if ((b.maru || 0) !== (a.maru || 0)) return (b.maru || 0) - (a.maru || 0);
@@ -1848,9 +1901,10 @@ const PlayerList = ({
     className: "p-8 text-center text-slate-400 font-bold"
   }, "まだ参加者がいません");
   return /*#__PURE__*/React.createElement("div", {
-    ref: listRef,
     className: "flex flex-col gap-3"
-  }, sorted.map((p, i) => /*#__PURE__*/React.createElement(PlayerRow, {
+  }, draggable && /*#__PURE__*/React.createElement("span", {
+    className: "hidden ring-4 ring-amber-400 ring-offset-2 z-30"
+  }), sorted.map((p, i) => /*#__PURE__*/React.createElement(PlayerRow, {
     key: p.id,
     player: p,
     rank: i + 1,
@@ -1862,8 +1916,20 @@ const PlayerList = ({
     onRename: onRename,
     onRemove: onRemove,
     actionConfig: actionConfig,
-    draggable: draggable
-  })));
+    draggable: draggable,
+    onHandlePointerDown: (e, player) => startDrag(e, player.id, player.name)
+  })), ghost && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      left: ghost.x + 14,
+      top: ghost.y + 10,
+      pointerEvents: 'none',
+      zIndex: 50
+    },
+    className: "px-3 py-1.5 rounded-xl bg-amber-400 text-white text-sm font-bold shadow-lg shadow-amber-300/50 flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement(Users, {
+    size: 14
+  }), " ", ghost.name));
 };
 
 // ==========================================
