@@ -5,8 +5,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<style> html, body { background: #030712; margin: 0; } </style></head>
-<body><div id="root"><div id="boot">読み込み中…</div></div>
+<style> html, body { background: #f8fafc; margin: 0; } </style></head>
+<body><div id="root"><div id="boot" style="padding:24px;color:#94a3b8;font-family:sans-serif">読み込み中…</div></div>
 <script>window.addEventListener("error",function(e){var b=document.getElementById("boot");if(b)b.textContent="エラー: "+(e.message||e.error);});</script>
 <script>
 const {
@@ -17,7 +17,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v21 ・ 古い部屋を自動掃除 / コード表示をスマホ対応";
+const BUILD = "v22 ・ デザイン刷新（明るくポップ）";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1075,13 +1075,12 @@ const App = () => {
     setView('home');
   };
   return /*#__PURE__*/React.createElement("div", {
-    className: "min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-yellow-500/30"
+    className: "min-h-screen bg-slate-50 text-slate-800 font-sans"
   }, !connected && /*#__PURE__*/React.createElement("div", {
-    className: "bg-red-900/80 text-red-100 text-center text-xs sm:text-sm py-2 px-3 relative z-50"
-  }, hasBackend ? '⏳ Firebase に接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig にあなたの Firebase 設定を貼り付けてください。'), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
+    className: "bg-rose-500 text-white text-center text-xs sm:text-sm py-2 px-3 font-bold"
+  }, hasBackend ? '⏳ 接続中… つながらない場合は再読み込みしてください' : '⚠ Firebase が未設定です。index.html の firebaseConfig を設定してください。'), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
     onCreate: handleCreateRoom,
     onJoin: (r, n) => handleJoin(r, n, localStorage.getItem('playerId_' + r)),
-    defaultRoom: roomId,
     defaultName: myName
   }), view === 'join' && /*#__PURE__*/React.createElement(JoinView, {
     roomId: roomId,
@@ -1092,130 +1091,109 @@ const App = () => {
     state: state,
     roomId: roomId,
     onOp: executeOp,
-    onLeave: leaveRoom,
-    playSound: () => {}
+    onLeave: leaveRoom
   }), view === 'participant' && /*#__PURE__*/React.createElement(ParticipantView, {
     state: state,
     roomId: roomId,
     myPlayerId: myPlayerId,
     onOp: executeOp,
-    onLeave: leaveRoom,
-    playSound: () => {}
+    onLeave: leaveRoom
   }));
 };
 
 // ==========================================
-// Home View
-// ==========================================
-const HomeView = ({
-  onCreate,
-  onJoin,
-  defaultRoom,
-  defaultName
-}) => {
-  const [room, setRoom] = useState(defaultRoom || '');
-  const [name, setName] = useState(defaultName || '');
-  return /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col items-center justify-center min-h-screen p-6"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mb-12 text-center space-y-4"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: "text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
-  }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-400"
-  }, "リアルタイム得点表示システム"), /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-600 text-xs"
-  }, BUILD)), /*#__PURE__*/React.createElement("div", {
-    className: "w-full max-w-md space-y-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800"
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-xl font-bold mb-4 text-white"
-  }, "参加者として入室"), /*#__PURE__*/React.createElement("div", {
-    className: "space-y-4"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    inputMode: "numeric",
-    pattern: "[0-9]*",
-    autoComplete: "off",
-    placeholder: "部屋コード (数字4桁)",
-    value: room,
-    onChange: e => setRoom(e.target.value.replace(/[^0-9]/g, '').slice(0, 4)),
-    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-center text-xl tracking-[0.4em]"
-  }), /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    placeholder: "あなたの名前",
-    value: name,
-    onChange: e => setName(e.target.value),
-    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onJoin(room.trim(), name.trim()),
-    disabled: !room.trim() || !name.trim(),
-    className: "w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
-  }, "入室する"))), /*#__PURE__*/React.createElement("div", {
-    className: "relative flex items-center py-4"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-grow border-t border-gray-800"
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "flex-shrink-0 mx-4 text-gray-500 text-sm"
-  }, "または"), /*#__PURE__*/React.createElement("div", {
-    className: "flex-grow border-t border-gray-800"
-  })), /*#__PURE__*/React.createElement("button", {
-    onClick: onCreate,
-    className: "w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-  }, /*#__PURE__*/React.createElement("span", null, "👑"), " 司会者として新しい部屋を作る")));
-};
-
-// ==========================================
-// Join View（招待リンク専用：名前を入れて即入室）
-// ==========================================
-const JoinView = ({
-  roomId,
-  defaultName,
-  onJoin,
-  onBack
-}) => {
-  const [name, setName] = useState(defaultName || (typeof localStorage !== 'undefined' ? localStorage.getItem('playerName') || '' : ''));
-  const submit = () => {
-    const n = name.trim();
-    if (n) onJoin(n);
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col items-center justify-center min-h-screen p-6"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mb-8 text-center space-y-3"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: "text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600"
-  }, "Quiz Scoreboard"), /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-400"
-  }, "この部屋に入室します"), /*#__PURE__*/React.createElement("div", {
-    className: "text-2xl font-mono tracking-widest text-yellow-400"
-  }, "ROOM ", roomId)), /*#__PURE__*/React.createElement("div", {
-    className: "w-full max-w-md bg-gray-900 p-6 rounded-3xl shadow-xl border border-gray-800 space-y-4"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    placeholder: "あなたの名前",
-    value: name,
-    onChange: e => setName(e.target.value),
-    onKeyDown: e => {
-      if (e.key === 'Enter') submit();
-    },
-    autoFocus: true,
-    className: "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: submit,
-    disabled: !name.trim(),
-    className: "w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
-  }, "入室する"), /*#__PURE__*/React.createElement("button", {
-    onClick: onBack,
-    className: "w-full text-gray-500 hover:text-gray-300 text-sm py-1"
-  }, "別の部屋コードを入力する")));
-};
-
-// ==========================================
-// 得点モード切替バー（ホスト・参加者で共用）
+// 計算ヘルパ
 // ==========================================
 const QUICK_PRESETS = [1, 2, 3, 4, 5];
+const memberValue = (p, scoreMode) => scoreMode === 'simple' ? (p.maru || 0) - (p.batsu || 0) : parseScoreToNumber(p.score);
+const calcTeamScore = (members, mode, scoreMode) => {
+  if (!members.length) return 0;
+  if (mode === 'sum') return members.reduce((s, m) => s + memberValue(m, scoreMode), 0);
+  return members.reduce((p, m) => p * memberValue(m, scoreMode), 1);
+};
+const calcTeamMaruBatsu = members => members.reduce((a, m) => ({
+  maru: a.maru + (m.maru || 0),
+  batsu: a.batsu + (m.batsu || 0)
+}), {
+  maru: 0,
+  batsu: 0
+});
+const fmtNum = v => Number.isInteger(v) ? v : Number(v.toFixed(2));
+
+// ==========================================
+// 共通UI
+// ==========================================
+const Card = ({
+  children,
+  className = ''
+}) => /*#__PURE__*/React.createElement("div", {
+  className: `bg-white rounded-3xl shadow-lg shadow-slate-200/60 border border-slate-100 ${className}`
+}, children);
+const Tabs = ({
+  tab,
+  setTab
+}) => /*#__PURE__*/React.createElement("div", {
+  className: "flex gap-1 bg-white p-1 rounded-2xl shadow-sm border border-slate-100"
+}, [['ranking', 'ランキング'], ['graph', 'グラフ']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  key: k,
+  onClick: () => setTab(k),
+  className: `px-4 sm:px-6 py-2 rounded-xl text-sm font-bold transition-colors ${tab === k ? 'bg-amber-400 text-white shadow' : 'text-slate-400 hover:text-slate-600'}`
+}, l)));
+
+// ==========================================
+// 得点操作ボタン群（行内・自分用バー共用）。onAct(operator, valueStr)
+// ==========================================
+const ScorerButtons = ({
+  mode,
+  config,
+  onAct,
+  big
+}) => {
+  const ox = big ? 'flex-1 py-3 text-2xl' : 'px-4 py-2 text-lg';
+  const sm = big ? 'flex-1 py-3' : 'px-3 py-2';
+  if (mode === 'simple') {
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('maru'),
+      className: `bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow shadow-emerald-200 active:scale-95 ${ox}`
+    }, "〇"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('batsu'),
+      className: `bg-rose-500 hover:bg-rose-400 text-white font-black rounded-xl shadow shadow-rose-200 active:scale-95 ${ox}`
+    }, "✕"));
+  }
+  if (mode === 'calc') {
+    const internal = config.op === '×' ? '*' : config.op === '÷' ? '/' : config.op;
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct(internal, config.val),
+      className: `bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl shadow shadow-sky-200 active:scale-95 ${big ? 'flex-1 py-3 text-xl' : 'px-4 py-2 min-w-[64px]'}`
+    }, config.op, config.val);
+  }
+  if (mode === 'plus') {
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('+', config.pt),
+      className: `bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow shadow-emerald-200 active:scale-95 whitespace-nowrap ${big ? 'flex-1 py-3 text-xl' : 'px-4 py-2'}`
+    }, "〇 ＋", config.pt);
+  }
+  if (mode === 'quick') {
+    return /*#__PURE__*/React.createElement(React.Fragment, null, (config.quick || []).map(n => /*#__PURE__*/React.createElement("button", {
+      key: n,
+      onClick: () => onAct('+', String(n)),
+      className: `bg-amber-400 hover:bg-amber-300 text-white font-bold rounded-xl shadow shadow-amber-200 active:scale-95 ${sm}`
+    }, "＋", n)), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onAct('-', '1'),
+      className: `bg-rose-400 hover:bg-rose-300 text-white font-bold rounded-xl shadow shadow-rose-200 active:scale-95 ${sm}`
+    }, "−1"));
+  }
+  // ox
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAct('+', config.pt),
+    className: `bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow shadow-emerald-200 active:scale-95 ${ox}`
+  }, "〇"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onAct('-', config.pt),
+    className: `bg-rose-500 hover:bg-rose-400 text-white font-black rounded-xl shadow shadow-rose-200 active:scale-95 ${ox}`
+  }, "✕"));
+};
+
+// 得点モード切替バー（ホスト・参加者で共用）
 const ModeBar = ({
   mode,
   setMode,
@@ -1225,20 +1203,22 @@ const ModeBar = ({
   setCalcVal,
   oxPoint,
   setOxPoint
-}) => /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-  className: "flex flex-wrap gap-1 bg-gray-950 p-1 rounded-xl border border-gray-800"
-}, [['ox', '○×'], ['plus', '加点のみ'], ['calc', '自由計算'], ['quick', 'クイック']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+}) => /*#__PURE__*/React.createElement("div", {
+  className: "flex flex-col sm:flex-row gap-2 items-stretch sm:items-center"
+}, /*#__PURE__*/React.createElement("div", {
+  className: "flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl"
+}, [['ox', '〇✕'], ['plus', '加点のみ'], ['calc', '自由計算'], ['quick', 'クイック']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
   key: k,
   onClick: () => setMode(k),
-  className: `px-3 py-2 rounded-lg font-bold text-sm transition-all ${mode === k ? 'bg-gray-800 text-yellow-400 shadow-md' : 'text-gray-500 hover:text-gray-300'}`
+  className: `px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${mode === k ? 'bg-white shadow text-amber-600' : 'text-slate-400 hover:text-slate-600'}`
 }, l))), /*#__PURE__*/React.createElement("div", {
-  className: "flex-1 flex justify-center items-center"
+  className: "flex items-center gap-2"
 }, mode === 'calc' ? /*#__PURE__*/React.createElement("div", {
-  className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
+  className: "flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl"
 }, /*#__PURE__*/React.createElement("select", {
   value: calcOp,
   onChange: e => setCalcOp(e.target.value),
-  className: "bg-gray-900 text-white text-xl font-bold p-2 rounded-lg outline-none appearance-none text-center w-12 cursor-pointer"
+  className: "bg-white text-slate-800 text-lg font-bold p-2 rounded-lg outline-none text-center"
 }, /*#__PURE__*/React.createElement("option", {
   value: "×"
 }, "×"), /*#__PURE__*/React.createElement("option", {
@@ -1247,376 +1227,289 @@ const ModeBar = ({
   value: "+"
 }, "＋"), /*#__PURE__*/React.createElement("option", {
   value: "-"
-}, "－")), /*#__PURE__*/React.createElement("input", {
+}, "−")), /*#__PURE__*/React.createElement("input", {
   type: "text",
+  inputMode: "decimal",
   value: calcVal,
   onChange: e => setCalcVal(e.target.value),
-  className: "bg-gray-900 text-white text-xl font-bold p-2 w-20 rounded-lg outline-none text-center placeholder-gray-600",
+  className: "bg-white text-slate-800 text-lg font-bold p-2 w-20 rounded-lg outline-none text-center",
   placeholder: "値"
-}), /*#__PURE__*/React.createElement("div", {
-  className: "text-gray-400 text-sm px-2 hidden sm:block"
-}, "を適用")) : mode === 'quick' ? /*#__PURE__*/React.createElement("div", {
-  className: "text-gray-400 text-sm text-center px-2"
-}, "各行の ", /*#__PURE__*/React.createElement("span", {
-  className: "text-gray-200 font-bold"
-}, "＋1〜＋5 ／ −1"), " ボタンで素早く加減点") : /*#__PURE__*/React.createElement("div", {
-  className: "flex items-center gap-2 bg-gray-800 p-2 rounded-xl border border-gray-700"
+})) : mode === 'quick' ? /*#__PURE__*/React.createElement("span", {
+  className: "text-slate-400 text-sm"
+}, "各行の ＋1〜＋5 / −1") : /*#__PURE__*/React.createElement("div", {
+  className: "flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl"
 }, /*#__PURE__*/React.createElement("span", {
-  className: "text-gray-400 text-sm font-bold pl-2"
-}, mode === 'plus' ? '加点' : '規定点', ":"), /*#__PURE__*/React.createElement("input", {
+  className: "text-slate-400 text-xs font-bold pl-1"
+}, mode === 'plus' ? '加点' : '規定点'), /*#__PURE__*/React.createElement("input", {
   type: "text",
+  inputMode: "decimal",
   value: oxPoint,
   onChange: e => setOxPoint(e.target.value),
-  className: "bg-gray-900 text-yellow-400 text-xl font-bold p-2 w-20 rounded-lg outline-none text-center"
+  className: "bg-white text-amber-600 text-lg font-bold p-2 w-16 rounded-lg outline-none text-center"
 }))));
 
 // ==========================================
-// Participant View
+// 得点推移グラフ（自前SVG・ライト）
 // ==========================================
-const ParticipantView = ({
-  state,
-  roomId,
-  myPlayerId,
-  onOp,
-  onLeave,
-  playSound
+const ScoreGraph = ({
+  timeline,
+  players
 }) => {
-  const [tab, setTab] = useState('ranking'); // ranking, graph
-  const [actionMode, setActionMode] = useState('ox');
-  const [calcOp, setCalcOp] = useState('×');
-  const [calcVal, setCalcVal] = useState('2');
-  const [oxPoint, setOxPoint] = useState('1');
-  const simple = state.scoreMode === 'simple';
-  const myPlayer = (state.players || []).find(p => p.id === myPlayerId);
-  const canScore = !!state.guestScoring && !!myPlayer;
-  // 自分の得点だけを操作
-  const selfAct = (op, valueStr) => {
-    if (!myPlayer) return;
-    if (op === 'maru' || op === 'batsu') onOp(op, {
-      playerId: myPlayer.id
-    });else onOp('score', {
-      playerId: myPlayer.id,
-      operator: op,
-      valueStr
-    });
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col min-h-screen bg-gray-950",
+  const ref = useRef(null);
+  const [w, setW] = useState(700);
+  const H = 320,
+    pad = {
+      t: 16,
+      r: 16,
+      b: 28,
+      l: 36
+    };
+  useEffect(() => {
+    if (!ref.current) return;
+    const upd = () => setW(ref.current ? ref.current.clientWidth : 700);
+    upd();
+    window.addEventListener('resize', upd);
+    return () => window.removeEventListener('resize', upd);
+  }, []);
+  if (!timeline || timeline.length < 2) {
+    return /*#__PURE__*/React.createElement(Card, {
+      className: "p-8 text-center text-slate-400"
+    }, "📈 得点が動くとここにグラフが出ます");
+  }
+  const colors = ['#f59e0b', '#3b82f6', '#ec4899', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316'];
+  const active = players.filter(p => timeline[timeline.length - 1].scores[p.id] !== undefined);
+  let mn = 0,
+    mx = 10;
+  timeline.forEach(pt => Object.values(pt.scores).forEach(s => {
+    const v = parseScoreToNumber(s);
+    if (v > mx) mx = v;
+    if (v < mn) mn = v;
+  }));
+  mx = Math.ceil(mx * 1.1);
+  mn = Math.floor(mn < 0 ? mn * 1.1 : 0);
+  const iw = w - pad.l - pad.r,
+    ih = H - pad.t - pad.b;
+  const gx = i => pad.l + i / (timeline.length - 1) * iw;
+  const gy = v => pad.t + ih - (v - mn) / (mx - mn || 1) * ih;
+  return /*#__PURE__*/React.createElement(Card, {
+    className: "p-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-x-3 gap-y-1 mb-3 px-1"
+  }, active.map((p, i) => /*#__PURE__*/React.createElement("span", {
+    key: p.id,
+    className: "inline-flex items-center gap-1 text-xs font-bold text-slate-500 max-w-[45%]"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "inline-block w-3 h-3 rounded-full shrink-0",
     style: {
-      paddingBottom: canScore ? 150 : 32
+      background: colors[i % colors.length]
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-20 flex justify-between items-center gap-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-gray-300 flex items-center gap-2 min-w-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (window.confirm('部屋を退出してタイトルに戻りますか？')) onLeave();
-    },
-    className: "text-gray-400 hover:text-white shrink-0",
-    title: "退出"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "truncate"
+  }, p.name)))), /*#__PURE__*/React.createElement("div", {
+    ref: ref
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "20",
-    height: "20",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-  }), /*#__PURE__*/React.createElement("polyline", {
-    points: "16 17 21 12 16 7"
-  }), /*#__PURE__*/React.createElement("line", {
-    x1: "21",
-    y1: "12",
-    x2: "9",
-    y2: "12"
-  }))), /*#__PURE__*/React.createElement("span", {
-    className: "shrink-0 whitespace-nowrap"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-500 text-xs"
-  }, "CODE"), " ", /*#__PURE__*/React.createElement("span", {
-    className: "text-yellow-400 font-mono text-lg tracking-[0.2em]"
-  }, roomId))), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 bg-gray-800 p-1 rounded-lg shrink-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setTab('ranking'),
-    className: `px-3 sm:px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
-  }, "ランキング"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setTab('graph'),
-    className: `px-3 sm:px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
-  }, "グラフ"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 p-4 max-w-4xl w-full mx-auto mt-4"
-  }, tab === 'ranking' ? /*#__PURE__*/React.createElement("div", {
-    className: "space-y-8"
-  }, state.teams.length > 0 && /*#__PURE__*/React.createElement(TeamBoard, {
-    teams: state.teams,
-    players: state.players,
-    teamMode: state.teamMode,
-    scoreMode: state.scoreMode
-  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
-    className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider"
-  }, "個人ランキング"), /*#__PURE__*/React.createElement(PlayerList, {
-    players: state.players,
-    teams: state.teams,
-    myPlayerId: myPlayerId,
-    scoreMode: state.scoreMode
-  }))) : /*#__PURE__*/React.createElement(ScoreGraph, {
-    timeline: state.timeline,
-    players: state.players
-  })), canScore && /*#__PURE__*/React.createElement("div", {
-    className: "fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-3 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-3xl mx-auto"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "text-xs text-blue-300 font-bold"
-  }, "あなた（", myPlayer.name, "）の得点を操作"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onOp('undo'),
-    className: "bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-700 flex items-center gap-1 shrink-0"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "13",
-    height: "13",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M3 7v6h6"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
-  })), "1つ戻す")), simple ? /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-3"
-  }, /*#__PURE__*/React.createElement(ScorerButtons, {
-    mode: "simple",
-    config: {},
-    onAct: selfAct,
-    size: "big"
-  })) : /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col sm:flex-row gap-3 items-center"
-  }, /*#__PURE__*/React.createElement(ModeBar, {
-    mode: actionMode,
-    setMode: setActionMode,
-    calcOp: calcOp,
-    setCalcOp: setCalcOp,
-    calcVal: calcVal,
-    setCalcVal: setCalcVal,
-    oxPoint: oxPoint,
-    setOxPoint: setOxPoint
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 w-full sm:w-auto"
-  }, /*#__PURE__*/React.createElement(ScorerButtons, {
-    mode: actionMode,
-    config: {
-      op: calcOp,
-      val: calcVal,
-      pt: oxPoint,
-      quick: QUICK_PRESETS
-    },
-    onAct: selfAct,
-    size: "big"
-  }))))));
-};
-
-// ==========================================
-// Host View
-// ==========================================
-const HostView = ({
-  state,
-  roomId,
-  onOp,
-  onLeave,
-  playSound
-}) => {
-  const [actionMode, setActionMode] = useState('ox'); // ox, plus, calc, quick
-  const [calcOp, setCalcOp] = useState('×');
-  const [calcVal, setCalcVal] = useState('2');
-  const [oxPoint, setOxPoint] = useState('1');
-  const [showTeams, setShowTeams] = useState(false);
-  const [tab, setTab] = useState('ranking'); // ranking, graph
-  const simple = state.scoreMode === 'simple';
-  const copyUrl = () => {
-    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
-    navigator.clipboard.writeText(url);
-    alert('共有URLをコピーしました');
-  };
-  const handleAction = (player, operator, valueStr, sound) => {
-    if (operator === 'maru' || operator === 'batsu') onOp(operator, {
-      playerId: player.id
-    });else onOp('score', {
-      playerId: player.id,
-      operator,
-      valueStr
-    });
-    if (sound) playSound(sound);
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col h-screen bg-gray-950 overflow-hidden"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 border-b border-gray-800 p-3 flex flex-wrap justify-between items-center shrink-0 gap-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 sm:gap-3 min-w-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (window.confirm('ホスト画面を離れてタイトルに戻りますか？（部屋は残ります。同じ端末から再入室できます）')) onLeave();
-    },
-    className: "text-gray-400 hover:text-white shrink-0",
-    title: "退出"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "20",
-    height: "20",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-  }), /*#__PURE__*/React.createElement("polyline", {
-    points: "16 17 21 12 16 7"
-  }), /*#__PURE__*/React.createElement("line", {
-    x1: "21",
-    y1: "12",
-    x2: "9",
-    y2: "12"
-  }))), /*#__PURE__*/React.createElement("div", {
-    className: "bg-yellow-500 text-gray-900 font-bold px-2 py-1 rounded-lg shrink-0 text-sm"
-  }, "HOST"), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline gap-1 shrink-0"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-500 text-xs"
-  }, "CODE"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono text-2xl font-bold tracking-[0.3em] text-yellow-400"
-  }, roomId)), /*#__PURE__*/React.createElement("button", {
-    onClick: copyUrl,
-    className: "text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-md transition-colors border border-gray-700 shrink-0"
-  }, "リンクコピー")), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-1 bg-gray-800 p-1 rounded-lg shrink-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setTab('ranking'),
-    className: `px-3 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'ranking' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
-  }, "ランキング"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setTab('graph'),
-    className: `px-3 py-1.5 rounded-md text-sm font-bold transition-colors ${tab === 'graph' ? 'bg-gray-700 text-white' : 'text-gray-400'}`
-  }, "グラフ"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-1 overflow-hidden"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `flex-1 overflow-y-auto p-4 ${tab === 'ranking' ? 'pb-40' : 'pb-4'}`
-  }, tab === 'ranking' ? /*#__PURE__*/React.createElement("div", {
-    className: "space-y-6"
-  }, state.teams.length > 0 && /*#__PURE__*/React.createElement(TeamBoard, {
-    teams: state.teams,
-    players: state.players,
-    teamMode: state.teamMode,
-    scoreMode: state.scoreMode
-  }), /*#__PURE__*/React.createElement(PlayerList, {
-    players: state.players,
-    teams: state.teams,
-    isHost: true,
-    scoreMode: state.scoreMode,
-    actionConfig: simple ? {
-      mode: 'simple'
-    } : {
-      mode: actionMode,
-      op: calcOp,
-      val: calcVal,
-      pt: oxPoint,
-      quick: QUICK_PRESETS
-    },
-    onAction: handleAction,
-    onRemove: id => {
-      if (window.confirm('削除しますか？')) onOp('removePlayer', {
-        playerId: id
-      });
-    }
-  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
-    timeline: state.timeline,
-    players: state.players
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "w-80 bg-gray-900 border-l border-gray-800 p-4 hidden md:flex flex-col overflow-y-auto"
-  }, /*#__PURE__*/React.createElement(HostTeamsPanel, {
-    state: state,
-    onOp: onOp,
-    instanceId: "side"
-  }))), tab === 'ranking' && /*#__PURE__*/React.createElement("div", {
-    className: "absolute bottom-0 left-0 right-0 md:right-80 bg-gray-900 border-t border-gray-800 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between"
-  }, simple ? /*#__PURE__*/React.createElement("div", {
-    className: "text-gray-400 text-sm text-center sm:text-left flex-1"
-  }, "Simpleモード：各行の ", /*#__PURE__*/React.createElement("span", {
-    className: "text-blue-400 font-bold"
-  }, "○"), " / ", /*#__PURE__*/React.createElement("span", {
-    className: "text-red-400 font-bold"
-  }, "×"), " で加算（別々にカウント）") : /*#__PURE__*/React.createElement(ModeBar, {
-    mode: actionMode,
-    setMode: setActionMode,
-    calcOp: calcOp,
-    setCalcOp: setCalcOp,
-    calcVal: calcVal,
-    setCalcVal: setCalcVal,
-    oxPoint: oxPoint,
-    setOxPoint: setOxPoint
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 shrink-0"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowTeams(true),
-    className: "md:hidden bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700"
-  }, "👥 チーム"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onOp('undo'),
-    className: "bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700 flex items-center gap-1"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "14",
-    height: "14",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M3 7v6h6"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"
-  })), "1つ戻す"), !simple && /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (window.confirm('全員を1にしますか？')) onOp('setAll', {
-        valueStr: '1'
-      });
-    },
-    className: "bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold px-3 py-2 rounded-lg border border-gray-700"
-  }, "全員1に"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (window.confirm('全員の得点を0にリセットしますか？')) onOp('resetAll');
-    },
-    className: "bg-red-950/50 hover:bg-red-900/50 text-red-400 text-xs font-bold px-3 py-2 rounded-lg border border-red-900"
-  }, "0リセット")))), showTeams && /*#__PURE__*/React.createElement("div", {
-    className: "md:hidden fixed inset-0 z-50 bg-black/70 flex items-end",
-    onClick: () => setShowTeams(false)
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 w-full max-h-[85vh] overflow-y-auto rounded-t-2xl p-4 border-t border-gray-700",
-    onClick: e => e.stopPropagation()
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-between items-center mb-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-white"
-  }, "チーム管理"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowTeams(false),
-    className: "text-gray-400 hover:text-white text-sm bg-gray-800 px-3 py-1 rounded-lg border border-gray-700"
-  }, "閉じる")), /*#__PURE__*/React.createElement(HostTeamsPanel, {
-    state: state,
-    onOp: onOp,
-    instanceId: "modal"
+    width: w,
+    height: H
+  }, [0, 0.25, 0.5, 0.75, 1].map((r, i) => {
+    const y = pad.t + ih * r,
+      val = mx - (mx - mn) * r;
+    return /*#__PURE__*/React.createElement("g", {
+      key: i
+    }, /*#__PURE__*/React.createElement("line", {
+      x1: pad.l,
+      y1: y,
+      x2: w - pad.r,
+      y2: y,
+      stroke: "#e2e8f0",
+      strokeDasharray: "4 4"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: pad.l - 8,
+      y: y + 4,
+      fill: "#94a3b8",
+      fontSize: "11",
+      textAnchor: "end"
+    }, Number.isInteger(val) ? val : val.toFixed(1)));
+  }), active.map((p, i) => {
+    const c = colors[i % colors.length];
+    const pts = timeline.map((t, ti) => `${gx(ti)},${gy(parseScoreToNumber(t.scores[p.id]))}`).join(' ');
+    const last = parseScoreToNumber(timeline[timeline.length - 1].scores[p.id]);
+    return /*#__PURE__*/React.createElement("g", {
+      key: p.id
+    }, /*#__PURE__*/React.createElement("polyline", {
+      points: pts,
+      fill: "none",
+      stroke: c,
+      strokeWidth: "3",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: gx(timeline.length - 1),
+      cy: gy(last),
+      r: "4",
+      fill: c,
+      stroke: "#fff",
+      strokeWidth: "2"
+    }));
   }))));
 };
 
-// ドラッグ＆ドロップのドロップ先（SortableJS）。子に data-player-id 付きチップを並べる
+// ==========================================
+// チームボード（ライト）
+// ==========================================
+const TeamBoard = ({
+  teams,
+  players,
+  teamMode,
+  scoreMode
+}) => {
+  const simple = scoreMode === 'simple';
+  const rows = useMemo(() => teams.map(t => {
+    const members = players.filter(p => p.teamId === t.id);
+    if (simple) {
+      const mb = calcTeamMaruBatsu(members);
+      return {
+        ...t,
+        maru: mb.maru,
+        batsu: mb.batsu,
+        score: mb.maru - mb.batsu
+      };
+    }
+    return {
+      ...t,
+      score: calcTeamScore(members, teamMode, scoreMode)
+    };
+  }).sort((a, b) => simple ? b.maru - a.maru || a.batsu - b.batsu : b.score - a.score), [teams, players, teamMode, scoreMode, simple]);
+  if (!teams.length) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 md:grid-cols-3 gap-3 mb-5"
+  }, rows.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: t.id,
+    className: "bg-white rounded-2xl p-4 shadow-md shadow-sky-100 border-b-4 border-sky-300 relative overflow-hidden"
+  }, i === 0 && (simple ? t.maru > 0 : t.score > 0) && /*#__PURE__*/React.createElement("div", {
+    className: "absolute top-2 right-2 text-lg"
+  }, "🏆"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-bold text-slate-400 mb-1 truncate"
+  }, "👥 ", t.name), simple ? /*#__PURE__*/React.createElement("div", {
+    className: "font-black tracking-tighter"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-500 text-2xl"
+  }, t.maru), /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-300 mx-1"
+  }, "－"), /*#__PURE__*/React.createElement("span", {
+    className: "text-rose-500 text-2xl"
+  }, t.batsu)) : /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl md:text-3xl font-black text-sky-600"
+  }, fmtNum(t.score)))));
+};
+
+// ==========================================
+// プレイヤー一覧（ライト・2段）
+// ==========================================
+const PlayerList = ({
+  players,
+  teams,
+  myPlayerId,
+  scoreMode,
+  actionConfig,
+  onAction,
+  onRemove,
+  onRename
+}) => {
+  const simple = scoreMode === 'simple';
+  const sorted = useMemo(() => [...players].sort((a, b) => {
+    if (simple) {
+      if ((b.maru || 0) !== (a.maru || 0)) return (b.maru || 0) - (a.maru || 0);
+      if ((a.batsu || 0) !== (b.batsu || 0)) return (a.batsu || 0) - (b.batsu || 0);
+      return (a.name || '').localeCompare(b.name || '');
+    }
+    const d = memberValue(b, scoreMode) - memberValue(a, scoreMode);
+    return d !== 0 ? d : (a.name || '').localeCompare(b.name || '');
+  }), [players, scoreMode, simple]);
+  if (!players.length) return /*#__PURE__*/React.createElement(Card, {
+    className: "p-8 text-center text-slate-400"
+  }, "まだ参加者がいません");
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-3"
+  }, sorted.map((p, i) => /*#__PURE__*/React.createElement(PlayerRow, {
+    key: p.id,
+    player: p,
+    rank: i + 1,
+    team: teams.find(t => t.id === p.teamId),
+    isMe: p.id === myPlayerId,
+    scoreMode: scoreMode,
+    actionConfig: actionConfig,
+    onAction: onAction,
+    onRemove: onRemove,
+    onRename: onRename
+  })));
+};
+const PlayerRow = ({
+  player,
+  rank,
+  team,
+  isMe,
+  scoreMode,
+  actionConfig,
+  onAction,
+  onRemove,
+  onRename
+}) => {
+  const simple = scoreMode === 'simple';
+  const isTop = rank === 1 && (simple ? (player.maru || 0) > 0 : memberValue(player, scoreMode) > 0);
+  return /*#__PURE__*/React.createElement("div", {
+    "data-player-id": player.id,
+    className: `rounded-2xl border-2 p-3 sm:p-4 transition-all ${isMe ? 'border-amber-300 bg-amber-50' : 'border-transparent bg-white shadow-sm'}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-10 h-10 shrink-0 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600 relative"
+  }, isTop && /*#__PURE__*/React.createElement("span", {
+    className: "absolute -top-3 -left-1 text-xl"
+  }, "👑"), rank), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 min-w-0"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-slate-800 truncate"
+  }, player.name), isMe && /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-bold bg-amber-400 text-white px-2 py-0.5 rounded-full shrink-0"
+  }, "YOU")), team && /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-bold text-slate-400 truncate"
+  }, "👥 ", team.name)), simple ? /*#__PURE__*/React.createElement("div", {
+    className: "font-black tracking-tighter shrink-0"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-500 text-2xl sm:text-3xl"
+  }, player.maru || 0), /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-300 mx-1"
+  }, "－"), /*#__PURE__*/React.createElement("span", {
+    className: "text-rose-500 text-2xl sm:text-3xl"
+  }, player.batsu || 0)) : /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl sm:text-3xl font-black text-slate-800 tracking-tighter shrink-0"
+  }, formatScoreStr(player.score)), (onRename || onRemove) && /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-1 shrink-0"
+  }, onRename && /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      const n = prompt('新しい名前', player.name);
+      if (n && n.trim()) onRename(player.id, n.trim());
+    },
+    className: "text-slate-300 hover:text-amber-500 text-sm"
+  }, "✏️"), onRemove && /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm(`${player.name} を削除しますか？`)) onRemove(player.id);
+    },
+    className: "text-slate-300 hover:text-rose-500 text-sm"
+  }, "🗑"))), actionConfig && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mt-3"
+  }, /*#__PURE__*/React.createElement(ScorerButtons, {
+    mode: simple ? 'simple' : actionConfig.mode,
+    config: actionConfig,
+    onAct: (op, val) => onAction(player, op, val)
+  })));
+};
+
+// ==========================================
+// チーム管理＋設定パネル（ライト・ドラッグ＆ドロップ）
+// ==========================================
 const TeamDropZone = ({
   teamId,
   groupName,
@@ -1624,8 +1517,8 @@ const TeamDropZone = ({
   className,
   children
 }) => {
-  const ref = useRef(null);
-  const moveRef = useRef(onMove);
+  const ref = useRef(null),
+    moveRef = useRef(onMove);
   moveRef.current = onMove;
   useEffect(() => {
     if (!ref.current || typeof Sortable === 'undefined') return;
@@ -1636,12 +1529,10 @@ const TeamDropZone = ({
       delayOnTouchOnly: true,
       filter: '.nodrag',
       preventOnFilter: false,
-      ghostClass: 'opacity-30',
       onEnd: evt => {
-        const playerId = evt.item.dataset.playerId;
-        const destTeamId = evt.to.dataset.teamId || null;
-        const srcTeamId = evt.from.dataset.teamId || null;
-        // Reactを正にするためDOMの移動を取り消す
+        const playerId = evt.item.dataset.playerId,
+          destTeamId = evt.to.dataset.teamId || null,
+          srcTeamId = evt.from.dataset.teamId || null;
         evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
         if (playerId && destTeamId !== srcTeamId) moveRef.current(playerId, destTeamId);
       }
@@ -1654,24 +1545,44 @@ const TeamDropZone = ({
     className: className
   }, children);
 };
-const PlayerChip = ({
+const Chip = ({
   player,
   onOp
 }) => /*#__PURE__*/React.createElement("div", {
   "data-player-id": player.id,
-  className: "cursor-grab active:cursor-grabbing text-sm text-gray-200 flex items-center gap-2 bg-gray-900 p-2 rounded-md border border-gray-700"
+  className: "cursor-grab active:cursor-grabbing flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 text-sm"
 }, /*#__PURE__*/React.createElement("span", {
-  className: "text-gray-500 select-none"
+  className: "text-slate-300 select-none"
 }, "⠿"), /*#__PURE__*/React.createElement("span", {
-  className: "truncate flex-1"
+  className: "flex-1 truncate text-slate-700"
 }, player.name), player.teamId && /*#__PURE__*/React.createElement("button", {
   onClick: () => onOp('assignTeam', {
     playerId: player.id,
     teamId: null
   }),
-  className: "nodrag text-red-400 hover:text-red-300 text-xs"
+  className: "nodrag text-rose-400 text-xs"
 }, "外す"));
-const HostTeamsPanel = ({
+const Toggle = ({
+  on,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  className: `w-12 h-6 rounded-full relative transition-colors shrink-0 ${on ? 'bg-emerald-400' : 'bg-slate-300'}`
+}, /*#__PURE__*/React.createElement("span", {
+  className: `w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${on ? 'translate-x-6' : 'translate-x-0.5'}`
+}));
+const Seg = ({
+  value,
+  options,
+  onChange
+}) => /*#__PURE__*/React.createElement("div", {
+  className: "flex bg-slate-100 rounded-xl p-1"
+}, options.map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  key: k,
+  onClick: () => onChange(k),
+  className: `flex-1 text-sm font-bold py-1.5 rounded-lg transition-colors ${value === k ? 'bg-white shadow text-amber-600' : 'text-slate-400'}`
+}, l)));
+const HostSettings = ({
   state,
   onOp,
   instanceId
@@ -1688,121 +1599,116 @@ const HostTeamsPanel = ({
     if (simple) {
       const mb = calcTeamMaruBatsu(members);
       return /*#__PURE__*/React.createElement("span", {
-        className: "ml-2 font-black"
+        className: "ml-2 font-black text-sm"
       }, /*#__PURE__*/React.createElement("span", {
-        className: "text-blue-400"
+        className: "text-emerald-500"
       }, mb.maru), /*#__PURE__*/React.createElement("span", {
-        className: "text-gray-500"
+        className: "text-slate-300"
       }, "－"), /*#__PURE__*/React.createElement("span", {
-        className: "text-red-400"
+        className: "text-rose-500"
       }, mb.batsu));
     }
     return /*#__PURE__*/React.createElement("span", {
-      className: "text-yellow-400 ml-2"
+      className: "ml-2 text-sky-600 font-black text-sm"
     }, fmtNum(calcTeamScore(members, state.teamMode, state.scoreMode)));
   };
   return /*#__PURE__*/React.createElement("div", {
-    className: "space-y-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-800/50 border border-gray-700 rounded-xl p-3 space-y-2"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "text-sm font-bold text-white mb-1"
-  }, "得点表示モード"), /*#__PURE__*/React.createElement("div", {
-    className: "flex bg-gray-950 p-1 rounded-lg border border-gray-800"
-  }, [['addsub', '＋M／−N'], ['simple', 'Simple（○×別計）']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    onClick: () => onOp('setScoreMode', {
+    className: "flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement(Card, {
+    className: "p-4 space-y-3"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-black text-slate-700 text-sm"
+  }, "⚙️ 設定"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-bold text-slate-400 mb-1"
+  }, "得点表示"), /*#__PURE__*/React.createElement(Seg, {
+    value: state.scoreMode || 'addsub',
+    onChange: k => onOp('setScoreMode', {
       mode: k
     }),
-    className: `flex-1 px-2 py-1.5 rounded-md font-bold text-xs transition-colors ${(state.scoreMode || 'addsub') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
-  }, l))), /*#__PURE__*/React.createElement("div", {
-    className: "text-xs text-gray-500"
-  }, simple ? '○と×を別々にカウント（例 3－1）' : '○で加点・×で減点（合計1つ）')), /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-800/50 border border-gray-700 rounded-xl p-3 flex items-center justify-between gap-2"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    className: "text-sm font-bold text-white"
-  }, "参加者も採点可"), /*#__PURE__*/React.createElement("div", {
-    className: "text-xs text-gray-500"
-  }, "ONにすると参加者が自分の得点を操作できます")), /*#__PURE__*/React.createElement("button", {
+    options: [['addsub', '＋/− 数値'], ['simple', '〇✕ 別計']]
+  })), !simple && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-bold text-slate-400 mb-1"
+  }, "チーム得点"), /*#__PURE__*/React.createElement(Seg, {
+    value: state.teamMode || 'product',
+    onChange: k => onOp('setTeamMode', {
+      mode: k
+    }),
+    options: [['sum', '和 ＋'], ['product', '積 ×']]
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between bg-slate-50 p-2 rounded-xl"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm font-bold text-slate-600"
+  }, "参加者も採点可"), /*#__PURE__*/React.createElement(Toggle, {
+    on: !!state.guestScoring,
     onClick: () => onOp('setGuestScoring', {
       on: !state.guestScoring
-    }),
-    className: `px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${state.guestScoring ? 'bg-green-700 text-white border-green-600' : 'bg-gray-900 text-gray-400 border-gray-700'}`
-  }, state.guestScoring ? 'ON' : 'OFF')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
-    className: "text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-  }), /*#__PURE__*/React.createElement("circle", {
-    cx: "9",
-    cy: "7",
-    r: "4"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M23 21v-2a4 4 0 0 0-3-3.87"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M16 3.13a4 4 0 0 1 0 7.75"
-  })), "チーム管理"), /*#__PURE__*/React.createElement("div", {
+    })
+  }))), /*#__PURE__*/React.createElement(Card, {
+    className: "p-4"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-black text-slate-700 text-sm mb-3"
+  }, "⚡ 一括操作"), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('undo'),
+    className: "bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm"
+  }, "↩ 1つ戻す"), !simple && /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm('全員を1にしますか？')) onOp('setAll', {
+        valueStr: '1'
+      });
+    },
+    className: "bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm"
+  }, "全員1に"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm('全員0にリセットしますか？')) onOp('resetAll');
+    },
+    className: `bg-rose-50 hover:bg-rose-100 text-rose-500 font-bold py-2 rounded-xl text-sm ${simple ? '' : 'col-span-2'}`
+  }, "🔄 0リセット"))), /*#__PURE__*/React.createElement(Card, {
+    className: "p-4"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-black text-slate-700 text-sm mb-3"
+  }, "👥 チーム（名前をドラッグで移動）"), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 mb-3"
   }, /*#__PURE__*/React.createElement("input", {
-    type: "text",
     value: newTeam,
     onChange: e => setNewTeam(e.target.value),
     placeholder: "新チーム名",
-    className: "flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-500"
+    className: "flex-1 bg-slate-100 rounded-xl px-3 py-2 text-sm outline-none"
   }), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
-      if (newTeam) {
+      if (newTeam.trim()) {
         onOp('createTeam', {
-          name: newTeam
+          name: newTeam.trim()
         });
         setNewTeam('');
       }
     },
-    className: "bg-gray-700 hover:bg-gray-600 px-3 rounded-lg text-sm font-bold transition-colors"
-  }, "+")), !simple && /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 mb-4"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-500 text-xs"
-  }, "チーム得点の計算:"), /*#__PURE__*/React.createElement("div", {
-    className: "flex bg-gray-950 p-1 rounded-lg border border-gray-800"
-  }, [['product', '積（×）'], ['sum', '和（＋）']].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    onClick: () => onOp('setTeamMode', {
-      mode: k
-    }),
-    className: `px-3 py-1 rounded-md font-bold text-xs transition-colors ${(state.teamMode || 'product') === k ? 'bg-gray-700 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`
-  }, l)))), /*#__PURE__*/React.createElement("div", {
-    className: "text-xs text-gray-500 mb-2"
-  }, "名前をドラッグしてチーム間／未所属へ移動できます"), /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-800 rounded-xl p-3 border border-gray-700 border-dashed mb-3"
+    className: "bg-amber-400 text-white font-bold px-4 rounded-xl"
+  }, "＋")), /*#__PURE__*/React.createElement("div", {
+    className: "bg-slate-50 rounded-2xl p-2 border-2 border-dashed border-slate-200 mb-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "text-xs font-bold text-gray-400 mb-2"
+    className: "text-xs font-bold text-slate-400 mb-1 px-1"
   }, "未所属（", unassigned.length, "）"), /*#__PURE__*/React.createElement(TeamDropZone, {
     teamId: null,
     groupName: group,
     onMove: move,
-    className: "space-y-1 min-h-[36px]"
-  }, unassigned.map(p => /*#__PURE__*/React.createElement(PlayerChip, {
+    className: "space-y-1 min-h-[32px]"
+  }, unassigned.map(p => /*#__PURE__*/React.createElement(Chip, {
     key: p.id,
     player: p,
     onOp: onOp
   })))), /*#__PURE__*/React.createElement("div", {
-    className: "space-y-4"
+    className: "space-y-3"
   }, state.teams.map(team => {
     const members = state.players.filter(p => p.teamId === team.id);
     return /*#__PURE__*/React.createElement("div", {
       key: team.id,
-      className: "bg-gray-800 rounded-xl p-3 border border-gray-700"
+      className: "bg-slate-50 rounded-2xl p-2 border border-slate-200"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center justify-between mb-2 gap-2"
+      className: "flex items-center justify-between mb-1 px-1"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "font-bold text-white truncate"
+      className: "font-bold text-slate-700 truncate text-sm"
     }, team.name, teamScoreEl(members)), /*#__PURE__*/React.createElement("div", {
       className: "flex gap-1 shrink-0"
     }, /*#__PURE__*/React.createElement("button", {
@@ -1813,454 +1719,383 @@ const HostTeamsPanel = ({
           name: n.trim()
         });
       },
-      className: "text-xs text-gray-400 hover:text-yellow-400 border border-gray-700 rounded-md px-2 py-1"
-    }, "改名"), /*#__PURE__*/React.createElement("button", {
+      className: "text-slate-400 text-xs"
+    }, "✏️"), /*#__PURE__*/React.createElement("button", {
       onClick: () => {
-        if (window.confirm(`チーム「${team.name}」を削除しますか？（メンバーは未所属に戻ります）`)) onOp('removeTeam', {
+        if (window.confirm(`チーム「${team.name}」を削除しますか？`)) onOp('removeTeam', {
           teamId: team.id
         });
       },
-      className: "text-xs text-red-400 hover:text-red-300 border border-red-900 rounded-md px-2 py-1"
-    }, "削除"))), /*#__PURE__*/React.createElement(TeamDropZone, {
+      className: "text-rose-400 text-xs"
+    }, "🗑"))), /*#__PURE__*/React.createElement(TeamDropZone, {
       teamId: team.id,
       groupName: group,
       onMove: move,
-      className: "space-y-1 min-h-[36px]"
-    }, members.map(p => /*#__PURE__*/React.createElement(PlayerChip, {
+      className: "space-y-1 min-h-[32px]"
+    }, members.map(p => /*#__PURE__*/React.createElement(Chip, {
       key: p.id,
       player: p,
       onOp: onOp
-    }))), /*#__PURE__*/React.createElement("select", {
-      className: "w-full bg-gray-900 border border-gray-700 text-xs text-gray-300 p-1.5 rounded-md mt-2 outline-none",
-      value: "",
-      onChange: e => {
-        if (e.target.value) onOp('assignTeam', {
-          playerId: e.target.value,
-          teamId: team.id
-        });
-      }
-    }, /*#__PURE__*/React.createElement("option", {
-      value: ""
-    }, "+ メンバー追加..."), state.players.filter(p => p.teamId !== team.id).map(p => /*#__PURE__*/React.createElement("option", {
-      key: p.id,
-      value: p.id
-    }, p.name))));
+    }))));
   }))));
 };
 
 // ==========================================
-// Board & FLIP List
+// ヘッダー（共通）
 // ==========================================
-// チーム得点：積（product）または和（sum）。表示用に数値で返す。
-// プレイヤーの実効値：Simpleモードは ○−×、通常は得点
-const memberValue = (p, scoreMode) => scoreMode === 'simple' ? (p.maru || 0) - (p.batsu || 0) : parseScoreToNumber(p.score);
-const calcTeamScore = (members, mode, scoreMode) => {
-  if (!members.length) return 0;
-  if (mode === 'sum') return members.reduce((s, m) => s + memberValue(m, scoreMode), 0);
-  return members.reduce((p, m) => p * memberValue(m, scoreMode), 1);
-};
-// Simpleモード: チームの ○合計 / ×合計
-const calcTeamMaruBatsu = members => members.reduce((a, m) => ({
-  maru: a.maru + (m.maru || 0),
-  batsu: a.batsu + (m.batsu || 0)
-}), {
-  maru: 0,
-  batsu: 0
-});
-const fmtNum = v => Number.isInteger(v) ? v : Number(v.toFixed(2));
-
-// 得点操作ボタン群（行内・自分用バーで共用）。onAct(operator, valueStr, sound)
-const ScorerButtons = ({
-  mode,
-  config,
-  onAct,
-  size
-}) => {
-  const big = size === 'big';
-  const oxCls = big ? 'py-4 text-2xl flex-1' : 'py-2 px-4 text-xl';
-  if (mode === 'simple') {
-    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-      onClick: () => onAct('maru'),
-      className: `bg-blue-600 hover:bg-blue-500 text-white font-black rounded-lg active:scale-95 ${oxCls}`
-    }, "○"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => onAct('batsu'),
-      className: `bg-red-500 hover:bg-red-400 text-white font-black rounded-lg active:scale-95 ${oxCls}`
-    }, "×"));
-  }
-  if (mode === 'calc') {
-    return /*#__PURE__*/React.createElement("button", {
-      onClick: () => onAct(config.op === '×' ? '*' : config.op === '÷' ? '/' : config.op, config.val, 'pop'),
-      className: `bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg border border-gray-600 active:scale-95 ${big ? 'py-4 text-xl flex-1' : 'py-2 px-3 sm:px-4 min-w-[60px]'}`
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "text-yellow-400 mr-1"
-    }, config.op), config.val);
-  }
-  if (mode === 'plus') {
-    return /*#__PURE__*/React.createElement("button", {
-      onClick: () => onAct('+', config.pt, 'correct'),
-      className: `bg-green-700 hover:bg-green-600 text-white font-black rounded-lg active:scale-95 whitespace-nowrap ${big ? 'py-4 text-xl flex-1' : 'py-2 px-4'}`
-    }, "○ ＋", config.pt);
-  }
-  if (mode === 'quick') {
-    return /*#__PURE__*/React.createElement(React.Fragment, null, (config.quick || []).map(n => /*#__PURE__*/React.createElement("button", {
-      key: n,
-      onClick: () => onAct('+', String(n), 'pop'),
-      className: `bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg border border-gray-600 active:scale-95 ${big ? 'py-4 flex-1' : 'py-2 px-2 sm:px-3'}`
-    }, "＋", n)), /*#__PURE__*/React.createElement("button", {
-      onClick: () => onAct('-', '1', 'wrong'),
-      className: `bg-red-900/60 hover:bg-red-800/60 text-red-300 font-bold rounded-lg border border-red-700/50 active:scale-95 ${big ? 'py-4 flex-1' : 'py-2 px-2 sm:px-3'}`
-    }, "−1"));
-  }
-  // ox
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAct('+', config.pt, 'correct'),
-    className: `bg-green-700 hover:bg-green-600 text-white font-black rounded-lg active:scale-95 ${oxCls}`
-  }, "○"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onAct('-', config.pt, 'wrong'),
-    className: `bg-red-500 hover:bg-red-400 text-white font-black rounded-lg active:scale-95 ${oxCls}`
-  }, "×"));
-};
-const TeamBoard = ({
-  teams,
-  players,
-  teamMode,
-  scoreMode
-}) => {
-  const simple = scoreMode === 'simple';
-  const teamScores = useMemo(() => {
-    return teams.map(t => {
-      const members = players.filter(p => p.teamId === t.id);
-      if (simple) {
-        const mb = calcTeamMaruBatsu(members);
-        return {
-          ...t,
-          maru: mb.maru,
-          batsu: mb.batsu,
-          score: mb.maru - mb.batsu
-        };
-      }
-      return {
-        ...t,
-        score: calcTeamScore(members, teamMode, scoreMode)
-      };
-    }).sort((a, b) => simple ? b.maru - a.maru || a.batsu - b.batsu : b.score - a.score);
-  }, [teams, players, teamMode, scoreMode, simple]);
-  return /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl"
-  }, /*#__PURE__*/React.createElement("h3", {
-    className: "text-sm font-bold text-yellow-500 mb-4 flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "18",
-    height: "18",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-  })), "チームランキング（", simple ? '○×' : teamMode === 'sum' ? '和' : '積', "）"), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap gap-4"
-  }, teamScores.map((t, i) => /*#__PURE__*/React.createElement("div", {
-    key: t.id,
-    className: "flex-1 min-w-[120px] bg-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden border border-gray-700"
-  }, i === 0 && (simple ? t.maru > 0 : t.score > 0) && /*#__PURE__*/React.createElement("div", {
-    className: "absolute top-0 left-0 w-full h-1 bg-yellow-400"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "text-gray-400 text-sm font-bold mb-1 truncate w-full text-center"
-  }, t.name), simple ? /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-1 font-black tracking-tighter"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-blue-400 text-3xl"
-  }, t.maru), /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-500 text-xl"
-  }, "－"), /*#__PURE__*/React.createElement("span", {
-    className: "text-red-400 text-3xl"
-  }, t.batsu)) : /*#__PURE__*/React.createElement("div", {
-    className: "text-3xl font-black text-white tracking-tighter"
-  }, fmtNum(t.score))))));
-};
-const PlayerList = ({
-  players,
-  teams,
-  myPlayerId,
+const TopBar = ({
+  roomId,
   isHost,
-  onAction,
-  actionConfig,
-  onRemove,
-  scoreMode
-}) => {
-  const sortedPlayers = useMemo(() => {
-    const simple = scoreMode === 'simple';
-    return [...players].sort((a, b) => {
-      if (simple) {
-        // ○の数が多い順、同数なら×が少ない順
-        if ((b.maru || 0) !== (a.maru || 0)) return (b.maru || 0) - (a.maru || 0);
-        if ((a.batsu || 0) !== (b.batsu || 0)) return (a.batsu || 0) - (b.batsu || 0);
-        return (a.name || '').localeCompare(b.name || '');
-      }
-      const sA = memberValue(a, scoreMode),
-        sB = memberValue(b, scoreMode);
-      if (sB !== sA) return sB - sA;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-  }, [players, scoreMode]);
-  const rowHeight = actionConfig ? 116 : 64;
-  const gap = 8;
-  const containerHeight = sortedPlayers.length * (rowHeight + gap);
-  if (players.length === 0) {
-    return /*#__PURE__*/React.createElement("div", {
-      className: "text-center p-8 text-gray-500 bg-gray-900 rounded-2xl border border-gray-800 border-dashed"
-    }, "まだ参加者がいません");
-  }
-  return /*#__PURE__*/React.createElement("div", {
-    className: "relative w-full transition-all duration-500 ease-in-out",
-    style: {
-      height: containerHeight
-    }
-  }, sortedPlayers.map((p, index) => {
-    const team = teams?.find(t => t.id === p.teamId);
-    return /*#__PURE__*/React.createElement(PlayerRow, {
-      key: p.id,
-      player: p,
-      team: team,
-      index: index,
-      isMe: p.id === myPlayerId,
-      top: index * (rowHeight + gap),
-      height: rowHeight,
-      isHost: isHost,
-      onAction: onAction,
-      actionConfig: actionConfig,
-      onRemove: onRemove,
-      scoreMode: scoreMode
-    });
-  }));
-};
-const PlayerRow = ({
-  player,
-  team,
-  index,
-  isMe,
-  top,
-  height,
-  isHost,
-  onAction,
-  actionConfig,
-  onRemove,
-  scoreMode
-}) => {
-  const [flash, setFlash] = useState(null);
-  const simple = scoreMode === 'simple';
-  const val = memberValue(player, scoreMode);
-  const prev = useRef(val);
-  const isTop = index === 0 && (simple ? (player.maru || 0) > 0 : val > 0);
-  useEffect(() => {
-    if (val > prev.current) {
-      setFlash('green');
-      setTimeout(() => setFlash(null), 600);
-    } else if (val < prev.current) {
-      setFlash('red');
-      setTimeout(() => setFlash(null), 600);
-    }
-    prev.current = val;
-  }, [val]);
-  let bgClass = 'bg-gray-800';
-  let borderClass = 'border-gray-700 border';
-  if (isMe) {
-    bgClass = 'bg-blue-900/40';
-    borderClass = 'border-blue-500/50 border-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]';
-  }
-  if (isTop && !isHost) {
-    borderClass = 'border-yellow-400/50 border-2 shadow-[0_0_20px_rgba(250,204,21,0.2)]';
-  }
-  let flashOverlay = null;
-  if (flash === 'green') flashOverlay = /*#__PURE__*/React.createElement("div", {
-    className: "absolute inset-0 bg-green-500/20 rounded-xl animate-pulse pointer-events-none"
-  });else if (flash === 'red') flashOverlay = /*#__PURE__*/React.createElement("div", {
-    className: "absolute inset-0 bg-red-500/20 rounded-xl animate-pulse pointer-events-none"
-  });
-  const scoreEl = simple ? /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-1 font-black tracking-tighter shrink-0"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-blue-400 text-2xl sm:text-3xl"
-  }, player.maru || 0), /*#__PURE__*/React.createElement("span", {
-    className: "text-gray-500 text-lg"
-  }, "－"), /*#__PURE__*/React.createElement("span", {
-    className: "text-red-400 text-2xl sm:text-3xl"
-  }, player.batsu || 0)) : /*#__PURE__*/React.createElement("div", {
-    className: `text-2xl sm:text-3xl font-black tracking-tighter shrink-0 transition-colors duration-300 ${flash === 'green' ? 'text-green-400' : flash === 'red' ? 'text-red-400' : 'text-yellow-400'}`
-  }, formatScoreStr(player.score));
-  return /*#__PURE__*/React.createElement("div", {
-    className: `absolute left-0 right-0 rounded-xl flex flex-col justify-center px-3 sm:px-4 transition-all duration-500 ease-out z-10 ${bgClass} ${borderClass}`,
-    style: {
-      top: `${top}px`,
-      height: `${height}px`,
-      transform: flash === 'red' ? 'translateX(2px)' : 'none'
-    }
-  }, flashOverlay, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 relative"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "w-7 text-center flex-shrink-0"
-  }, isTop ? /*#__PURE__*/React.createElement("span", {
-    className: "text-xl",
-    title: "1位"
-  }, "👑") : /*#__PURE__*/React.createElement("span", {
-    className: `text-base sm:text-lg font-bold ${isMe ? 'text-blue-300' : 'text-gray-500'}`
-  }, index + 1)), /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 min-w-0 flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-base sm:text-lg font-bold text-white truncate"
-  }, player.name), team && /*#__PURE__*/React.createElement("span", {
-    className: "text-[10px] sm:text-xs font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap border border-gray-600 shrink-0"
-  }, team.name), isMe && /*#__PURE__*/React.createElement("span", {
-    className: "text-[10px] text-blue-400 font-bold shrink-0"
-  }, "YOU")), scoreEl, onRemove && /*#__PURE__*/React.createElement("button", {
-    onClick: () => onRemove(player.id),
-    className: "p-1 text-gray-600 hover:text-red-400 transition-colors shrink-0"
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M18 6L6 18M6 6l12 12"
-  })))), actionConfig && /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-1.5 sm:gap-2 mt-2 justify-end"
-  }, /*#__PURE__*/React.createElement(ScorerButtons, {
-    mode: simple ? 'simple' : actionConfig.mode,
-    config: actionConfig,
-    onAct: (op, val2, sound) => onAction(player, op, val2, sound)
-  })));
-};
+  onLeave,
+  onCopy,
+  right
+}) => /*#__PURE__*/React.createElement("header", {
+  className: "bg-white px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-20 shadow-sm"
+}, /*#__PURE__*/React.createElement("div", {
+  className: "flex items-center gap-2 min-w-0"
+}, /*#__PURE__*/React.createElement("button", {
+  onClick: () => {
+    if (window.confirm('退出してタイトルに戻りますか？')) onLeave();
+  },
+  className: "text-slate-400 hover:text-rose-500 text-xl shrink-0",
+  title: "退出"
+}, "🚪"), isHost && /*#__PURE__*/React.createElement("span", {
+  className: "bg-rose-100 text-rose-600 text-xs font-black px-2 py-1 rounded-full shrink-0"
+}, "HOST"), /*#__PURE__*/React.createElement("span", {
+  className: "bg-amber-100 text-amber-700 font-black px-3 py-1 rounded-full flex items-center gap-1 shrink-0"
+}, /*#__PURE__*/React.createElement("span", {
+  className: "text-xs"
+}, "CODE"), /*#__PURE__*/React.createElement("span", {
+  className: "font-mono text-lg tracking-widest"
+}, roomId)), onCopy && /*#__PURE__*/React.createElement("button", {
+  onClick: onCopy,
+  className: "text-slate-400 hover:text-amber-500 text-lg shrink-0",
+  title: "リンクをコピー"
+}, "🔗")), right);
 
 // ==========================================
-// Graph View（SVGによる自前描画）
+// 画面：ホーム / 入室
 // ==========================================
-const ScoreGraph = ({
-  timeline,
-  players
+const HomeView = ({
+  onCreate,
+  onJoin,
+  defaultName
 }) => {
-  const containerRef = useRef(null);
-  const [width, setWidth] = useState(800);
-  const height = 400;
-  const padding = {
-    top: 40,
-    right: 40,
-    bottom: 40,
-    left: 60
+  const [code, setCode] = useState('');
+  const [name, setName] = useState(defaultName || '');
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen flex items-center justify-center p-5 bg-gradient-to-b from-amber-50 via-slate-50 to-sky-50"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-full max-w-md"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center mb-7"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-20 h-20 mx-auto mb-3 rounded-3xl bg-amber-400 rotate-6 shadow-lg shadow-amber-200 flex items-center justify-center text-4xl"
+  }, "🧮"), /*#__PURE__*/React.createElement("h1", {
+    className: "text-3xl font-black text-slate-800"
+  }, "クイズ得点"), /*#__PURE__*/React.createElement("p", {
+    className: "text-slate-500 font-medium mt-1"
+  }, "みんなでリアルタイム得点表"), /*#__PURE__*/React.createElement("p", {
+    className: "text-slate-300 text-[10px] mt-1"
+  }, BUILD)), /*#__PURE__*/React.createElement(Card, {
+    className: "p-6 space-y-4"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "font-bold text-slate-700"
+  }, "参加者として入室"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    inputMode: "numeric",
+    value: code,
+    onChange: e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 4)),
+    placeholder: "部屋コード(数字4桁)",
+    className: "w-full bg-slate-100 rounded-2xl p-4 text-2xl font-black tracking-[0.4em] text-center outline-none focus:ring-4 focus:ring-amber-200"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: name,
+    onChange: e => setName(e.target.value),
+    placeholder: "あなたの名前",
+    className: "w-full bg-slate-100 rounded-2xl p-4 font-bold outline-none focus:ring-4 focus:ring-amber-200"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onJoin(code.trim(), name.trim()),
+    disabled: !code.trim() || !name.trim(),
+    className: "w-full bg-gradient-to-b from-amber-400 to-orange-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-200 disabled:opacity-40"
+  }, "入室する"), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 text-slate-300 text-sm font-bold"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 border-t border-slate-200"
+  }), "OR", /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 border-t border-slate-200"
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: onCreate,
+    className: "w-full bg-white border-2 border-amber-200 text-amber-600 font-bold py-4 rounded-2xl hover:bg-amber-50"
+  }, "👑 ホストとして部屋を作る"))));
+};
+const JoinView = ({
+  roomId,
+  defaultName,
+  onJoin,
+  onBack
+}) => {
+  const [name, setName] = useState(defaultName || (typeof localStorage !== 'undefined' ? localStorage.getItem('playerName') || '' : ''));
+  const submit = () => {
+    const n = name.trim();
+    if (n) onJoin(n);
   };
-  useEffect(() => {
-    if (containerRef.current) {
-      setWidth(containerRef.current.clientWidth);
-      const handleResize = () => setWidth(containerRef.current.clientWidth);
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, []);
-  if (!timeline || timeline.length < 2) {
-    return /*#__PURE__*/React.createElement("div", {
-      className: "flex flex-col items-center justify-center h-[400px] bg-gray-900 rounded-2xl border border-gray-800 text-gray-500 p-8 text-center"
-    }, /*#__PURE__*/React.createElement("svg", {
-      width: "48",
-      height: "48",
-      viewBox: "0 0 24 24",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: "1",
-      className: "mb-4 opacity-50"
-    }, /*#__PURE__*/React.createElement("polyline", {
-      points: "22 12 18 12 15 21 9 3 6 12 2 12"
-    })), "グラフを描画するのに十分なデータがありません。", /*#__PURE__*/React.createElement("br", null), "得点が変動すると記録が開始されます。");
-  }
-  const activePlayers = players.filter(p => timeline[timeline.length - 1].scores[p.id] !== undefined);
-  const colors = ['#facc15', '#3b82f6', '#ef4444', '#10b981', '#a855f7', '#f97316', '#06b6d4', '#ec4899'];
-  let minScore = 0;
-  let maxScore = 10;
-  timeline.forEach(point => {
-    Object.values(point.scores).forEach(s => {
-      const val = parseScoreToNumber(s);
-      if (val > maxScore) maxScore = val;
-      if (val < minScore) minScore = val;
-    });
-  });
-  maxScore = Math.ceil(maxScore * 1.1);
-  minScore = Math.floor(minScore < 0 ? minScore * 1.1 : 0);
-  const innerWidth = width - padding.left - padding.right;
-  const innerHeight = height - padding.top - padding.bottom;
-  const getX = index => padding.left + index / (timeline.length - 1) * innerWidth;
-  const getY = val => padding.top + innerHeight - (val - minScore) / (maxScore - minScore || 1) * innerHeight;
   return /*#__PURE__*/React.createElement("div", {
-    ref: containerRef,
-    className: "bg-gray-900 rounded-2xl border border-gray-800 p-4 shadow-xl overflow-hidden w-full relative"
-  }, /*#__PURE__*/React.createElement("h3", {
-    className: "text-sm font-bold text-gray-400 mb-2 px-2"
-  }, "得点推移"), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap gap-x-3 gap-y-1 px-2 mb-3"
-  }, activePlayers.map((p, pIndex) => /*#__PURE__*/React.createElement("span", {
-    key: p.id,
-    className: "inline-flex items-center gap-1 text-xs text-gray-300 max-w-[45%]"
+    className: "min-h-screen flex items-center justify-center p-5 bg-gradient-to-b from-amber-50 to-sky-50"
+  }, /*#__PURE__*/React.createElement(Card, {
+    className: "w-full max-w-md p-7 relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    className: "absolute top-4 left-4 text-slate-400 text-xl"
+  }, "✕"), /*#__PURE__*/React.createElement("div", {
+    className: "text-center mb-5 mt-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-slate-500 font-medium"
+  }, "この部屋に入室します"), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-1.5 rounded-full"
   }, /*#__PURE__*/React.createElement("span", {
-    className: "inline-block w-3 h-3 rounded-full shrink-0",
+    className: "text-xs font-bold"
+  }, "CODE"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-2xl font-black tracking-widest"
+  }, roomId))), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: name,
+    autoFocus: true,
+    onChange: e => setName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') submit();
+    },
+    placeholder: "あなたの名前",
+    className: "w-full bg-slate-100 rounded-2xl p-4 font-bold outline-none focus:ring-4 focus:ring-amber-200 mb-3"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: submit,
+    disabled: !name.trim(),
+    className: "w-full bg-gradient-to-b from-amber-400 to-orange-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-200 disabled:opacity-40"
+  }, "入室する"), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    className: "w-full text-slate-400 text-sm py-2 mt-1"
+  }, "別の部屋コードを入力する")));
+};
+
+// ==========================================
+// 画面：ホスト
+// ==========================================
+const HostView = ({
+  state,
+  roomId,
+  onOp,
+  onLeave
+}) => {
+  const [tab, setTab] = useState('ranking');
+  const [showPanel, setShowPanel] = useState(false);
+  const [actionMode, setActionMode] = useState('ox');
+  const [calcOp, setCalcOp] = useState('×');
+  const [calcVal, setCalcVal] = useState('2');
+  const [oxPoint, setOxPoint] = useState('1');
+  const simple = state.scoreMode === 'simple';
+  const copyUrl = () => {
+    navigator.clipboard.writeText(`${location.origin}${location.pathname}?room=${roomId}`);
+    alert('共有リンクをコピーしました');
+  };
+  const handleAction = (player, operator, valueStr) => {
+    if (operator === 'maru' || operator === 'batsu') onOp(operator, {
+      playerId: player.id
+    });else onOp('score', {
+      playerId: player.id,
+      operator,
+      valueStr
+    });
+  };
+  const actionConfig = simple ? {
+    mode: 'simple'
+  } : {
+    mode: actionMode,
+    op: calcOp,
+    val: calcVal,
+    pt: oxPoint,
+    quick: QUICK_PRESETS
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-slate-100 flex flex-col"
+  }, /*#__PURE__*/React.createElement(TopBar, {
+    roomId: roomId,
+    isHost: true,
+    onLeave: onLeave,
+    onCopy: copyUrl,
+    right: /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2"
+    }, /*#__PURE__*/React.createElement(Tabs, {
+      tab: tab,
+      setTab: setTab
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setShowPanel(true),
+      className: "lg:hidden bg-white border border-slate-200 text-slate-600 font-bold px-3 py-2 rounded-xl text-sm"
+    }, "⚙️"))
+  }), /*#__PURE__*/React.createElement("main", {
+    className: "flex-1 w-full max-w-6xl mx-auto p-4 flex gap-5 items-start"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 min-w-0"
+  }, tab === 'ranking' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TeamBoard, {
+    teams: state.teams,
+    players: state.players,
+    teamMode: state.teamMode,
+    scoreMode: state.scoreMode
+  }), simple ? /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-2xl p-3 mb-3 text-sm text-slate-500 shadow-sm"
+  }, "〇✕モード：各行の ", /*#__PURE__*/React.createElement("b", {
+    className: "text-emerald-500"
+  }, "〇"), " / ", /*#__PURE__*/React.createElement("b", {
+    className: "text-rose-500"
+  }, "✕"), " でカウント") : /*#__PURE__*/React.createElement(Card, {
+    className: "p-3 mb-3"
+  }, /*#__PURE__*/React.createElement(ModeBar, {
+    mode: actionMode,
+    setMode: setActionMode,
+    calcOp: calcOp,
+    setCalcOp: setCalcOp,
+    calcVal: calcVal,
+    setCalcVal: setCalcVal,
+    oxPoint: oxPoint,
+    setOxPoint: setOxPoint
+  })), /*#__PURE__*/React.createElement(PlayerList, {
+    players: state.players,
+    teams: state.teams,
+    scoreMode: state.scoreMode,
+    actionConfig: actionConfig,
+    onAction: handleAction,
+    onRemove: id => onOp('removePlayer', {
+      playerId: id
+    }),
+    onRename: (id, name) => onOp('renamePlayer', {
+      playerId: id,
+      name
+    })
+  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
+    timeline: state.timeline,
+    players: state.players
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "w-80 shrink-0 hidden lg:block"
+  }, /*#__PURE__*/React.createElement(HostSettings, {
+    state: state,
+    onOp: onOp,
+    instanceId: "side"
+  }))), showPanel && /*#__PURE__*/React.createElement("div", {
+    className: "lg:hidden fixed inset-0 z-40 bg-black/40 flex items-end",
+    onClick: () => setShowPanel(false)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-slate-100 w-full max-h-[88vh] overflow-y-auto rounded-t-3xl p-4",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center mb-3"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-black text-slate-700"
+  }, "設定・チーム"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowPanel(false),
+    className: "text-slate-400 text-xl"
+  }, "✕")), /*#__PURE__*/React.createElement(HostSettings, {
+    state: state,
+    onOp: onOp,
+    instanceId: "modal"
+  }))));
+};
+
+// ==========================================
+// 画面：参加者
+// ==========================================
+const ParticipantView = ({
+  state,
+  roomId,
+  myPlayerId,
+  onOp,
+  onLeave
+}) => {
+  const [tab, setTab] = useState('ranking');
+  const [actionMode, setActionMode] = useState('ox');
+  const [calcOp, setCalcOp] = useState('×');
+  const [calcVal, setCalcVal] = useState('2');
+  const [oxPoint, setOxPoint] = useState('1');
+  const simple = state.scoreMode === 'simple';
+  const myPlayer = (state.players || []).find(p => p.id === myPlayerId);
+  const canScore = !!state.guestScoring && !!myPlayer;
+  const selfAct = (op, valueStr) => {
+    if (!myPlayer) return;
+    if (op === 'maru' || op === 'batsu') onOp(op, {
+      playerId: myPlayer.id
+    });else onOp('score', {
+      playerId: myPlayer.id,
+      operator: op,
+      valueStr
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-slate-100 flex flex-col",
     style: {
-      background: colors[pIndex % colors.length]
+      paddingBottom: canScore ? 168 : 16
     }
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "truncate"
-  }, p.name)))), /*#__PURE__*/React.createElement("svg", {
-    width: width,
-    height: height
-  }, [0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-    const y = padding.top + innerHeight * ratio;
-    const val = maxScore - (maxScore - minScore) * ratio;
-    return /*#__PURE__*/React.createElement("g", {
-      key: i
-    }, /*#__PURE__*/React.createElement("line", {
-      x1: padding.left,
-      y1: y,
-      x2: width - padding.right,
-      y2: y,
-      stroke: "#374151",
-      strokeDasharray: "4 4",
-      strokeWidth: "1"
-    }), /*#__PURE__*/React.createElement("text", {
-      x: padding.left - 10,
-      y: y + 4,
-      fill: "#6b7280",
-      fontSize: "12",
-      textAnchor: "end",
-      fontFamily: "monospace"
-    }, Number.isInteger(val) ? val : val.toFixed(1)));
-  }), minScore < 0 && /*#__PURE__*/React.createElement("line", {
-    x1: padding.left,
-    y1: getY(0),
-    x2: width - padding.right,
-    y2: getY(0),
-    stroke: "#4b5563",
-    strokeWidth: "2"
-  }), activePlayers.map((p, pIndex) => {
-    const color = colors[pIndex % colors.length];
-    const points = timeline.map((t, tIndex) => `${getX(tIndex)},${getY(parseScoreToNumber(t.scores[p.id]))}`).join(' ');
-    const lastVal = parseScoreToNumber(timeline[timeline.length - 1].scores[p.id]);
-    return /*#__PURE__*/React.createElement("g", {
-      key: p.id
-    }, /*#__PURE__*/React.createElement("polyline", {
-      points: points,
-      fill: "none",
-      stroke: color,
-      strokeWidth: "3",
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      className: "drop-shadow-md"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: getX(timeline.length - 1),
-      cy: getY(lastVal),
-      r: "5",
-      fill: color,
-      stroke: "#111827",
-      strokeWidth: "2"
-    }));
-  })));
+  }, /*#__PURE__*/React.createElement(TopBar, {
+    roomId: roomId,
+    onLeave: onLeave,
+    right: /*#__PURE__*/React.createElement(Tabs, {
+      tab: tab,
+      setTab: setTab
+    })
+  }), /*#__PURE__*/React.createElement("main", {
+    className: "flex-1 w-full max-w-3xl mx-auto p-4"
+  }, tab === 'ranking' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TeamBoard, {
+    teams: state.teams,
+    players: state.players,
+    teamMode: state.teamMode,
+    scoreMode: state.scoreMode
+  }), /*#__PURE__*/React.createElement(PlayerList, {
+    players: state.players,
+    teams: state.teams,
+    myPlayerId: myPlayerId,
+    scoreMode: state.scoreMode
+  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
+    timeline: state.timeline,
+    players: state.players
+  })), canScore && /*#__PURE__*/React.createElement("div", {
+    className: "fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] z-30"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-3xl mx-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between mb-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm font-bold text-amber-600"
+  }, "あなた（", myPlayer.name, "）の得点"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOp('undo'),
+    className: "bg-slate-100 text-slate-600 font-bold text-xs px-3 py-1.5 rounded-xl"
+  }, "↩ 1つ戻す")), simple ? /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-3"
+  }, /*#__PURE__*/React.createElement(ScorerButtons, {
+    mode: "simple",
+    config: {},
+    onAct: selfAct,
+    big: true
+  })) : /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement(ModeBar, {
+    mode: actionMode,
+    setMode: setActionMode,
+    calcOp: calcOp,
+    setCalcOp: setCalcOp,
+    calcVal: calcVal,
+    setCalcVal: setCalcVal,
+    oxPoint: oxPoint,
+    setOxPoint: setOxPoint
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2"
+  }, /*#__PURE__*/React.createElement(ScorerButtons, {
+    mode: actionMode,
+    config: {
+      op: calcOp,
+      val: calcVal,
+      pt: oxPoint,
+      quick: QUICK_PRESETS
+    },
+    onAct: selfAct,
+    big: true
+  }))))));
 };
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(/*#__PURE__*/React.createElement(App, null));
