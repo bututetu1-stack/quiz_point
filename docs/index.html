@@ -16,7 +16,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v26 ・ ドラッグ表示改善 / グラフを自前描画に";
+const BUILD = "v27 ・ トグル修正 / ドラッグ名のPC・スマホ出し分け";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1701,7 +1701,8 @@ const usePlayerDnd = (onAssign, enabled) => {
       setGhost({
         name: s.name,
         x: e.clientX,
-        y: e.clientY
+        y: e.clientY,
+        mouse: s.pointerType === 'mouse'
       });
     };
     const teardown = () => {
@@ -1732,7 +1733,8 @@ const usePlayerDnd = (onAssign, enabled) => {
         name,
         x0: e.clientX,
         y0: e.clientY,
-        hover: null
+        hover: null,
+        pointerType: e.pointerType
       };
       document.addEventListener('pointermove', onMove, true);
       document.addEventListener('pointerup', onUp, true);
@@ -1926,7 +1928,13 @@ const PlayerList = ({
     draggable: draggable,
     onHandlePointerDown: (e, player) => startDrag(e, player.id, player.name)
   })), ghost && /*#__PURE__*/React.createElement("div", {
-    style: {
+    style: ghost.mouse ? {
+      position: 'fixed',
+      left: ghost.x + 14,
+      top: ghost.y + 10,
+      pointerEvents: 'none',
+      zIndex: 50
+    } : {
       position: 'fixed',
       left: ghost.x,
       top: ghost.y,
@@ -1947,10 +1955,13 @@ const ToggleSwitch = ({
   on,
   onClick
 }) => /*#__PURE__*/React.createElement("button", {
+  type: "button",
+  role: "switch",
+  "aria-checked": on,
   onClick: onClick,
-  className: `w-12 h-6 rounded-full relative transition-colors shrink-0 ${on ? 'bg-emerald-400' : 'bg-slate-300'}`
+  className: `relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-emerald-400' : 'bg-slate-300'}`
 }, /*#__PURE__*/React.createElement("span", {
-  className: `w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${on ? 'translate-x-6' : 'translate-x-0.5'}`
+  className: `inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0.5'}`
 }));
 const Seg = ({
   value,
