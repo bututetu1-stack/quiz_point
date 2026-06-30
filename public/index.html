@@ -2,7 +2,6 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style> html, body { background: #f8fafc; margin: 0; } </style></head>
@@ -17,7 +16,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v25 ・ ドラッグ＆ドロップ刷新（Pointer Events）";
+const BUILD = "v26 ・ ドラッグ表示改善 / グラフを自前描画に";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -1560,99 +1559,107 @@ const ScorerButtons = ({
 };
 
 // ==========================================
-// グラフ（recharts 忠実再現・未ロード時はフォールバック）
+// グラフ（ライブラリ非依存・自前SVG折れ線）
 // ==========================================
+const GRAPH_COLORS = ["#f59e0b", "#ec4899", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#f97316"];
 const ScoreGraph = ({
   state
 }) => {
-  const RC = typeof window !== 'undefined' ? window.Recharts : null;
   if (!state.timeline || state.timeline.length < 2) {
     return /*#__PURE__*/React.createElement(Card, {
       className: "p-8 h-80 flex items-center justify-center text-slate-400 font-bold"
     }, "得点が動くとここにグラフが出ます");
   }
-  if (!RC) {
-    return /*#__PURE__*/React.createElement(Card, {
-      className: "p-8 h-80 flex items-center justify-center text-slate-400 font-bold text-center"
-    }, "グラフ表示ライブラリの読み込みに失敗しました。", /*#__PURE__*/React.createElement("br", null), "再読み込みしてください。");
-  }
-  const {
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer
-  } = RC;
-  const colors = ["#f59e0b", "#ec4899", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#f97316"];
-  const chartData = state.timeline.map(tick => {
-    const dp = {
-      time: new Date(tick.t).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
+  const tl = state.timeline;
+  // 最終時点にスコアがあるプレイヤーのみ描画
+  const last = tl[tl.length - 1].scores || {};
+  const players = state.players.filter(p => last[p.id] !== undefined);
+  const W = 720,
+    H = 300,
+    pad = {
+      t: 16,
+      r: 16,
+      b: 22,
+      l: 40
     };
-    Object.keys(tick.scores).forEach(pId => {
-      const player = state.players.find(p => p.id === pId);
-      if (player) dp[player.name] = parseScoreToNumber(tick.scores[pId]);
-    });
-    return dp;
-  });
+  const iw = W - pad.l - pad.r,
+    ih = H - pad.t - pad.b;
+  let mn = 0,
+    mx = 1;
+  tl.forEach(tick => Object.values(tick.scores || {}).forEach(v => {
+    const n = parseScoreToNumber(v);
+    if (n > mx) mx = n;
+    if (n < mn) mn = n;
+  }));
+  mx = Math.ceil(mx * 1.1) || 1;
+  mn = mn < 0 ? Math.floor(mn * 1.1) : 0;
+  if (mx === mn) mx = mn + 1;
+  const x = i => pad.l + (tl.length === 1 ? iw / 2 : i / (tl.length - 1) * iw);
+  const y = v => pad.t + ih - (v - mn) / (mx - mn) * ih;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(r => mn + (mx - mn) * r);
   return /*#__PURE__*/React.createElement(Card, {
-    className: "p-4 h-80 w-full"
-  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
-    width: "100%",
-    height: "100%"
-  }, /*#__PURE__*/React.createElement(LineChart, {
-    data: chartData,
-    margin: {
-      top: 10,
-      right: 10,
-      left: -20,
-      bottom: 0
-    }
-  }, /*#__PURE__*/React.createElement(CartesianGrid, {
-    strokeDasharray: "3 3",
-    stroke: "#f1f5f9"
-  }), /*#__PURE__*/React.createElement(XAxis, {
-    dataKey: "time",
-    tick: {
-      fontSize: 12,
-      fill: '#94a3b8'
-    }
-  }), /*#__PURE__*/React.createElement(YAxis, {
-    tick: {
-      fontSize: 12,
-      fill: '#94a3b8'
-    }
-  }), /*#__PURE__*/React.createElement(Tooltip, {
-    contentStyle: {
-      borderRadius: '16px',
-      border: 'none',
-      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-    }
-  }), /*#__PURE__*/React.createElement(Legend, {
-    wrapperStyle: {
-      fontSize: '14px',
-      fontWeight: 'bold'
-    }
-  }), state.players.map((p, i) => /*#__PURE__*/React.createElement(Line, {
+    className: "p-4 w-full"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-x-4 gap-y-1 mb-2 px-1"
+  }, players.map((p, i) => /*#__PURE__*/React.createElement("span", {
     key: p.id,
-    type: "monotone",
-    dataKey: p.name,
-    stroke: colors[i % colors.length],
-    strokeWidth: 4,
-    dot: {
-      r: 4,
-      strokeWidth: 2
-    },
-    activeDot: {
-      r: 6
+    className: "inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 max-w-[48%]"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-3 h-3 rounded-full shrink-0",
+    style: {
+      background: GRAPH_COLORS[i % GRAPH_COLORS.length]
     }
-  })))));
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "truncate"
+  }, p.name)))), /*#__PURE__*/React.createElement("svg", {
+    "data-graph": true,
+    viewBox: `0 0 ${W} ${H}`,
+    width: "100%",
+    className: "block",
+    style: {
+      height: 'auto'
+    }
+  }, ticks.map((tv, i) => {
+    const gy = y(tv);
+    return /*#__PURE__*/React.createElement("g", {
+      key: i
+    }, /*#__PURE__*/React.createElement("line", {
+      x1: pad.l,
+      y1: gy,
+      x2: W - pad.r,
+      y2: gy,
+      stroke: "#f1f5f9",
+      strokeWidth: "2"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: pad.l - 8,
+      y: gy + 4,
+      fontSize: "12",
+      fill: "#94a3b8",
+      textAnchor: "end"
+    }, Number.isInteger(tv) ? tv : tv.toFixed(1)));
+  }), players.map((p, pi) => {
+    const c = GRAPH_COLORS[pi % GRAPH_COLORS.length];
+    const pts = tl.map((tick, i) => [x(i), y(parseScoreToNumber(tick.scores[p.id]))]);
+    const line = pts.map(pt => `${pt[0]},${pt[1]}`).join(' ');
+    return /*#__PURE__*/React.createElement("g", {
+      key: p.id
+    }, /*#__PURE__*/React.createElement("polyline", {
+      points: line,
+      fill: "none",
+      stroke: c,
+      strokeWidth: "4",
+      strokeLinejoin: "round",
+      strokeLinecap: "round"
+    }), pts.map((pt, i) => /*#__PURE__*/React.createElement("circle", {
+      key: i,
+      cx: pt[0],
+      cy: pt[1],
+      r: i === pts.length - 1 ? 6 : 4,
+      fill: "#fff",
+      stroke: c,
+      strokeWidth: "3"
+    })));
+  })));
 };
 
 // ==========================================
@@ -1921,12 +1928,13 @@ const PlayerList = ({
   })), ghost && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'fixed',
-      left: ghost.x + 14,
-      top: ghost.y + 10,
+      left: ghost.x,
+      top: ghost.y,
+      transform: 'translate(-50%, calc(-100% - 18px))',
       pointerEvents: 'none',
       zIndex: 50
     },
-    className: "px-3 py-1.5 rounded-xl bg-amber-400 text-white text-sm font-bold shadow-lg shadow-amber-300/50 flex items-center gap-1"
+    className: "px-3 py-1.5 rounded-xl bg-amber-400 text-white text-sm font-bold shadow-lg shadow-amber-300/50 flex items-center gap-1 whitespace-nowrap"
   }, /*#__PURE__*/React.createElement(Users, {
     size: 14
   }), " ", ghost.name));
