@@ -16,7 +16,7 @@ const {
 } = React;
 
 // 反映確認用バージョン（更新のたびに番号を上げる）
-const BUILD = "v27 ・ トグル修正 / ドラッグ名のPC・スマホ出し分け";
+const BUILD = "v28 ・ 全員が自己採点 / ホストは管理のみ / Undoは各自";
 
 // ==========================================
 // ユーティリティ関数（スコア計算・表示・音声）
@@ -648,10 +648,13 @@ class FirebaseSocket {
       timeline: Object.values(v.timeline || {}).sort((a, b) => a.t - b.t)
     };
   }
-  _pushHistory(roomId) {
-    this.db.ref('history/' + roomId).push({
-      players: _clone(this.latestVal.players),
-      teams: _clone(this.latestVal.teams)
+  // プレイヤー別 履歴：その人の得点変更前の {score, maru, batsu} を積む
+  _pushPlayerHistory(roomId, p) {
+    if (!p) return;
+    this.db.ref('history/' + roomId + '/' + p.id).push({
+      score: p.score,
+      maru: p.maru || 0,
+      batsu: p.batsu || 0
     });
   }
   _handleOp(data, A) {
@@ -682,7 +685,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
+        this._pushPlayerHistory(data.roomId, p);
         p[type] = (p[type] || 0) + 1;
         ref.child('players').set(players);
         appendTimeline(players);
@@ -711,7 +714,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
+        this._pushPlayerHistory(data.roomId, p);
         p.score = applyOp(p.score, payload.operator, val);
         ref.child('players').set(players);
         appendTimeline(players);
@@ -735,7 +738,7 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
+        this._pushPlayerHistory(data.roomId, p);
         p.score = val;
         ref.child('players').set(players);
         appendTimeline(players);
@@ -751,8 +754,8 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
         Object.values(players).forEach(p => {
+          this._pushPlayerHistory(data.roomId, p);
           p.score = val;
         });
         ref.child('players').set(players);
@@ -761,8 +764,8 @@ class FirebaseSocket {
           ok: true
         });
       } else if (type === 'resetAll') {
-        this._pushHistory(data.roomId);
         Object.values(players).forEach(p => {
+          this._pushPlayerHistory(data.roomId, p);
           p.score = '0/1';
           p.maru = 0;
           p.batsu = 0;
@@ -773,8 +776,8 @@ class FirebaseSocket {
           ok: true
         });
       } else if (type === 'removePlayer') {
-        this._pushHistory(data.roomId);
         ref.child('players/' + payload.playerId).remove();
+        this.db.ref('history/' + data.roomId + '/' + payload.playerId).remove();
         A({
           ok: true
         });
@@ -787,7 +790,6 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
         ref.child('players/' + payload.playerId + '/name').set(nm);
         A({
           ok: true
@@ -802,7 +804,6 @@ class FirebaseSocket {
           return;
         }
         const tid = genId('t');
-        this._pushHistory();
         ref.child('teams/' + tid).set({
           id: tid,
           name: nm
@@ -819,13 +820,11 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
         ref.child('teams/' + payload.teamId + '/name').set(nm);
         A({
           ok: true
         });
       } else if (type === 'removeTeam') {
-        this._pushHistory(data.roomId);
         ref.child('teams/' + payload.teamId).remove();
         Object.values(players).forEach(p => {
           if (p.teamId === payload.teamId) ref.child('players/' + p.id + '/teamId').set(null);
@@ -842,7 +841,6 @@ class FirebaseSocket {
           });
           return;
         }
-        this._pushHistory(data.roomId);
         ref.child('players/' + payload.playerId + '/teamId').set(payload.teamId || null);
         A({
           ok: true
@@ -858,7 +856,16 @@ class FirebaseSocket {
           ok: true
         });
       } else if (type === 'undo') {
-        const href = this.db.ref('history/' + data.roomId);
+        const pid = payload.playerId;
+        const p = players[pid];
+        if (!pid || !p) {
+          A({
+            ok: false,
+            error: 'player_not_found'
+          });
+          return;
+        }
+        const href = this.db.ref('history/' + data.roomId + '/' + pid);
         href.get().then(s => {
           const h = s.val() || {};
           const keys = Object.keys(h).sort();
@@ -871,9 +878,15 @@ class FirebaseSocket {
           }
           const lastKey = keys[keys.length - 1];
           const snap = h[lastKey] || {};
-          Promise.all([ref.child('players').set(snap.players || {}), ref.child('teams').set(snap.teams || {}), href.child(lastKey).remove()]).then(() => A({
-            ok: true
-          })).catch(e => A({
+          p.score = snap.score != null ? snap.score : '0/1';
+          p.maru = snap.maru || 0;
+          p.batsu = snap.batsu || 0;
+          Promise.all([ref.child('players/' + pid).set(p), href.child(lastKey).remove()]).then(() => {
+            appendTimeline(players);
+            A({
+              ok: true
+            });
+          }).catch(e => A({
             ok: false,
             error: e.message
           }));
@@ -984,6 +997,23 @@ const App = () => {
               ...prev,
               ...res.state
             }));
+            // ホストも 1 プレイヤー。保存済み playerId / 名前で自分の player を復元
+            const hostName = (savedName || '').trim() || 'ホスト';
+            getSocket().emit('joinRoom', {
+              roomId: roomFromUrl,
+              name: hostName,
+              playerId: savedPlayerId
+            }, jr => {
+              if (jr && jr.ok) {
+                setMyPlayerId(jr.playerId);
+                setMyName(hostName);
+                localStorage.setItem(`playerId_${roomFromUrl}`, jr.playerId);
+                setState(prev => ({
+                  ...prev,
+                  ...jr.state
+                }));
+              }
+            });
             setView('host');
           } else {
             setView('join');
@@ -995,7 +1025,8 @@ const App = () => {
       }
     }
   }, []);
-  const handleCreateRoom = () => {
+  const handleCreateRoom = name => {
+    const hostName = (name || '').trim() || 'ホスト';
     // 既存サーバは createRoom のコールバックを第1引数で受け取る
     getSocket().emit('createRoom', res => {
       if (!res || !res.ok) return;
@@ -1015,6 +1046,23 @@ const App = () => {
           ...prev,
           ...r.state
         }));
+        // ホストも 1 プレイヤーとして参加（自分の得点を持つ）
+        getSocket().emit('joinRoom', {
+          roomId: res.roomId,
+          name: hostName,
+          playerId: null
+        }, jr => {
+          if (jr && jr.ok) {
+            setMyPlayerId(jr.playerId);
+            setMyName(hostName);
+            localStorage.setItem(`playerId_${res.roomId}`, jr.playerId);
+            localStorage.setItem('playerName', hostName);
+            setState(prev => ({
+              ...prev,
+              ...jr.state
+            }));
+          }
+        });
       });
       setView('host');
     });
@@ -1080,8 +1128,12 @@ const App = () => {
   }, !connected && /*#__PURE__*/React.createElement("div", {
     className: "bg-rose-500 text-white text-center text-xs sm:text-sm py-2 px-3 font-bold"
   }, hasBackend ? '接続中… つながらない場合は再読み込みしてください' : 'Firebase が未設定です。index.html の firebaseConfig を設定してください。'), view === 'home' && /*#__PURE__*/React.createElement(HomeView, {
-    onHostCreate: handleCreateRoom,
+    onGoHostCreate: () => setView('hostcreate'),
     onGoJoin: () => setView('join')
+  }), view === 'hostcreate' && /*#__PURE__*/React.createElement(HostCreateView, {
+    defaultName: myName,
+    onCreate: handleCreateRoom,
+    onBack: () => setView('home')
   }), view === 'join' && /*#__PURE__*/React.createElement(JoinView, {
     roomId: roomId,
     defaultName: myName,
@@ -1093,6 +1145,7 @@ const App = () => {
   }), view === 'host' && /*#__PURE__*/React.createElement(HostView, {
     state: state,
     roomId: roomId,
+    myPlayerId: myPlayerId,
     onOp: executeOp,
     onLeave: leaveRoom
   }), view === 'participant' && /*#__PURE__*/React.createElement(ParticipantView, {
@@ -1803,12 +1856,8 @@ const PlayerRow = ({
   rank,
   state,
   isMe,
-  onScore,
-  onMaru,
-  onBatsu,
   onRename,
   onRemove,
-  actionConfig,
   draggable,
   onHandlePointerDown
 }) => {
@@ -1816,11 +1865,6 @@ const PlayerRow = ({
   const simple = state.scoreMode === 'simple';
   const isTop = rank === 1 && (simple ? (player.maru || 0) > 0 : memberValue(player, 'addsub') > 0);
   const scoreText = simple ? `${player.maru || 0} - ${player.batsu || 0}` : formatScoreStr(player.score);
-  const act = (op, val) => {
-    if (op === 'maru') return onMaru(player.id);
-    if (op === 'batsu') return onBatsu(player.id);
-    onScore(player.id, op, val);
-  };
   return /*#__PURE__*/React.createElement("div", {
     "data-player-id": player.id,
     className: `relative flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-3xl border-2 transition-all ${isMe ? 'border-amber-400 bg-amber-50' : 'border-transparent bg-slate-50'}`
@@ -1872,23 +1916,13 @@ const PlayerRow = ({
     className: "p-1.5 text-slate-300 hover:text-rose-500 rounded-lg"
   }, /*#__PURE__*/React.createElement(Trash2, {
     size: 16
-  }))), actionConfig && /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center justify-center gap-2 w-full md:w-auto bg-white/60 p-2 rounded-2xl shrink-0 nodrag"
-  }, /*#__PURE__*/React.createElement(ScorerButtons, {
-    mode: simple ? 'simple' : actionConfig.mode,
-    config: actionConfig,
-    onAct: act
-  })));
+  }))));
 };
 const PlayerList = ({
   state,
   myPlayerId,
-  onScore,
-  onMaru,
-  onBatsu,
   onRename,
   onRemove,
-  actionConfig,
   draggable,
   onAssign
 }) => {
@@ -1919,12 +1953,8 @@ const PlayerList = ({
     rank: i + 1,
     state: state,
     isMe: p.id === myPlayerId,
-    onScore: onScore,
-    onMaru: onMaru,
-    onBatsu: onBatsu,
     onRename: onRename,
     onRemove: onRemove,
-    actionConfig: actionConfig,
     draggable: draggable,
     onHandlePointerDown: (e, player) => startDrag(e, player.id, player.name)
   })), ghost && /*#__PURE__*/React.createElement("div", {
@@ -2013,16 +2043,9 @@ const SettingsPanel = ({
       mode: k
     }),
     options: [['sum', '和 (＋)', 'text-blue-600'], ['product', '積 (×)', 'text-rose-600']]
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between bg-slate-50 p-3 rounded-xl"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-sm font-bold text-slate-600"
-  }, "参加者の自己採点"), /*#__PURE__*/React.createElement(ToggleSwitch, {
-    on: !!state.guestScoring,
-    onClick: () => onOp('setGuestScoring', {
-      on: !state.guestScoring
-    })
-  }))), /*#__PURE__*/React.createElement(Card, {
+  })), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-slate-400"
+  }, "全プレイヤーが各自の得点を操作します（ホストも1参加者）。")), /*#__PURE__*/React.createElement(Card, {
     className: "p-5"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "font-black text-slate-700 mb-4 flex items-center gap-2"
@@ -2031,12 +2054,6 @@ const SettingsPanel = ({
   }), " 一括操作"), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-2"
   }, /*#__PURE__*/React.createElement(Button, {
-    variant: "ghost",
-    className: "bg-slate-50 py-3 text-sm text-slate-600",
-    onClick: () => onOp('undo')
-  }, /*#__PURE__*/React.createElement(RotateCcw, {
-    size: 16
-  }), " 1つ戻す"), /*#__PURE__*/React.createElement(Button, {
     variant: "ghost",
     className: "bg-slate-50 py-3 text-sm text-slate-600",
     onClick: () => {
@@ -2048,7 +2065,7 @@ const SettingsPanel = ({
     size: 16
   }), " 全員 1"), /*#__PURE__*/React.createElement(Button, {
     variant: "ghost",
-    className: "bg-rose-50 text-rose-600 py-3 text-sm col-span-2",
+    className: "bg-rose-50 text-rose-600 py-3 text-sm",
     onClick: () => {
       if (window.confirm('全員を0にリセットしますか？')) onOp('resetAll');
     }
@@ -2184,7 +2201,7 @@ const MainLayout = ({
 // 画面：ホーム / 入室
 // ==========================================
 const HomeView = ({
-  onHostCreate,
+  onGoHostCreate,
   onGoJoin
 }) => /*#__PURE__*/React.createElement("div", {
   className: "min-h-screen bg-slate-50 flex items-center justify-center p-4"
@@ -2215,7 +2232,7 @@ const HomeView = ({
 }, "OR"), /*#__PURE__*/React.createElement("div", {
   className: "flex-grow border-t border-slate-200"
 })), /*#__PURE__*/React.createElement(Button, {
-  onClick: onHostCreate,
+  onClick: onGoHostCreate,
   variant: "secondary",
   className: "w-full py-4 text-lg text-amber-600 border-amber-200 hover:bg-amber-50"
 }, /*#__PURE__*/React.createElement(Crown, {
@@ -2223,6 +2240,57 @@ const HomeView = ({
 }), " ホストとして部屋を作る")), /*#__PURE__*/React.createElement("p", {
   className: "text-slate-300 text-[10px] mt-6"
 }, BUILD)));
+
+// ホストも1参加者。部屋を作る前に表示名を入力
+const HostCreateView = ({
+  defaultName,
+  onCreate,
+  onBack
+}) => {
+  const [name, setName] = useState(defaultName || (typeof localStorage !== 'undefined' ? localStorage.getItem('playerName') || '' : ''));
+  const submit = () => {
+    const n = name.trim();
+    if (n) onCreate(n);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-slate-50 flex items-center justify-center p-4"
+  }, /*#__PURE__*/React.createElement(Card, {
+    className: "w-full max-w-md p-8 relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    className: "absolute top-4 left-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full"
+  }, /*#__PURE__*/React.createElement(X, {
+    size: 24
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "text-center mt-2 mb-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-16 h-16 bg-amber-400 rounded-2xl mx-auto mb-3 flex items-center justify-center rotate-6 shadow-lg shadow-amber-200"
+  }, /*#__PURE__*/React.createElement(Crown, {
+    className: "text-white w-8 h-8"
+  })), /*#__PURE__*/React.createElement("h2", {
+    className: "text-2xl font-black text-slate-800"
+  }, "部屋を作る（ホスト）"), /*#__PURE__*/React.createElement("p", {
+    className: "text-slate-400 text-sm mt-1"
+  }, "ホストも1人のプレイヤーとして参加します")), /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-bold text-slate-500 mb-2"
+  }, "あなたの名前"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: name,
+    autoFocus: true,
+    onChange: e => setName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') submit();
+    },
+    className: "w-full bg-slate-100 border-none rounded-2xl p-4 text-lg font-bold focus:ring-4 focus:ring-amber-200 outline-none transition-all mb-4",
+    placeholder: "司会"
+  }), /*#__PURE__*/React.createElement(Button, {
+    onClick: submit,
+    disabled: !name.trim(),
+    className: "w-full py-4 text-lg"
+  }, /*#__PURE__*/React.createElement(Crown, {
+    size: 22
+  }), " 部屋を作る")));
+};
 const JoinView = ({
   roomId,
   defaultName,
@@ -2309,135 +2377,19 @@ const TabBar = ({
 // ==========================================
 // 画面：ホスト
 // ==========================================
-const HostView = ({
+// 自分の得点だけを操作する下部バー（ホスト・参加者 共通）
+const SelfScoreBar = ({
   state,
-  roomId,
-  onOp,
-  onLeave
+  myPlayer,
+  onOp
 }) => {
-  const [tab, setTab] = useState('ranking');
-  const [showPanel, setShowPanel] = useState(false);
   const [mode, setMode] = useState('ox');
   const [calcOp, setCalcOp] = useState('×');
   const [calcVal, setCalcVal] = useState('2');
   const [oxPoint, setOxPoint] = useState('1');
   const simple = state.scoreMode === 'simple';
-  const copyUrl = () => {
-    navigator.clipboard.writeText(`${location.origin}${location.pathname}?room=${roomId}`);
-    alert('招待リンクをコピーしました');
-  };
-  const assign = (playerId, teamId) => onOp('assignTeam', {
-    playerId,
-    teamId
-  });
-  const actionConfig = simple ? {
-    mode: 'simple'
-  } : {
-    mode,
-    op: calcOp,
-    val: calcVal,
-    pt: oxPoint,
-    quick: QUICK_PRESETS
-  };
-  return /*#__PURE__*/React.createElement(MainLayout, {
-    roomId: roomId,
-    isHost: true,
-    onLeave: onLeave,
-    onCopy: copyUrl
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm"
-  }, /*#__PURE__*/React.createElement(TabBar, {
-    tab: tab,
-    setTab: setTab
-  }), /*#__PURE__*/React.createElement(Button, {
-    variant: "secondary",
-    className: "py-2 px-4 rounded-xl lg:hidden",
-    onClick: () => setShowPanel(true)
-  }, /*#__PURE__*/React.createElement(Menu, {
-    size: 20
-  }), " ", /*#__PURE__*/React.createElement("span", {
-    className: "hidden sm:inline"
-  }, "設定"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-6 items-start"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 w-full min-w-0"
-  }, tab === 'ranking' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TeamBoard, {
-    state: state,
-    onAssign: assign
-  }), !simple && /*#__PURE__*/React.createElement(Card, {
-    className: "p-3 mb-4"
-  }, /*#__PURE__*/React.createElement(ModeBar, {
-    mode: mode,
-    setMode: setMode,
-    calcOp: calcOp,
-    setCalcOp: setCalcOp,
-    calcVal: calcVal,
-    setCalcVal: setCalcVal,
-    oxPoint: oxPoint,
-    setOxPoint: setOxPoint
-  })), /*#__PURE__*/React.createElement(PlayerList, {
-    state: state,
-    draggable: true,
-    onAssign: assign,
-    actionConfig: actionConfig,
-    onScore: (id, op, val) => onOp('score', {
-      playerId: id,
-      operator: op,
-      valueStr: val
-    }),
-    onMaru: id => onOp('maru', {
-      playerId: id
-    }),
-    onBatsu: id => onOp('batsu', {
-      playerId: id
-    }),
-    onRename: (id, name) => onOp('renamePlayer', {
-      playerId: id,
-      name
-    }),
-    onRemove: id => onOp('removePlayer', {
-      playerId: id
-    })
-  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
-    state: state
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "w-80 shrink-0 hidden lg:block"
-  }, /*#__PURE__*/React.createElement(SettingsPanel, {
-    state: state,
-    onOp: onOp
-  }))), showPanel && /*#__PURE__*/React.createElement("div", {
-    className: "lg:hidden fixed inset-0 z-40 bg-black/40 flex items-end",
-    onClick: () => setShowPanel(false)
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-slate-100 w-full max-h-[88vh] overflow-y-auto rounded-t-3xl p-4",
-    onClick: e => e.stopPropagation()
-  }, /*#__PURE__*/React.createElement(SettingsPanel, {
-    state: state,
-    onOp: onOp,
-    onClose: () => setShowPanel(false)
-  }))));
-};
-
-// ==========================================
-// 画面：参加者
-// ==========================================
-const ParticipantView = ({
-  state,
-  roomId,
-  myPlayerId,
-  onOp,
-  onLeave
-}) => {
-  const [tab, setTab] = useState('ranking');
-  const [mode, setMode] = useState('ox');
-  const [calcOp, setCalcOp] = useState('×');
-  const [calcVal, setCalcVal] = useState('2');
-  const [oxPoint, setOxPoint] = useState('1');
-  const simple = state.scoreMode === 'simple';
-  const myPlayer = (state.players || []).find(p => p.id === myPlayerId);
-  const canScore = !!state.guestScoring && !!myPlayer;
+  if (!myPlayer) return null;
   const selfAct = (op, val) => {
-    if (!myPlayer) return;
     if (op === 'maru' || op === 'batsu') onOp(op, {
       playerId: myPlayer.id
     });else onOp('score', {
@@ -2447,27 +2399,6 @@ const ParticipantView = ({
     });
   };
   return /*#__PURE__*/React.createElement("div", {
-    style: {
-      paddingBottom: canScore ? 180 : 0
-    }
-  }, /*#__PURE__*/React.createElement(MainLayout, {
-    roomId: roomId,
-    onLeave: onLeave
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-center"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-white p-1.5 rounded-2xl shadow-sm"
-  }, /*#__PURE__*/React.createElement(TabBar, {
-    tab: tab,
-    setTab: setTab
-  }))), tab === 'ranking' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TeamBoard, {
-    state: state
-  }), /*#__PURE__*/React.createElement(PlayerList, {
-    state: state,
-    myPlayerId: myPlayerId
-  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
-    state: state
-  })), canScore && /*#__PURE__*/React.createElement("div", {
     className: "fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] z-30"
   }, /*#__PURE__*/React.createElement("div", {
     className: "max-w-3xl mx-auto"
@@ -2478,7 +2409,9 @@ const ParticipantView = ({
   }, "あなた（", myPlayer.name, "）の得点"), /*#__PURE__*/React.createElement(Button, {
     variant: "ghost",
     className: "bg-slate-100 text-slate-600 text-xs px-3 py-1.5",
-    onClick: () => onOp('undo')
+    onClick: () => onOp('undo', {
+      playerId: myPlayer.id
+    })
   }, /*#__PURE__*/React.createElement(RotateCcw, {
     size: 14
   }), " 1つ戻す")), simple ? /*#__PURE__*/React.createElement("div", {
@@ -2511,7 +2444,129 @@ const ParticipantView = ({
     },
     onAct: selfAct,
     big: true
-  }))))));
+  })))));
+};
+const HostView = ({
+  state,
+  roomId,
+  myPlayerId,
+  onOp,
+  onLeave
+}) => {
+  const [tab, setTab] = useState('ranking');
+  const [showPanel, setShowPanel] = useState(false);
+  const copyUrl = () => {
+    navigator.clipboard.writeText(`${location.origin}${location.pathname}?room=${roomId}`);
+    alert('招待リンクをコピーしました');
+  };
+  const assign = (playerId, teamId) => onOp('assignTeam', {
+    playerId,
+    teamId
+  });
+  const myPlayer = (state.players || []).find(p => p.id === myPlayerId);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingBottom: myPlayer ? 180 : 0
+    }
+  }, /*#__PURE__*/React.createElement(MainLayout, {
+    roomId: roomId,
+    isHost: true,
+    onLeave: onLeave,
+    onCopy: copyUrl
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm"
+  }, /*#__PURE__*/React.createElement(TabBar, {
+    tab: tab,
+    setTab: setTab
+  }), /*#__PURE__*/React.createElement(Button, {
+    variant: "secondary",
+    className: "py-2 px-4 rounded-xl lg:hidden",
+    onClick: () => setShowPanel(true)
+  }, /*#__PURE__*/React.createElement(Menu, {
+    size: 20
+  }), " ", /*#__PURE__*/React.createElement("span", {
+    className: "hidden sm:inline"
+  }, "管理"))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-6 items-start"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 w-full min-w-0"
+  }, tab === 'ranking' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TeamBoard, {
+    state: state,
+    onAssign: assign
+  }), /*#__PURE__*/React.createElement(PlayerList, {
+    state: state,
+    myPlayerId: myPlayerId,
+    draggable: true,
+    onAssign: assign,
+    onRename: (id, name) => onOp('renamePlayer', {
+      playerId: id,
+      name
+    }),
+    onRemove: id => onOp('removePlayer', {
+      playerId: id
+    })
+  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
+    state: state
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "w-80 shrink-0 hidden lg:block"
+  }, /*#__PURE__*/React.createElement(SettingsPanel, {
+    state: state,
+    onOp: onOp
+  }))), showPanel && /*#__PURE__*/React.createElement("div", {
+    className: "lg:hidden fixed inset-0 z-40 bg-black/40 flex items-end",
+    onClick: () => setShowPanel(false)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-slate-100 w-full max-h-[88vh] overflow-y-auto rounded-t-3xl p-4",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement(SettingsPanel, {
+    state: state,
+    onOp: onOp,
+    onClose: () => setShowPanel(false)
+  })))), /*#__PURE__*/React.createElement(SelfScoreBar, {
+    state: state,
+    myPlayer: myPlayer,
+    onOp: onOp
+  }));
+};
+
+// ==========================================
+// 画面：参加者
+// ==========================================
+const ParticipantView = ({
+  state,
+  roomId,
+  myPlayerId,
+  onOp,
+  onLeave
+}) => {
+  const [tab, setTab] = useState('ranking');
+  const myPlayer = (state.players || []).find(p => p.id === myPlayerId);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingBottom: myPlayer ? 180 : 0
+    }
+  }, /*#__PURE__*/React.createElement(MainLayout, {
+    roomId: roomId,
+    onLeave: onLeave
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white p-1.5 rounded-2xl shadow-sm"
+  }, /*#__PURE__*/React.createElement(TabBar, {
+    tab: tab,
+    setTab: setTab
+  }))), tab === 'ranking' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TeamBoard, {
+    state: state
+  }), /*#__PURE__*/React.createElement(PlayerList, {
+    state: state,
+    myPlayerId: myPlayerId
+  })) : /*#__PURE__*/React.createElement(ScoreGraph, {
+    state: state
+  })), /*#__PURE__*/React.createElement(SelfScoreBar, {
+    state: state,
+    myPlayer: myPlayer,
+    onOp: onOp
+  }));
 };
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(/*#__PURE__*/React.createElement(App, null));
