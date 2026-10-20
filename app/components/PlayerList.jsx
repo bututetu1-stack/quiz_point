@@ -69,7 +69,7 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
       data-player-id={player.id}
       data-flip-id={player.id}
       onClick={onTap}
-      className={`w-full text-left flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 short:py-1 rounded-2xl border transition-colors ${tone} ${st.kind === 'lose' ? 'bg-sunken shadow-none' : 'shadow-sm'} ${onTap ? 'hover:border-brand/60 cursor-pointer' : ''}`}
+      className={`w-full text-left flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 short:py-1 min-h-[3.4375rem] short:min-h-0 rounded-2xl border transition-colors ${tone} ${st.kind === 'lose' ? 'bg-sunken shadow-none' : 'shadow-sm'} ${onTap ? 'hover:border-brand/60 cursor-pointer' : ''}`}
     >
       <span
         className={`relative w-9 h-9 short:w-8 short:h-8 shrink-0 flex items-center justify-center rounded-xl text-base font-black tabular-nums ${medal}`}

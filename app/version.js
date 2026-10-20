@@ -1,2 +1,2 @@
 // 反映確認用バージョン（更新のたびに番号を上げる。Home 画面の下に表示）
-export const BUILD = 'v80 ・ グラフを初期点から描く';
+export const BUILD = 'v81 ・ ランキングの行の高さを揃える';
