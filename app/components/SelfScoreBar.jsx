@@ -174,8 +174,8 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2 short:flex-wrap short:justify-end">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1 short:basis-full" aria-live="polite" aria-atomic="true">
+              <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
+                <div className="flex items-center gap-2.5 min-w-[6rem] flex-1 short:basis-full" aria-live="polite" aria-atomic="true">
                   <span
                     key={flash}
                     data-my-score

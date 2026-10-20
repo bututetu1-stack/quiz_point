@@ -73,7 +73,7 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
       <span className="flex-1 min-w-0">
         <span className="flex items-center gap-1.5 min-w-0">
           <OnlineDot online={online} />
-          <span className={`font-bold text-[15px] truncate ${st.kind === 'lose' ? 'text-ink-2' : 'text-ink'}`}>{player.name}</span>
+          <span className={`font-bold text-[0.9375rem] truncate ${st.kind === 'lose' ? 'text-ink-2' : 'text-ink'}`}>{player.name}</span>
           {isMe && <Chip tone="brandSolid">YOU</Chip>}
           {rule && <StateChip st={st} winRank={winRank} />}
           {up > 0 && (
