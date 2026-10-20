@@ -37,6 +37,7 @@
 npm install
 npm run build   # docs/index.html を生成（JS・CSS を埋め込んだ1ファイル。外部 CDN は使わない）
 npm test        # ビルドしてから、データ層テストと画面テスト（jsdom）を実行
+npm run screenshot  # screenshots/ に主な画面のスクリーンショット（テスト用データ。Chrome が必要）
 ```
 
 `docs/index.html` をブラウザで直接開いても動きます（Firebase に接続します）。
