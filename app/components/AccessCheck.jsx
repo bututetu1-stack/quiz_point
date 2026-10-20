@@ -2,8 +2,9 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { RoomContext } from '../context.js';
+import { firebaseConfig } from '../data/config.js';
 import { useAsk } from '../ui/dialogs.jsx';
-import { Copy } from '../ui/icons.jsx';
+import { Copy, ExternalLink } from '../ui/icons.jsx';
 import { Button, Card } from '../ui/primitives.jsx';
 
 const FEATURES = {
@@ -12,6 +13,16 @@ const FEATURES = {
   presence: 'オンライン表示（緑の点）',
   roomIndex: '古い部屋の自動の掃除',
 };
+
+// Firebase コンソールの「ルール」の画面（このアプリのデータベース）
+const RULES_URL = (() => {
+  try {
+    const db = new URL(firebaseConfig.databaseURL).hostname.split('.')[0];
+    return `https://console.firebase.google.com/project/${firebaseConfig.projectId}/database/${db}/rules`;
+  } catch {
+    return 'https://console.firebase.google.com/';
+  }
+})();
 
 export const RULES_JSON = `{
   "rules": {
@@ -56,11 +67,23 @@ export const AccessCheck = () => {
         次の機能が使えません：<b>{missing.map((k) => FEATURES[k]).join('・')}</b>。得点の操作はそのまま使えます。
       </p>
       <p className="text-xs text-ink-2 mt-2 leading-relaxed">
-        Firebase コンソール →（このプロジェクト）→ Realtime Database →「ルール」に、下のルールを貼り付けて「公開」してください。
+        Firebase コンソール →（このプロジェクト）→ Realtime Database
+        →「ルール」に、下のルールを貼り付けて「公開」してください（アプリの持ち主だけができます）。
       </p>
-      <Button variant="secondary" className="mt-3 w-full py-2.5 text-sm" onClick={copy}>
-        <Copy size={16} /> {copied ? 'コピーしました' : 'ルールをコピー'}
-      </Button>
+      <div className="mt-3 grid grid-cols-1 min-[420px]:grid-cols-2 gap-2">
+        <Button variant="secondary" className="py-2.5 text-sm" onClick={copy}>
+          <Copy size={16} /> {copied ? 'コピーしました' : '1. ルールをコピー'}
+        </Button>
+        <a
+          href={RULES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold bg-card text-ink border border-line hover:border-brand/60 transition-colors"
+          data-rules-link
+        >
+          <ExternalLink size={16} /> 2. ルールの画面を開く
+        </a>
+      </div>
     </Card>
   );
 };

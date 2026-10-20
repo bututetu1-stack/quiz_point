@@ -438,6 +438,13 @@ test('v41：データベースの設定が足りないと、ホストの管理�
   h.click(h.buttons().find((b) => b.textContent.trim() === '部屋を作る'));
   await waitFor(() => h.doc.querySelector('[data-access-warning]'), { msg: 'access warning' });
   const t = h.doc.querySelector('[data-access-warning]').textContent;
+  const link = h.doc.querySelector('[data-access-warning] [data-rules-link]');
+  assert.equal(
+    link && link.href,
+    'https://console.firebase.google.com/project/quiz-point-8dfab/database/quiz-point-8dfab-default-rtdb/rules',
+    'ルールの画面へのリンク',
+  );
+  assert.equal(link.target, '_blank');
   assert.ok(t.includes('グラフ') && t.includes('オンライン表示'));
   assert.ok(!t.includes('操作ログ'), '読めるものは出さない');
   h.close();
