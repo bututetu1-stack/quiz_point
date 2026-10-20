@@ -309,6 +309,20 @@ export const App = ({ store }) => {
     return () => window.removeEventListener('popstate', onPop);
   }, [view]);
 
+  // ホームで「戻る」を押して部屋の履歴に戻ったときは、URL から部屋を外す（画面はホームのまま。再読み込みで部屋に入り直さないように）
+  useEffect(() => {
+    if (view !== 'home') return undefined;
+    const onPop = () => {
+      const url = new URL(window.location);
+      if (!url.searchParams.has('room')) return;
+      url.searchParams.delete('room');
+      url.searchParams.delete('view');
+      window.history.replaceState({}, '', url);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [view]);
+
   const ctx = useMemo(() => ({ store, roomId, soundOn, setSoundOn, online }), [store, roomId, soundOn, online]);
   const isHost = view === 'host';
   const showResult = inRoom && state.phase === 'result' && !resultClosed;
