@@ -35,10 +35,25 @@ const AskSheet = ({ req, onDone }) => {
             data-ask-input
           />
         )}
+        {req.kind === 'copy' && (
+          // 自動でコピーできない環境向け：全文を選べる形で見せる（押すと全選択）
+          <textarea
+            readOnly
+            value={req.value}
+            data-autofocus
+            aria-label={req.message}
+            rows={req.value.length > 80 ? 7 : 2}
+            onFocus={(e) => e.target.select()}
+            className="w-full bg-sunken rounded-2xl px-3 py-2 text-xs font-mono text-ink outline-none focus:ring-4 focus:ring-brand/20 resize-none"
+            data-ask-copy
+          />
+        )}
         <div className="flex gap-2 pt-1">
-          <Button variant="secondary" className="flex-1 py-3" onClick={cancel} data-ask-cancel>
-            やめる
-          </Button>
+          {req.kind !== 'copy' && (
+            <Button variant="secondary" className="flex-1 py-3" onClick={cancel} data-ask-cancel>
+              やめる
+            </Button>
+          )}
           <Button
             variant={req.danger ? 'ng' : 'primary'}
             className="flex-[2] py-3"
@@ -46,7 +61,7 @@ const AskSheet = ({ req, onDone }) => {
             disabled={req.kind === 'prompt' && !value.trim()}
             data-ask-ok
           >
-            {req.ok || (req.kind === 'prompt' ? '決定' : 'OK')}
+            {req.ok || (req.kind === 'prompt' ? '決定' : req.kind === 'copy' ? '閉じる' : 'OK')}
           </Button>
         </div>
       </div>
@@ -70,6 +85,8 @@ export const AskProvider = ({ children }) => {
     () => ({
       confirm: (message, opts = {}) => ask({ kind: 'confirm', message, ...opts }),
       prompt: (message, value = '', opts = {}) => ask({ kind: 'prompt', message, value, ...opts }),
+      // 文字を見せてコピーしてもらう（クリップボードが使えないとき）
+      showCopy: (message, value, opts = {}) => ask({ kind: 'copy', message, value, title: 'コピー', ...opts }),
     }),
     [ask],
   );
@@ -96,6 +113,9 @@ const fallback = {
   prompt: async (message, value = '') => {
     const v = window.prompt(message, value);
     return v && v.trim() ? v.trim() : null;
+  },
+  showCopy: async (message, value) => {
+    window.prompt(message, value);
   },
 };
 export const useAsk = () => useContext(AskContext) || fallback;

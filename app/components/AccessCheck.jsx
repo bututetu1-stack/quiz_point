@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { RoomContext } from '../context.js';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Copy } from '../ui/icons.jsx';
 import { Button, Card } from '../ui/primitives.jsx';
 
@@ -27,6 +28,7 @@ export const AccessCheck = () => {
   const { store, roomId } = useContext(RoomContext);
   const [missing, setMissing] = useState([]);
   const [copied, setCopied] = useState(false);
+  const { showCopy } = useAsk();
   useEffect(() => {
     if (!store || !roomId || !store.checkAccess) return undefined;
     let alive = true;
@@ -44,7 +46,7 @@ export const AccessCheck = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('このルールをコピーしてください', RULES_JSON);
+      await showCopy('自動でコピーできませんでした。下のルールを全部選んでコピーしてください', RULES_JSON);
     }
   };
   return (
