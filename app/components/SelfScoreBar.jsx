@@ -104,10 +104,10 @@ const describe = (state, me, rule, st) => {
     const h = progressHint(state.rule, me);
     if (h) parts.push(...h.split('・'));
   }
-  // 1位との差は見出しの方へ（「いま4位・1位まで2」）
-  if (s && s.gap > 0) {
-    if (head && st.kind !== 'win' && st.kind !== 'lose') head += `・1位まで${s.gap}`;
-    else if (!head) parts.push(`1位まで${s.gap}`);
+  // 1位との差：下の行に〇✕などがあるときは見出しの方へ（「いま4位・1位まで2」）、無いとき（自由計算）は下の行へ
+  if (s && s.gap > 0 && st.kind !== 'win' && st.kind !== 'lose') {
+    if (head && parts.length) head += `・1位まで${s.gap}`;
+    else parts.push(`1位まで${s.gap}`);
   }
   return { head, detail: parts };
 };
