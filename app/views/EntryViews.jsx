@@ -23,6 +23,14 @@ const Logo = ({ size = 'lg' }) => (
   </div>
 );
 
+// 失敗したときの知らせ（画面の中に出す）
+const ErrorNote = ({ text }) =>
+  text ? (
+    <p role="alert" className="mb-4 rounded-xl bg-ng-soft text-ng-ink text-sm font-bold px-3 py-2.5" data-entry-error>
+      {text}
+    </p>
+  ) : null;
+
 // 入口の画面の共通の枠（中央のカード・右上に表示切替）
 const EntryFrame = ({ children, onBack }) => (
   <div className="min-h-screen bg-page flex flex-col">
@@ -74,7 +82,7 @@ export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
 );
 
 // ホストも1参加者。部屋を作る前に表示名を入力
-export const HostCreateView = ({ defaultName, onCreate, onBack }) => {
+export const HostCreateView = ({ defaultName, error, onCreate, onBack }) => {
   const [name, setName] = useState(defaultName || savedName());
   const submit = () => {
     const n = name.trim();
@@ -102,6 +110,7 @@ export const HostCreateView = ({ defaultName, onCreate, onBack }) => {
         placeholder="司会"
         className="mb-4"
       />
+      <ErrorNote text={error} />
       <Button onClick={submit} disabled={!name.trim()} className="w-full py-4 text-lg">
         <Crown size={22} />
         {' 部屋を作る'}
@@ -110,7 +119,7 @@ export const HostCreateView = ({ defaultName, onCreate, onBack }) => {
   );
 };
 
-export const JoinView = ({ roomId, defaultName, onJoin, onBack }) => {
+export const JoinView = ({ roomId, defaultName, error, onJoin, onBack }) => {
   const [code, setCode] = useState(roomId || '');
   const [name, setName] = useState(defaultName || savedName());
   const invited = !!roomId;
@@ -157,6 +166,7 @@ export const JoinView = ({ roomId, defaultName, onJoin, onBack }) => {
             placeholder="ゲスト"
           />
         </div>
+        <ErrorNote text={error} />
         <Button onClick={submit} disabled={!code.trim() || !name.trim()} className="w-full py-4 mt-1 text-lg">
           入室する
         </Button>

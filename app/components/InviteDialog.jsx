@@ -36,11 +36,9 @@ export const QrSvg = ({ text, size = 200, className = '' }) => {
   );
 };
 
-export const InviteDialog = ({ roomId, isHost, onClose }) => {
+// リンクのコピー（できない環境では選択できる形で見せる）
+const useCopy = (url) => {
   const [copied, setCopied] = useState(false);
-  const url = inviteUrl(roomId);
-  const ref = useRef(null);
-  useDialog(true, onClose, ref);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
@@ -50,6 +48,36 @@ export const InviteDialog = ({ roomId, isHost, onClose }) => {
       window.prompt('このリンクをコピーしてください', url);
     }
   };
+  return [copied, copy];
+};
+
+// まだ自分しかいない部屋に出す「招待しよう」の案内
+export const InviteCard = ({ roomId }) => {
+  const url = inviteUrl(roomId);
+  const [copied, copy] = useCopy(url);
+  return (
+    <Card className="p-4 flex flex-col min-[480px]:flex-row items-center gap-4 border-dashed border-2 border-brand/50" data-invite-card>
+      <div className="bg-white p-2 rounded-2xl border border-line shrink-0">
+        <QrSvg text={url} size={140} />
+      </div>
+      <div className="flex-1 min-w-0 text-center min-[480px]:text-left">
+        <div className="font-black text-ink text-lg">みんなを招待しよう</div>
+        <p className="text-sm text-ink-2 mt-1 leading-relaxed">
+          スマホのカメラで QR コードを読み取るか、ホームの「参加者として入室する」で部屋コード <b className="text-brand-ink tabular-nums">{roomId}</b> を入れると参加できます。
+        </p>
+        <Button className="mt-3 px-4 py-2.5 text-sm" onClick={copy}>
+          <Copy size={16} /> {copied ? 'コピーしました' : 'リンクをコピー'}
+        </Button>
+      </div>
+    </Card>
+  );
+};
+
+export const InviteDialog = ({ roomId, isHost, onClose }) => {
+  const url = inviteUrl(roomId);
+  const [copied, copy] = useCopy(url);
+  const ref = useRef(null);
+  useDialog(true, onClose, ref);
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <Card ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="招待" className="outline-none w-full max-w-sm p-6 relative text-center" onClick={(e) => e.stopPropagation()}>

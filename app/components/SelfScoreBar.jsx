@@ -63,6 +63,15 @@ const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
   );
 };
 
+// 押したときの振動（効果音 ON・対応端末のみ）
+const buzz = (on, pattern) => {
+  try {
+    if (on && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
+  } catch {
+    // 振動できなくても続ける
+  }
+};
+
 // 順位まわりの短い文（見出しと、その下の細かい情報）
 const describe = (state, me, rule, st) => {
   const s = myStanding(state, me);
@@ -125,9 +134,13 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const close = () => setSheet(null);
   return (
     <>
-      <div ref={barRef} data-selfbar className="fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur border-t border-line shadow-up">
+      <div
+        ref={barRef}
+        data-selfbar
+        className="fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur border-t border-line shadow-up short:top-0 short:left-auto short:w-80 short:border-t-0 short:border-l short:overflow-y-auto short:flex short:flex-col short:justify-center"
+      >
         <div
-          className={`max-w-3xl mx-auto px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5 ${withAside ? 'lg:max-w-5xl lg:pl-4 lg:pr-[22.5rem]' : ''}`}
+          className={`w-full max-w-3xl mx-auto px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5 ${withAside ? 'lg:max-w-5xl lg:pl-4 lg:pr-[22.5rem]' : ''}`}
         >
           {myPlayer.spectator ? (
             <div className="flex items-center justify-between gap-3" data-spectating>
@@ -143,8 +156,8 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="flex items-center gap-2 short:flex-wrap short:justify-end">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 short:basis-full">
                   <span key={flash} data-my-score className={`text-[2rem] leading-none font-black tabular-nums tracking-tight text-ink ${flash ? 'animate-pop' : ''}`}>
                     {text}
                   </span>
@@ -172,6 +185,7 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
                   st={st}
                   onAnswer={(result) => {
                     playSound(result === 'correct' ? 'correct' : 'wrong', soundOn);
+                    buzz(soundOn, result === 'correct' ? 20 : [30, 40, 30]);
                     onOp('answer', { ...me, result });
                   }}
                   onDeclare={(status) => {

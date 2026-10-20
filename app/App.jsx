@@ -44,6 +44,7 @@ export const App = ({ store }) => {
   const [soundOn, setSoundOnState] = useState(() => load('qp_sound', '1') === '1');
   const [online, setOnline] = useState({});
   const [resultClosed, setResultClosed] = useState(false);
+  const [entryError, setEntryError] = useState('');
 
   const setSoundOn = (on) => {
     setSoundOnState(on);
@@ -125,9 +126,10 @@ export const App = ({ store }) => {
 
   const handleCreateRoom = async (name) => {
     const hostName = (name || '').trim() || 'ホスト';
+    setEntryError('');
     const res = await store.createRoom();
     if (!res.ok) {
-      alert('部屋を作れませんでした: ' + res.error);
+      setEntryError(`部屋を作れませんでした（${res.error}）。通信状態を確かめて、もう一度押してください。`);
       return;
     }
     save(`hostToken_${res.roomId}`, res.hostToken);
@@ -138,12 +140,13 @@ export const App = ({ store }) => {
   };
 
   const handleJoin = async (rId, name) => {
+    setEntryError('');
     const res = await enterAsPlayer(rId, name, load(`playerId_${rId}`));
     if (!res.ok) {
-      alert(
+      setEntryError(
         res.error === 'room_not_found'
-          ? '部屋が見つかりませんでした。\n部屋コードを確認するか、ホストに招待リンクをもらい直してください（部屋は24時間で消えます）。'
-          : '入室に失敗しました: ' + res.error,
+          ? '部屋が見つかりませんでした。部屋コードを確認するか、ホストに招待リンクをもらい直してください（部屋は24時間で消えます）。'
+          : `入室できませんでした（${res.error}）。もう一度押してください。`,
       );
       return;
     }
@@ -181,12 +184,24 @@ export const App = ({ store }) => {
             接続中… つながらない場合は再読み込みしてください
           </div>
         )}
-        {view === 'home' && <HomeView onGoHostCreate={() => setView('hostcreate')} onGoJoin={() => setView('join')} />}
-        {view === 'hostcreate' && <HostCreateView defaultName={myName} onCreate={handleCreateRoom} onBack={() => setView('home')} />}
+        {view === 'home' && (
+          <HomeView
+            onGoHostCreate={() => {
+              setEntryError('');
+              setView('hostcreate');
+            }}
+            onGoJoin={() => {
+              setEntryError('');
+              setView('join');
+            }}
+          />
+        )}
+        {view === 'hostcreate' && <HostCreateView defaultName={myName} error={entryError} onCreate={handleCreateRoom} onBack={() => setView('home')} />}
         {view === 'join' && (
           <JoinView
             roomId={roomId}
             defaultName={myName}
+            error={entryError}
             onJoin={handleJoin}
             onBack={() => {
               setRoomId('');

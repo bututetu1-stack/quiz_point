@@ -23,9 +23,9 @@ const adapterJs = (
 
 // 12 人（長い名前・勝ち抜け・脱落・休み・チーム・観戦あり）
 const NAMES = ['司会', 'アリス', 'ボブ', 'チャーリー', 'デイジー', 'とても長い名前のプレイヤーさん', 'Alexander the Great', 'エマ', 'フランク', 'グレース', 'ヘンリー', 'アイビー'];
-const scenario = (free, phase) => {
+const scenario = (free, phase, alone) => {
   const players = {};
-  NAMES.forEach((name, i) => {
+  (alone ? NAMES.slice(0, 1) : NAMES).forEach((name, i) => {
     const id = i === 0 ? 'p_host' : `p_${i}`;
     const maru = (i * 7) % 8;
     const batsu = i % 3;
@@ -108,10 +108,17 @@ const VIEWS = {
   graph: { url: '?room=0427', storage: alice, act: clickText('グラフ') },
   log: { url: '?room=0427', storage: alice, act: clickText('ログ') },
   record: { url: '?room=0427', storage: alice, act: clickText('記録') },
+  alone: { url: '?room=0427', storage: host, alone: true },
+  ruleInfo: {
+    url: '?room=0427',
+    storage: alice,
+    act: (p) => p.evaluate(() => [...document.querySelectorAll('[data-room-status] button, [data-rule-narrow]')].find((b) => b.offsetParent)?.click()),
+  },
 };
 const SIZES = [
   [320, 640],
   [390, 844],
+  [844, 390], // スマホ横向き
   [768, 1024],
   [1280, 860],
 ];
@@ -206,7 +213,9 @@ const measure = () => {
   const header = document.querySelector('header');
   const top = header ? header.getBoundingClientRect().bottom : 0;
   const bar = document.querySelector('[data-selfbar]');
-  const bottom = bar ? bar.getBoundingClientRect().top : vh;
+  // 下部パネルが横（横持ちで右に置く）なら下端は画面の下
+  const barRect = bar ? bar.getBoundingClientRect() : null;
+  const bottom = barRect && barRect.left < vw / 2 ? barRect.top : vh;
   out.rows = [...document.querySelectorAll('[data-player-id]')].filter((e) => {
     const r = e.getBoundingClientRect();
     return r.top >= top - 1 && r.bottom <= bottom + 1;
@@ -225,7 +234,7 @@ for (const [view, opt] of Object.entries(VIEWS)) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
       await page.addInitScript(
-        `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase))});\n` +
+        `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase, !!opt.alone))});\n` +
           Object.entries(opt.storage || {})
             .map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`)
             .join('\n'),
@@ -255,6 +264,7 @@ const unnamed = uniq('unnamed').size;
 const tiny = uniq('tinyText').size;
 const rows390 = results.find((r) => r.view === 'participant' && r.w === 390 && r.theme === 'light').rows;
 const hostRows390 = results.find((r) => r.view === 'host' && r.w === 390 && r.theme === 'light').rows;
+const landRows = results.find((r) => r.view === 'participant' && r.w === 844 && r.theme === 'light').rows;
 const errors = results.reduce((a, r) => a + r.errors.length, 0);
 const density = (n) => (n >= 8 ? 10 : n >= 7 ? 8 : n >= 6 ? 6 : n >= 5 ? 4 : 2);
 const score = {
@@ -262,7 +272,8 @@ const score = {
   contrast: Math.max(0, 15 - 0.5 * lowContrast),
   targets: Math.max(0, 10 - 0.5 * small),
   names: Math.max(0, 5 - unnamed),
-  density: (density(rows390) + density(hostRows390)) / 2,
+  // 縦持ち（参加者・ホスト）と横持ち（参加者、3 人で満点）
+  density: (density(rows390) * 2 + density(hostRows390) * 2 + Math.min(10, landRows * 3.4)) / 5,
   errors: errors ? -10 : 0,
 };
 score.total = Object.values(score).reduce((a, b) => a + b, 0);
@@ -291,7 +302,7 @@ console.log('小さい押し先:', detail('smallTargets'));
 console.log('名前のないボタン:', detail('unnamed'));
 console.log('小さすぎる文字:', detail('tinyText'));
 console.log('エラー:', [...new Set(results.flatMap((r) => r.errors))]);
-console.log(`\n参加者 390px で見える人数: ${rows390} / ホスト: ${hostRows390}`);
+console.log(`\n参加者 390px で見える人数: ${rows390} / ホスト: ${hostRows390} / 横向き 844x390: ${landRows}`);
 console.log('自動の点数（55点満点）:', JSON.stringify(score));
 const json = arg('--json');
 if (json) fs.writeFileSync(json, JSON.stringify({ score, results }, null, 2));

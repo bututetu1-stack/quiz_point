@@ -5,6 +5,7 @@ import { LogPanel } from '../components/LogPanel.jsx';
 import { MainLayout } from '../components/MainLayout.jsx';
 import { PlayerList } from '../components/PlayerList.jsx';
 import { RecordPanel } from '../components/RecordPanel.jsx';
+import { InviteCard } from '../components/InviteDialog.jsx';
 import { GraphPanel } from '../components/ScoreGraph.jsx';
 import { SelfScoreBar } from '../components/SelfScoreBar.jsx';
 import { SettingsPanel } from '../components/SettingsPanel.jsx';
@@ -18,7 +19,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
   const [showPanel, setShowPanel] = useState(false);
   const myPlayer = (state.allPlayers || state.players || []).find((p) => p.id === myPlayerId);
   return (
-    <div style={{ paddingBottom: myPlayer ? 'var(--selfbar-h, 180px)' : 0 }}>
+    <div className={myPlayer ? 'pb-[var(--selfbar-h,180px)] short:pb-0 short:pr-80' : ''}>
       <WinToast state={state} />
       <MainLayout roomId={roomId} state={state} isHost={true} onOp={onOp} onLeave={onLeave}>
         <div className="flex gap-6 items-start">
@@ -36,6 +37,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
               <>
                 <TeamBoard state={state} />
                 <PlayerList state={state} myPlayerId={myPlayerId} hostOp={onOp} />
+                {(state.allPlayers || state.players).length <= 1 && <InviteCard roomId={roomId} />}
               </>
             )}
             {tab === 'graph' && <GraphPanel state={state} />}
