@@ -35,7 +35,12 @@ export const WinToast = ({ state }) => {
   return (
     <>
       {burst > 0 && <Confetti key={burst} seed={burst % 1000} />}
-      <div className="fixed top-3 left-0 right-0 z-[61] flex flex-col items-center gap-2 pointer-events-none px-4" data-win-toast role="status" aria-live="polite">
+      <div
+        className="fixed top-3 left-0 right-0 z-[61] flex flex-col items-center gap-2 pointer-events-none px-4"
+        data-win-toast
+        role="status"
+        aria-live="polite"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}

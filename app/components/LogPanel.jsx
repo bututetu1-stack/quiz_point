@@ -31,7 +31,9 @@ export const LogPanel = () => {
       <ul className="flex flex-col divide-y divide-line">
         {items.map((e, i) => (
           <li key={`${e.t}_${i}`} className="flex items-center gap-3 px-2 py-2">
-            <span className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-black ${COLOR[e.kind] || 'bg-sunken text-ink-2'}`}>
+            <span
+              className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-black ${COLOR[e.kind] || 'bg-sunken text-ink-2'}`}
+            >
               {LABEL[e.kind] || '・'}
             </span>
             <span className="flex-1 min-w-0 font-bold text-ink break-words">{e.text}</span>

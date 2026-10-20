@@ -6,7 +6,22 @@ import { parseScoreToNumber } from '../lib/score.js';
 import { eventsToSnapshots, groupByQuestion } from '../lib/timeline.js';
 import { Card } from '../ui/primitives.jsx';
 
-export const GRAPH_COLORS = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#14b8a6', '#a855f7', '#eab308', '#64748b'];
+export const GRAPH_COLORS = [
+  '#f59e0b',
+  '#ec4899',
+  '#3b82f6',
+  '#10b981',
+  '#8b5cf6',
+  '#ef4444',
+  '#06b6d4',
+  '#84cc16',
+  '#f97316',
+  '#6366f1',
+  '#14b8a6',
+  '#a855f7',
+  '#eab308',
+  '#64748b',
+];
 
 // 目盛りの間隔を 1・2・5 × 10^k から選ぶ（4 本前後になるように）
 const niceStep = (span) => {
@@ -58,7 +73,15 @@ const Plot = ({ tl, players, width }) => {
   const labelStep = Math.max(1, Math.ceil(tl.length / Math.max(3, Math.floor(iw / 52))));
   const muted = { fill: 'rgb(var(--c-ink-3))' };
   return (
-    <svg data-graph={true} viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="block max-w-full" role="img" aria-label="得点の推移のグラフ">
+    <svg
+      data-graph={true}
+      viewBox={`0 0 ${W} ${H}`}
+      width={W}
+      height={H}
+      className="block max-w-full"
+      role="img"
+      aria-label="得点の推移のグラフ"
+    >
       {ticks.map((tv, i) => {
         const gy = y(tv);
         return (
@@ -82,9 +105,24 @@ const Plot = ({ tl, players, width }) => {
         const pts = tl.map((tick, i) => [x(i), y(parseScoreToNumber(tick.scores[p.id]))]);
         return (
           <g key={p.id}>
-            <polyline points={pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ')} fill="none" stroke={c} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+            <polyline
+              points={pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ')}
+              fill="none"
+              stroke={c}
+              strokeWidth="3"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
             {pts.map((pt, i) => (
-              <circle key={i} cx={pt[0]} cy={pt[1]} r={i === pts.length - 1 ? 5 : 3} style={{ fill: 'rgb(var(--c-card))' }} stroke={c} strokeWidth="2.5" />
+              <circle
+                key={i}
+                cx={pt[0]}
+                cy={pt[1]}
+                r={i === pts.length - 1 ? 5 : 3}
+                style={{ fill: 'rgb(var(--c-card))' }}
+                stroke={c}
+                strokeWidth="2.5"
+              />
             ))}
           </g>
         );

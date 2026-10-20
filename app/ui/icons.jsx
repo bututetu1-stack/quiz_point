@@ -1,6 +1,5 @@
 // アイコン（lucide の SVG をインライン化）
 
-
 export const Svg = ({ size = 24, className, fill = 'none', children }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

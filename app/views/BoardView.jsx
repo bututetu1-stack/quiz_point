@@ -14,9 +14,15 @@ import { useFlip, useRankUps } from '../ui/motion.js';
 const MEDAL = ['bg-medal-1 text-medal-ink', 'bg-medal-2 text-medal-ink', 'bg-medal-3 text-medal-ink'];
 
 const StatusTag = ({ st, rank }) => {
-  if (st.kind === 'win') return <span className="text-sm font-black text-white bg-emerald-700 rounded-full px-2.5 py-0.5 whitespace-nowrap">勝ち抜け {rank}位</span>;
+  if (st.kind === 'win')
+    return (
+      <span className="text-sm font-black text-white bg-emerald-700 rounded-full px-2.5 py-0.5 whitespace-nowrap">勝ち抜け {rank}位</span>
+    );
   if (st.kind === 'lose') return <span className="text-sm font-black text-white bg-slate-600 rounded-full px-2.5 py-0.5">脱落</span>;
-  if (st.kind === 'rest') return <span className="text-sm font-black text-white bg-sky-700 rounded-full px-2.5 py-0.5 whitespace-nowrap">休み {st.restLeft}</span>;
+  if (st.kind === 'rest')
+    return (
+      <span className="text-sm font-black text-white bg-sky-700 rounded-full px-2.5 py-0.5 whitespace-nowrap">休み {st.restLeft}</span>
+    );
   return null;
 };
 
@@ -31,7 +37,10 @@ export const BoardView = ({ state, roomId }) => {
   useFlip(listRef);
   const ups = useRankUps(sorted.map((p) => p.id));
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-5 lg:p-8 flex flex-col gap-5" data-board>
+    <div
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-5 lg:p-8 flex flex-col gap-5"
+      data-board
+    >
       <WinToast state={state} />
       <header className="flex items-center gap-4 flex-wrap">
         <div className="bg-amber-400 text-slate-900 rounded-2xl px-5 py-2 font-black text-3xl tabular-nums"># {roomId}</div>
@@ -39,7 +48,10 @@ export const BoardView = ({ state, roomId }) => {
         <div className="ml-auto text-6xl lg:text-7xl font-black tracking-tight tabular-nums">Q{q}</div>
       </header>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
-        <ol ref={listRef} className={`grid gap-2.5 ${many ? 'grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]'}`}>
+        <ol
+          ref={listRef}
+          className={`grid gap-2.5 ${many ? 'grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]'}`}
+        >
           {sorted.map((p, i) => {
             const st = playerState(p, q);
             const scored = st.kind === 'win' || parseScoreToNumber(p.score) > 0 || (p.maru || 0) > 0;
@@ -60,11 +72,15 @@ export const BoardView = ({ state, roomId }) => {
                   {i + 1}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className={`flex items-center gap-2 ${many ? 'text-2xl' : 'text-3xl'} font-black min-w-0 ${st.kind === 'lose' ? 'text-white/60' : ''}`}>
+                  <span
+                    className={`flex items-center gap-2 ${many ? 'text-2xl' : 'text-3xl'} font-black min-w-0 ${st.kind === 'lose' ? 'text-white/60' : ''}`}
+                  >
                     {color && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />}
                     <span className="truncate">{p.name}</span>
                     {ups[p.id] && (
-                      <span className="shrink-0 text-base font-black text-white bg-emerald-700 rounded-full px-2 py-0.5 motion-safe:animate-pop">▲{ups[p.id].d}</span>
+                      <span className="shrink-0 text-base font-black text-white bg-emerald-700 rounded-full px-2 py-0.5 motion-safe:animate-pop">
+                        ▲{ups[p.id].d}
+                      </span>
                     )}
                   </span>
                   {rule && (
@@ -76,7 +92,9 @@ export const BoardView = ({ state, roomId }) => {
                     </span>
                   )}
                 </span>
-                <span className={`${many ? 'text-4xl' : 'text-5xl'} font-black tabular-nums ${st.kind === 'lose' ? 'text-white/60' : ''}`}>{scoreText(state, p)}</span>
+                <span className={`${many ? 'text-4xl' : 'text-5xl'} font-black tabular-nums ${st.kind === 'lose' ? 'text-white/60' : ''}`}>
+                  {scoreText(state, p)}
+                </span>
               </li>
             );
           })}

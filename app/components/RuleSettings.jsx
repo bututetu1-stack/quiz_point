@@ -38,7 +38,13 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
   const { confirm } = useAsk();
   const apply = async () => {
     const rule = normalizeRule(draft);
-    if (await confirm(`ルールを「${ruleLabel(rule)}」にしますか？`, { ok: 'ルールを変える', note: '全員の得点・状態と問題番号はリセットされます（記録タブの成績は残ります）。' })) onApply(rule);
+    if (
+      await confirm(`ルールを「${ruleLabel(rule)}」にしますか？`, {
+        ok: 'ルールを変える',
+        note: '全員の得点・状態と問題番号はリセットされます（記録タブの成績は残ります）。',
+      })
+    )
+      onApply(rule);
   };
   const presetOn = (patch) => Object.entries(patch).every(([k, v]) => Number(draft[k]) === v);
   return (
@@ -52,7 +58,9 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
                 key={d.type}
                 onClick={() => pick(d.type)}
                 className={`rounded-2xl px-3 py-2.5 text-sm font-black border-2 transition-colors ${
-                  draft.type === d.type ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line bg-card text-ink-2 hover:border-brand/50'
+                  draft.type === d.type
+                    ? 'border-brand bg-brand-soft text-brand-ink'
+                    : 'border-line bg-card text-ink-2 hover:border-brand/50'
                 }`}
               >
                 {d.label}
@@ -83,7 +91,12 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
           p.bool ? (
             <label key={p.key} className="flex items-center justify-between gap-3 text-sm font-bold text-ink-2">
               <span>{p.label}</span>
-              <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-6 h-6 accent-amber-500 shrink-0" />
+              <input
+                type="checkbox"
+                checked={!!draft[p.key]}
+                onChange={(e) => set({ [p.key]: e.target.checked })}
+                className="w-6 h-6 accent-amber-500 shrink-0"
+              />
             </label>
           ) : p.options ? (
             <div key={p.key}>
@@ -176,7 +189,14 @@ export const ProgressControls = ({ state, onOp }) => (
       <div className="text-xs font-bold text-ink-3">いまの問題</div>
       <div className="text-4xl font-black text-ink tracking-tight tabular-nums leading-none mt-1">Q{state.q || 1}</div>
     </div>
-    <Button variant="secondary" className="px-2.5 py-3" onClick={() => onOp('nextQ', { delta: -1 })} disabled={(state.q || 1) <= 1} aria-label="1問戻す" title="1問戻す">
+    <Button
+      variant="secondary"
+      className="px-2.5 py-3"
+      onClick={() => onOp('nextQ', { delta: -1 })}
+      disabled={(state.q || 1) <= 1}
+      aria-label="1問戻す"
+      title="1問戻す"
+    >
       <ChevronLeft size={20} />
     </Button>
     <Button variant="info" className="px-4 py-3 text-base" onClick={() => onOp('nextQ', { delta: 1 })}>

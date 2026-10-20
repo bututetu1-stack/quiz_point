@@ -54,7 +54,19 @@ export const toCsv = (state) => {
   const rows = [['順位', '名前', 'チーム', '得点', '〇', '✕', '状態', '累計〇', '累計✕', '勝ち抜け回数', '脱落回数']];
   rankPlayers(state).forEach((p, i) => {
     const rec = recOf(p);
-    rows.push([i + 1, p.name, team(p), formatScoreStr(p.score), p.maru || 0, p.batsu || 0, statusText(p, ranks), rec.o, rec.x, rec.win, rec.lose]);
+    rows.push([
+      i + 1,
+      p.name,
+      team(p),
+      formatScoreStr(p.score),
+      p.maru || 0,
+      p.batsu || 0,
+      statusText(p, ranks),
+      rec.o,
+      rec.x,
+      rec.win,
+      rec.lose,
+    ]);
   });
   return rows.map((r) => r.map(esc).join(',')).join('\n');
 };

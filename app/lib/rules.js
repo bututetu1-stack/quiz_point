@@ -172,7 +172,15 @@ export const ruleDetails = (rule) => {
     .filter((p) => !p.when || p.when(r))
     .map((p) => ({
       label: p.label,
-      value: p.bool ? (r[p.key] ? 'あり' : 'なし') : p.options ? (p.options.find(([k]) => k === r[p.key]) || ['', ''])[1] : r[p.key] === 0 && /0 で/.test(p.label) ? 'なし' : String(r[p.key]),
+      value: p.bool
+        ? r[p.key]
+          ? 'あり'
+          : 'なし'
+        : p.options
+          ? (p.options.find(([k]) => k === r[p.key]) || ['', ''])[1]
+          : r[p.key] === 0 && /0 で/.test(p.label)
+            ? 'なし'
+            : String(r[p.key]),
     }));
 };
 

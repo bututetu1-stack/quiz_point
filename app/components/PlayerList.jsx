@@ -54,11 +54,7 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
   const flash = useChangeKey(text);
   const scored = st.kind === 'win' || parseScoreToNumber(player.score) > 0 || (player.maru || 0) > 0;
   const medal = rank <= 3 && scored && st.kind !== 'lose' ? MEDAL[rank - 1] : 'bg-sunken text-ink-2';
-  const tone = isMe
-    ? 'bg-brand-soft border-brand/60'
-    : st.kind === 'win'
-      ? 'bg-ok-soft border-ok/40'
-      : 'bg-card border-line';
+  const tone = isMe ? 'bg-brand-soft border-brand/60' : st.kind === 'win' ? 'bg-ok-soft border-ok/40' : 'bg-card border-line';
   const hint = rule && st.kind !== 'win' && st.kind !== 'lose' ? progressHint(state.rule, player) : '';
   const Tag = onTap ? 'button' : 'div';
   return (
@@ -69,7 +65,9 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
       className={`w-full text-left flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 rounded-2xl border transition-colors ${tone} ${st.kind === 'lose' ? 'bg-sunken shadow-none' : 'shadow-sm'} ${onTap ? 'hover:border-brand/60 cursor-pointer' : ''}`}
     >
       <span className={`relative w-9 h-9 shrink-0 flex items-center justify-center rounded-xl text-base font-black tabular-nums ${medal}`}>
-        {rank === 1 && scored && st.kind !== 'lose' && <Crown className="absolute -top-3 -left-2 w-5 h-5 text-medal-1 -rotate-12" fill="currentColor" />}
+        {rank === 1 && scored && st.kind !== 'lose' && (
+          <Crown className="absolute -top-3 -left-2 w-5 h-5 text-medal-1 -rotate-12" fill="currentColor" />
+        )}
         {rank}
       </span>
       <span className="flex-1 min-w-0">
@@ -101,7 +99,10 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
           </span>
         )}
       </span>
-      <span key={flash} className={`shrink-0 text-[1.65rem] leading-none font-black tracking-tight tabular-nums ${st.kind === 'lose' ? 'text-ink-3' : 'text-ink'} ${flash ? 'motion-safe:animate-pop' : ''}`}>
+      <span
+        key={flash}
+        className={`shrink-0 text-[1.65rem] leading-none font-black tracking-tight tabular-nums ${st.kind === 'lose' ? 'text-ink-3' : 'text-ink'} ${flash ? 'motion-safe:animate-pop' : ''}`}
+      >
         {text}
       </span>
     </Tag>
@@ -163,7 +164,11 @@ const PlayerMenu = ({ player, onOp, onClose }) => {
           参加に戻す
         </SheetItem>
       ) : (
-        <SheetItem icon={<Eye size={18} />} hint="ランキングから外れ、見るだけになります" onClick={done(() => onOp('setSpectator', { playerId: id, on: true }))}>
+        <SheetItem
+          icon={<Eye size={18} />}
+          hint="ランキングから外れ、見るだけになります"
+          onClick={done(() => onOp('setSpectator', { playerId: id, on: true }))}
+        >
           観戦にする
         </SheetItem>
       )}
@@ -171,7 +176,8 @@ const PlayerMenu = ({ player, onOp, onClose }) => {
         icon={<Trash2 size={18} />}
         tone="ng"
         onClick={done(async () => {
-          if (await confirm(`${player.name} を削除しますか？`, { ok: '削除する', danger: true, note: 'この人の得点・記録も消えます。' })) onOp('removePlayer', { playerId: id });
+          if (await confirm(`${player.name} を削除しますか？`, { ok: '削除する', danger: true, note: 'この人の得点・記録も消えます。' }))
+            onOp('removePlayer', { playerId: id });
         })}
       >
         削除する

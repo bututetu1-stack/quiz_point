@@ -22,7 +22,14 @@ export const ResultOverlay = ({ state, isHost, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4 animate-fade-in" data-result>
       <Confetti count={90} />
-      <Card ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="結果発表" className="outline-none w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 relative">
+      <Card
+        ref={ref}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="結果発表"
+        className="outline-none w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 relative"
+      >
         <IconButton label="閉じる" onClick={onClose} className="absolute top-3 right-3">
           <X size={20} />
         </IconButton>
@@ -43,7 +50,9 @@ export const ResultOverlay = ({ state, isHost, onClose }) => {
                 ) : (
                   <div className="text-ink-3 text-sm mb-1">—</div>
                 )}
-                <div className={`w-full ${h} rounded-t-2xl ${color} flex items-start justify-center pt-2 text-3xl font-black text-medal-ink shadow-lg`}>
+                <div
+                  className={`w-full ${h} rounded-t-2xl ${color} flex items-start justify-center pt-2 text-3xl font-black text-medal-ink shadow-lg`}
+                >
                   {place}
                 </div>
               </div>

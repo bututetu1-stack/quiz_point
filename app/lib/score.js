@@ -50,4 +50,3 @@ export const getTeamDisplayScore = (teamId, state) => {
   }
   return String(fmtNum(calcTeamScore(teamId, state)));
 };
-

@@ -27,9 +27,19 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
           >
             <QrCode size={16} /> {roomId}
           </button>
-          {state && <RoomStatus state={state} onShowRule={() => setRuleOpen(true)} onNextQ={isHost && onOp ? () => onOp('nextQ', { delta: 1 }) : null} />}
+          {state && (
+            <RoomStatus
+              state={state}
+              onShowRule={() => setRuleOpen(true)}
+              onNextQ={isHost && onOp ? () => onOp('nextQ', { delta: 1 }) : null}
+            />
+          )}
           <div className="flex items-center shrink-0 ml-auto">
-            {isHost && <Chip tone="ng" className="hidden sm:inline-flex mr-1">HOST</Chip>}
+            {isHost && (
+              <Chip tone="ng" className="hidden sm:inline-flex mr-1">
+                HOST
+              </Chip>
+            )}
             <ThemeButton />
             <IconButton label={soundOn ? '効果音 ON' : '効果音 OFF'} aria-pressed={soundOn} onClick={() => setSoundOn(!soundOn)}>
               {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -38,7 +48,13 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
               label="退出"
               className="hover:text-ng-ink"
               onClick={async () => {
-                if (await confirm('退出してタイトルに戻りますか？', { ok: '退出する', note: '部屋と得点はそのまま残ります。招待リンクを開けば戻れます。' })) onLeave();
+                if (
+                  await confirm('退出してタイトルに戻りますか？', {
+                    ok: '退出する',
+                    note: '部屋と得点はそのまま残ります。招待リンクを開けば戻れます。',
+                  })
+                )
+                  onLeave();
               }}
             >
               <LogOut size={20} />
@@ -48,7 +64,11 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
       </header>
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">
         {state && (
-          <button onClick={() => setRuleOpen(true)} className="min-[360px]:hidden -my-1 py-1.5 min-h-[28px] text-left text-xs font-black text-brand-ink truncate" data-rule-narrow>
+          <button
+            onClick={() => setRuleOpen(true)}
+            className="min-[360px]:hidden -my-1 py-1.5 min-h-[28px] text-left text-xs font-black text-brand-ink truncate"
+            data-rule-narrow
+          >
             ルール：{ruleLabel(state.rule)}
           </button>
         )}
