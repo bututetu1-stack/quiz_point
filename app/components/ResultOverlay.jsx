@@ -23,7 +23,8 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
   const myRank = sorted.findIndex((p) => p.id === myPlayerId) + 1;
   const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
   const ref = useRef(null);
-  useDialog(true, onClose, ref);
+  // ホストの Esc では全員の結果発表を終えない（終えるのはボタンだけ）
+  useDialog(true, isHost ? null : onClose, ref);
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4 animate-fade-in" data-result>
       <Confetti count={90} />

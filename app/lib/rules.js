@@ -178,7 +178,7 @@ export const ruleDetails = (rule) => {
           : 'なし'
         : p.options
           ? (p.options.find(([k]) => k === r[p.key]) || ['', ''])[1]
-          : r[p.key] === 0 && /0 で/.test(p.label)
+          : r[p.key] === 0 && (/0 で/.test(p.label) || ['win', 'lose', 'rest'].includes(p.key))
             ? 'なし'
             : String(r[p.key]),
     }));
