@@ -1,6 +1,6 @@
 // 部屋の状況（ヘッダーの中）：いまのルール（押すと説明）と問題番号。ホストは Q の横の ▶ で次の問題へ進める
 
-import { normalizeRule, ruleDetails, ruleLabel, RULE_TYPES } from '../lib/rules.js';
+import { normalizeRule, ruleDetails, ruleLabel, ruleSummary } from '../lib/rules.js';
 import { ChevronRight, Zap } from '../ui/icons.jsx';
 import { Sheet } from '../ui/primitives.jsx';
 
@@ -35,7 +35,6 @@ export const RoomStatus = ({ state, onNextQ, onShowRule }) => {
 // いまのルールの説明（全員が見られる）
 export const RuleInfoSheet = ({ state, open, onClose }) => {
   const rule = normalizeRule(state.rule);
-  const def = RULE_TYPES.find((d) => d.type === rule.type);
   const details = ruleDetails(rule);
   return (
     <Sheet open={open} onClose={onClose} title="いまのルール">
@@ -43,7 +42,9 @@ export const RuleInfoSheet = ({ state, open, onClose }) => {
         <div className="flex items-center gap-2 text-2xl font-black text-brand-ink">
           <Zap size={22} /> {ruleLabel(rule)}
         </div>
-        <p className="text-sm text-ink-2 leading-relaxed mt-2">{def.desc}</p>
+        <p className="text-sm text-ink-2 leading-relaxed mt-2" data-rule-summary>
+          {ruleSummary(rule)}
+        </p>
         {details.length > 0 && (
           <dl className="mt-3 rounded-xl bg-sunken divide-y divide-line">
             {details.map((d) => (

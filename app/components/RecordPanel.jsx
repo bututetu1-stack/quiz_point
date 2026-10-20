@@ -21,8 +21,14 @@ export const RecordPanel = ({ state, myPlayerId }) => {
               <th className="text-left font-bold py-1">名前</th>
               <th className="font-bold py-1 w-10">〇</th>
               <th className="font-bold py-1 w-10">✕</th>
-              <th className="font-bold py-1 w-16">勝ち抜け</th>
-              <th className="font-bold py-1 w-12">脱落</th>
+              {/* 狭い画面では見出しを短く（名前の列を広く） */}
+              <th className="font-bold py-1 w-10 min-[360px]:w-16">
+                <span aria-hidden="true" className="min-[360px]:hidden">
+                  抜け
+                </span>
+                <span className="sr-only min-[360px]:not-sr-only">勝ち抜け</span>
+              </th>
+              <th className="font-bold py-1 w-10 min-[360px]:w-12">脱落</th>
             </tr>
           </thead>
           <tbody>

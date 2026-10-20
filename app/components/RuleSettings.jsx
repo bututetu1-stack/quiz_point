@@ -1,7 +1,7 @@
 // ホスト用：ルールの選択・パラメータ設定と、問題番号の進行
 
 import { useState } from 'react';
-import { normalizeRule, RULE_GROUPS, RULE_TYPES, ruleLabel } from '../lib/rules.js';
+import { normalizeRule, RULE_GROUPS, RULE_TYPES, ruleLabel, ruleSummary } from '../lib/rules.js';
 import { ChevronLeft, ChevronRight, Zap } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
 import { Button, Section, Seg } from '../ui/primitives.jsx';
@@ -122,7 +122,6 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
 export const RuleCard = ({ state, onOp }) => {
   const [editing, setEditing] = useState(false);
   const rule = normalizeRule(state.rule);
-  const def = RULE_TYPES.find((d) => d.type === rule.type);
   return (
     <Section
       icon={<Zap size={18} />}
@@ -147,7 +146,7 @@ export const RuleCard = ({ state, onOp }) => {
       ) : (
         <div className="flex flex-col gap-3">
           <div className="text-2xl font-black text-brand-ink leading-tight">{ruleLabel(rule)}</div>
-          <p className="text-xs text-ink-2 leading-relaxed">{def.desc}</p>
+          <p className="text-xs text-ink-2 leading-relaxed">{ruleSummary(rule)}</p>
           {rule.type === 'free' && (
             <>
               <div>

@@ -1,2 +1,2 @@
 // 反映確認用バージョン（更新のたびに番号を上げる。Home 画面の下に表示）
-export const BUILD = 'v64 ・ 大画面に「全画面」ボタン';
+export const BUILD = 'v65 ・ いまのルールを具体的な文で';
