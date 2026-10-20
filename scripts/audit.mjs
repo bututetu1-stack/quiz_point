@@ -109,6 +109,16 @@ const VIEWS = {
   log: { url: '?room=0427', storage: alice, act: clickText('ログ') },
   record: { url: '?room=0427', storage: alice, act: clickText('記録') },
   alone: { url: '?room=0427', storage: host, alone: true },
+  askConfirm: { url: '?room=0427', storage: host, act: (p) => p.evaluate(() => document.querySelector('button[aria-label="退出"]').click()) },
+  askPrompt: {
+    url: '?room=0427',
+    storage: alice,
+    act: async (p) => {
+      await p.evaluate(() => document.querySelector('button[aria-label="メニュー"]').click());
+      await p.waitForTimeout(200);
+      await clickText('名前を変える')(p);
+    },
+  },
   ruleInfo: {
     url: '?room=0427',
     storage: alice,

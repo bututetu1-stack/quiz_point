@@ -32,7 +32,10 @@ export const useDialog = (open, onClose, ref) => {
     };
     document.addEventListener('keydown', onKey);
     const t = setTimeout(() => {
-      if (ref.current) ref.current.focus({ preventScroll: true });
+      if (!ref.current) return;
+      // 入力欄があればそこへ、無ければダイアログ自体へ（Enter の押し間違いで操作しないように）
+      const target = ref.current.querySelector('[data-autofocus]') || ref.current;
+      target.focus({ preventScroll: true });
     }, 0);
     return () => {
       document.removeEventListener('keydown', onKey);

@@ -4,6 +4,7 @@ import { useContext, useState } from 'react';
 import { RoomContext } from '../context.js';
 import { ruleLabel } from '../lib/rules.js';
 import { LogOut, QrCode, Volume2, VolumeX } from '../ui/icons.jsx';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Chip, IconButton } from '../ui/primitives.jsx';
 import { InviteDialog } from './InviteDialog.jsx';
 import { RoomStatus, RuleInfoSheet } from './RoomStatus.jsx';
@@ -13,6 +14,7 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
   const { soundOn, setSoundOn } = useContext(RoomContext);
   const [invite, setInvite] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
+  const { confirm } = useAsk();
   return (
     <div className="min-h-screen bg-page flex flex-col">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur border-b border-line">
@@ -35,8 +37,8 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
             <IconButton
               label="退出"
               className="hover:text-ng-ink"
-              onClick={() => {
-                if (window.confirm('退出してタイトルに戻りますか？')) onLeave();
+              onClick={async () => {
+                if (await confirm('退出してタイトルに戻りますか？', { ok: '退出する', note: '部屋と得点はそのまま残ります。招待リンクを開けば戻れます。' })) onLeave();
               }}
             >
               <LogOut size={20} />
