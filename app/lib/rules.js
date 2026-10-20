@@ -244,7 +244,8 @@ export const playerState = (p, q) => {
   if (p.status === 'lose') return { kind: 'lose' };
   const eq = effectiveQ(p, q);
   if (p.restUntilQ && eq < p.restUntilQ) {
-    if (p.restFromQ === eq) return { kind: 'rest', restLeft: p.restUntilQ - eq - 1, upcoming: true };
+    // 誤答したその問題（とホストがそれより前に戻したとき）は「次の n 問は休み」
+    if (p.restFromQ != null && eq <= p.restFromQ) return { kind: 'rest', restLeft: p.restUntilQ - p.restFromQ - 1, upcoming: true };
     return { kind: 'rest', restLeft: p.restUntilQ - eq };
   }
   return { kind: 'play' };
