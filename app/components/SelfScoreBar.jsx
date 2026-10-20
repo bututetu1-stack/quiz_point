@@ -10,6 +10,7 @@ import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js
 import { playSound } from '../lib/sound.js';
 import { CheckCircle, Edit2, Eye, HelpCircle, MoreHorizontal, RotateCcw, SkipForward, Trophy, Users, XCircle } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
+import { useToast } from '../ui/toast.jsx';
 import { Button, IconButton, Sheet, SheetItem } from '../ui/primitives.jsx';
 import { useChangeKey } from './PlayerList.jsx';
 import { FreeControls, SimpleButtons } from './ScoreControls.jsx';
@@ -120,6 +121,7 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const [sheet, setSheet] = useState(null); // 'menu' | 'team' | 'help'
   const busy = useRef({ key: null, until: 0 });
   const [slow, setSlow] = useState(null);
+  const toast = useToast();
   const { prompt } = useAsk();
   const rule = isRuleMode(state.rule);
   const simple = state.scoreMode === 'simple';
@@ -239,7 +241,13 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
                   <Button
                     variant="soft"
                     className="px-2.5 py-2 text-xs shrink-0"
-                    onClick={() => onOp('undo', me)}
+                    onClick={() =>
+                      once('undo', async () => {
+                        // 変化が小さいと戻せたか分かりにくいので、短く知らせる
+                        const r = await onOp('undo', me);
+                        if (r && r.ok) toast('元に戻しました');
+                      })
+                    }
                     title="元に戻す（自分の直前の操作）"
                   >
                     <RotateCcw size={16} />
