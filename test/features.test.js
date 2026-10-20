@@ -745,3 +745,18 @@ test('大画面：得点が動いたら右の列に上位 5 人の推移グラ�
   p.close();
   b.close();
 });
+
+test('シートが開いているときの「戻る」はシートを閉じるだけ（退出の確認は出さない）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  p.click(p.doc.querySelector('[data-selfbar] button[aria-label="メニュー"]'));
+  await waitFor(() => p.doc.querySelector('[data-sheet]'), { msg: 'menu open' });
+  p.w.history.back();
+  await waitFor(() => !p.doc.querySelector('[data-sheet]'), { msg: 'menu closed by back' });
+  assert.ok(!p.doc.querySelector('[data-ask]'), '退出の確認は出ない');
+  assert.ok(p.doc.querySelector('[data-selfbar]'), '部屋のまま');
+  p.w.history.back();
+  await waitFor(() => p.doc.querySelector('[data-ask="confirm"]'), { msg: 'leave confirm on next back' });
+  h.close();
+  p.close();
+});

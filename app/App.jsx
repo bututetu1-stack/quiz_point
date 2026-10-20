@@ -7,6 +7,7 @@ import { ruleLabel } from './lib/rules.js';
 import { useWakeLock } from './lib/wakeLock.js';
 import { WifiOff } from './ui/icons.jsx';
 import { useAsk } from './ui/dialogs.jsx';
+import { closeTopDialog } from './ui/primitives.jsx';
 import { useToast } from './ui/toast.jsx';
 import { BoardView } from './views/BoardView.jsx';
 import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
@@ -268,6 +269,8 @@ export const App = ({ store }) => {
     if ((window.history.state || {}).qpRoom !== roomId) setRoomInUrl(roomId);
     const onPop = async () => {
       setRoomInUrl(roomId); // URL を部屋に戻しておく（やめたときはそのまま）
+      // シート（メニューなど）が開いていれば、それを閉じるだけ（スマホの「戻る」ジェスチャーで閉じたい）
+      if (closeTopDialog()) return;
       if (
         await confirm('退出してタイトルに戻りますか？', {
           ok: '退出する',
