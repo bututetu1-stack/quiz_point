@@ -411,8 +411,10 @@ export const progressHint = (rule, p) => {
       if (r.lose) parts.push(`✕あと${Math.max(0, r.lose - batsu)}`);
       break;
     case 'by': {
-      if (r.win) parts.push(pts(r.win - score));
       const w = Math.max(0, r.wInit - r.wPer * batsu);
+      // 得点の内訳（〇側×✕側）。M by N は掛け算なので、どちらを伸ばすべきかが分かるように
+      parts.push(`${r.cInit + r.cPer * maru}×${w}`);
+      if (r.win) parts.push(pts(r.win - score));
       if (r.wPer > 0) parts.push(`✕あと${Math.ceil(w / r.wPer)}`);
       break;
     }
