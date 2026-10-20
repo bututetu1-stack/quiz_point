@@ -178,104 +178,115 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
       <div
         ref={barRef}
         data-selfbar
-        className="fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur border-t border-line shadow-up short:top-0 short:left-auto short:w-80 short:border-t-0 short:border-l short:overflow-y-auto short:flex short:flex-col short:justify-center"
+        className={`fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur border-t border-line shadow-up short:top-0 short:left-auto short:w-80 short:border-t-0 short:border-l short:overflow-y-auto short:flex short:flex-col short:justify-center ${
+          // PC のホスト画面：右の管理パネルを下まで見せるため、左の列だけの浮いたパネルにする
+          withAside ? 'lg:bg-transparent lg:border-t-0 lg:shadow-none lg:backdrop-blur-none lg:pointer-events-none' : ''
+        }`}
       >
         <div
-          className={`w-full max-w-3xl mx-auto px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5 ${withAside ? 'lg:max-w-5xl lg:pl-4 lg:pr-[22.5rem]' : ''}`}
+          className={`w-full max-w-3xl mx-auto px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5 ${withAside ? 'lg:max-w-5xl lg:pl-4 lg:pr-[22.5rem] lg:pt-0 lg:pb-0' : ''}`}
         >
-          {myPlayer.spectator ? (
-            <div className="flex items-center justify-between gap-3" data-spectating>
-              <div className="min-w-0 leading-tight">
-                <div className="text-sm font-bold text-ink truncate">あなた（{myPlayer.name}）</div>
-                <div className="text-xs text-ink-3 flex items-center gap-1">
-                  <Eye size={12} /> 観戦中（ランキングには出ません）
-                </div>
-              </div>
-              <Button className="px-5 py-2.5 text-sm shrink-0" onClick={() => onOp('setSpectator', { ...me, on: false })}>
-                参加する
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-                <div className="flex items-center gap-2.5 min-w-[6rem] flex-1 short:basis-full" aria-live="polite" aria-atomic="true">
-                  <span
-                    key={flash}
-                    data-my-score
-                    className={`text-[2rem] leading-none font-black tabular-nums tracking-tight text-ink ${flash ? 'motion-safe:animate-pop' : ''}`}
-                  >
-                    {text}
-                  </span>
-                  <div className="min-w-0 leading-tight">
-                    <span className="sr-only">あなた（{myPlayer.name}）</span>
-                    <div className="text-sm font-black text-brand-ink truncate" aria-hidden={!head}>
-                      {head || myPlayer.name}
-                    </div>
-                    {/* 狭い画面では「〇6 ✕2」「〇あと1・✕あと2」を 2 行に分けて、途中で切れないように */}
-                    <div className="text-xs text-ink-3 mt-0.5 flex flex-wrap gap-x-2 max-h-8 overflow-hidden" data-standing>
-                      {detail.length
-                        ? detail.map((d, i) => (
-                            <span key={i} className="whitespace-nowrap">
-                              {d}
-                            </span>
-                          ))
-                        : ' '}
-                    </div>
+          <div
+            className={`flex flex-col gap-2.5 ${
+              withAside
+                ? 'lg:pointer-events-auto lg:bg-card/95 lg:backdrop-blur lg:border lg:border-b-0 lg:border-line lg:rounded-t-2xl lg:shadow-up lg:px-4 lg:pt-3 lg:pb-4'
+                : ''
+            }`}
+          >
+            {myPlayer.spectator ? (
+              <div className="flex items-center justify-between gap-3" data-spectating>
+                <div className="min-w-0 leading-tight">
+                  <div className="text-sm font-bold text-ink truncate">あなた（{myPlayer.name}）</div>
+                  <div className="text-xs text-ink-3 flex items-center gap-1">
+                    <Eye size={12} /> 観戦中（ランキングには出ません）
                   </div>
                 </div>
-                <TeamButton state={state} myPlayer={myPlayer} onOpen={() => setSheet('team')} />
-                <Button
-                  variant="soft"
-                  className="px-2.5 py-2 text-xs shrink-0"
-                  onClick={() => onOp('undo', me)}
-                  title="元に戻す（自分の直前の操作）"
-                >
-                  <RotateCcw size={16} />
-                  <span className="hidden min-[360px]:inline">元に戻す</span>
+                <Button className="px-5 py-2.5 text-sm shrink-0" onClick={() => onOp('setSpectator', { ...me, on: false })}>
+                  参加する
                 </Button>
-                <IconButton label="メニュー" className="bg-sunken shrink-0" onClick={() => setSheet('menu')}>
-                  <MoreHorizontal size={18} />
-                </IconButton>
               </div>
-              {rule &&
-                st.kind === 'play' &&
-                !(myPlayer.rec && (myPlayer.rec.o || myPlayer.rec.x)) &&
-                !(myPlayer.maru || myPlayer.batsu) && (
-                  <p className="text-center text-xs font-bold text-ink-2 -mb-1" data-first-tip>
-                    早押しで答えたら、正解なら「正答」・不正解なら「誤答」を押します
-                  </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
+                  <div className="flex items-center gap-2.5 min-w-[6rem] flex-1 short:basis-full" aria-live="polite" aria-atomic="true">
+                    <span
+                      key={flash}
+                      data-my-score
+                      className={`text-[2rem] leading-none font-black tabular-nums tracking-tight text-ink ${flash ? 'motion-safe:animate-pop' : ''}`}
+                    >
+                      {text}
+                    </span>
+                    <div className="min-w-0 leading-tight">
+                      <span className="sr-only">あなた（{myPlayer.name}）</span>
+                      <div className="text-sm font-black text-brand-ink truncate" aria-hidden={!head}>
+                        {head || myPlayer.name}
+                      </div>
+                      {/* 狭い画面では「〇6 ✕2」「〇あと1・✕あと2」を 2 行に分けて、途中で切れないように */}
+                      <div className="text-xs text-ink-3 mt-0.5 flex flex-wrap gap-x-2 max-h-8 overflow-hidden" data-standing>
+                        {detail.length
+                          ? detail.map((d, i) => (
+                              <span key={i} className="whitespace-nowrap">
+                                {d}
+                              </span>
+                            ))
+                          : ' '}
+                      </div>
+                    </div>
+                  </div>
+                  <TeamButton state={state} myPlayer={myPlayer} onOpen={() => setSheet('team')} />
+                  <Button
+                    variant="soft"
+                    className="px-2.5 py-2 text-xs shrink-0"
+                    onClick={() => onOp('undo', me)}
+                    title="元に戻す（自分の直前の操作）"
+                  >
+                    <RotateCcw size={16} />
+                    <span className="hidden min-[360px]:inline">元に戻す</span>
+                  </Button>
+                  <IconButton label="メニュー" className="bg-sunken shrink-0" onClick={() => setSheet('menu')}>
+                    <MoreHorizontal size={18} />
+                  </IconButton>
+                </div>
+                {rule &&
+                  st.kind === 'play' &&
+                  !(myPlayer.rec && (myPlayer.rec.o || myPlayer.rec.x)) &&
+                  !(myPlayer.maru || myPlayer.batsu) && (
+                    <p className="text-center text-xs font-bold text-ink-2 -mb-1" data-first-tip>
+                      早押しで答えたら、正解なら「正答」・不正解なら「誤答」を押します
+                    </p>
+                  )}
+                {rule ? (
+                  <AnswerButtons
+                    st={st}
+                    slow={slow}
+                    onAnswer={(result) =>
+                      once(`answer-${result}`, () => {
+                        playSound(result === 'correct' ? 'correct' : 'wrong', soundOn);
+                        buzz(soundOn, result === 'correct' ? 20 : [30, 40, 30]);
+                        return onOp('answer', { ...me, result });
+                      })
+                    }
+                    onDeclare={(status) =>
+                      once(`declare-${status}`, () => {
+                        if (status === 'win') playSound('correct', soundOn);
+                        return onOp('declare', { ...me, status });
+                      })
+                    }
+                    onAdvance={() =>
+                      once('advance', () => {
+                        playSound('pop', soundOn);
+                        return onOp('advanceSelf', me);
+                      })
+                    }
+                  />
+                ) : simple ? (
+                  <SimpleButtons onAct={selfAct} />
+                ) : (
+                  <FreeControls onAct={selfAct} />
                 )}
-              {rule ? (
-                <AnswerButtons
-                  st={st}
-                  slow={slow}
-                  onAnswer={(result) =>
-                    once(`answer-${result}`, () => {
-                      playSound(result === 'correct' ? 'correct' : 'wrong', soundOn);
-                      buzz(soundOn, result === 'correct' ? 20 : [30, 40, 30]);
-                      return onOp('answer', { ...me, result });
-                    })
-                  }
-                  onDeclare={(status) =>
-                    once(`declare-${status}`, () => {
-                      if (status === 'win') playSound('correct', soundOn);
-                      return onOp('declare', { ...me, status });
-                    })
-                  }
-                  onAdvance={() =>
-                    once('advance', () => {
-                      playSound('pop', soundOn);
-                      return onOp('advanceSelf', me);
-                    })
-                  }
-                />
-              ) : simple ? (
-                <SimpleButtons onAct={selfAct} />
-              ) : (
-                <FreeControls onAct={selfAct} />
-              )}
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
       <Sheet open={sheet === 'menu'} onClose={close} title={`メニュー（${myPlayer.name}）`}>
