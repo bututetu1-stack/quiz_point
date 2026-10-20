@@ -310,6 +310,21 @@ for (const [view, opt] of Object.entries(VIEWS)) {
         await page.waitForTimeout(350);
       }
       const m = await page.evaluate(measure);
+      // キーボードだけで操作したとき、Tab で移った先が見えるか（最初の 25 か所。390px 明るいときだけ測る）
+      m.focusInvisible = [];
+      if (w === 390 && scale === 1 && theme === 'light') {
+        for (let k = 0; k < 25; k++) {
+          await page.keyboard.press('Tab');
+          const f = await page.evaluate(() => {
+            const el = document.activeElement;
+            if (!el || el === document.body) return null;
+            const s = getComputedStyle(el);
+            const visible = (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) || (s.boxShadow && s.boxShadow !== 'none');
+            return visible ? null : (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 24);
+          });
+          if (f) m.focusInvisible.push(f);
+        }
+      }
       const tag = scale !== 1 ? `${w}x${scale * 100}` : `${w}`;
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${view}_${tag}_${theme}.png`) });
       results.push({ view, w, h, scale, theme, errors, ...m });
@@ -327,6 +342,7 @@ const lowContrast = uniq('lowContrast').size;
 const small = uniq('smallTargets').size;
 const unnamed = uniq('unnamed').size;
 const tiny = uniq('tinyText').size;
+const focusless = uniq('focusInvisible').size;
 const rows390 = results.find((r) => r.view === 'participant' && r.w === 390 && r.scale === 1 && r.theme === 'light').rows;
 const hostRows390 = results.find((r) => r.view === 'host' && r.w === 390 && r.scale === 1 && r.theme === 'light').rows;
 const landRows = results.find((r) => r.view === 'participant' && r.w === 844 && r.theme === 'light').rows;
@@ -336,7 +352,8 @@ const score = {
   responsive: Math.max(0, 15 - 5 * overflowPages - offscreen - 0.5 * tiny),
   contrast: Math.max(0, 15 - 0.5 * lowContrast),
   targets: Math.max(0, 10 - 0.5 * small),
-  names: Math.max(0, 5 - unnamed),
+  // 名前のないボタンと、Tab で移っても見えない操作（キーボードだけの人が迷う）
+  names: Math.max(0, 5 - unnamed - 0.25 * focusless),
   // 縦持ち（参加者・ホスト）と横持ち（参加者、3 人で満点）
   density: (density(rows390) * 2 + density(hostRows390) * 2 + Math.min(10, landRows * 3.4)) / 5,
   errors: errors ? -10 : 0,
@@ -366,6 +383,7 @@ console.log('低コントラスト:', detail('lowContrast'));
 console.log('小さい押し先:', detail('smallTargets'));
 console.log('名前のないボタン:', detail('unnamed'));
 console.log('小さすぎる文字:', detail('tinyText'));
+console.log('Tab で移っても見えない:', detail('focusInvisible'));
 console.log('エラー:', [...new Set(results.flatMap((r) => r.errors))]);
 console.log(`\n参加者 390px で見える人数: ${rows390} / ホスト: ${hostRows390} / 横向き 844x390: ${landRows}`);
 console.log('自動の点数（55点満点）:', JSON.stringify(score));
