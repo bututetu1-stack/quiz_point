@@ -3,7 +3,7 @@
 // 部屋の rule = { type, ...params }。プレイヤーの項目:
 //   score（有理数文字列）, maru（〇数）, batsu（✕数。スウェーディッシュは✕の累計）,
 //   status（'win' | 'lose' | なし）, winSeq / loseSeq（勝ち抜け・脱落した順番の通し番号）,
-//   restUntilQ（この問題番号から再び答えられる）, pq（本人が「問題を進める」で進めた問題番号）,
+//   restUntilQ（この問題番号から再び答えられる）, restFromQ（誤答した問題番号。その問題の間は「次の n 問は休み」と出す）, pq（本人が「問題を進める」で進めた問題番号）,
 //   streak（連続正解数）, correctAt（最後に正解した時刻。同点の並びに使う）,
 //   rec（この部屋での累計 { o, x, win, lose }。リセット・ルール変更でも消さない）
 
@@ -204,11 +204,15 @@ export const effectiveQ = (p, q) => Math.max(q || 1, (p && p.pq) || 0);
 export const recOf = (p) => ({ o: 0, x: 0, win: 0, lose: 0, ...((p && p.rec) || {}) });
 
 // 今の状態：'win' | 'lose' | 'rest'（restLeft 問） | 'play'
+// 誤答したその問題の間は upcoming: true（restLeft は「次から休む問題の数」。誤答2休なら 2）
 export const playerState = (p, q) => {
   if (p.status === 'win') return { kind: 'win' };
   if (p.status === 'lose') return { kind: 'lose' };
   const eq = effectiveQ(p, q);
-  if (p.restUntilQ && eq < p.restUntilQ) return { kind: 'rest', restLeft: p.restUntilQ - eq };
+  if (p.restUntilQ && eq < p.restUntilQ) {
+    if (p.restFromQ === eq) return { kind: 'rest', restLeft: p.restUntilQ - eq - 1, upcoming: true };
+    return { kind: 'rest', restLeft: p.restUntilQ - eq };
+  }
   return { kind: 'play' };
 };
 
@@ -222,6 +226,7 @@ export const applyAnswer = (rule, player, result, { q = 1, now = Date.now() } = 
   const eq = effectiveQ(player, q);
   const p = { ...player, maru: player.maru || 0, batsu: player.batsu || 0, score: player.score || '0/1', streak: player.streak || 0 };
   p.restUntilQ = null;
+  p.restFromQ = null;
   const ok = result === 'correct';
   const win = () => {
     p.status = 'win';
@@ -242,7 +247,10 @@ export const applyAnswer = (rule, player, result, { q = 1, now = Date.now() } = 
       } else {
         p.batsu += 1;
         p.streak = 0;
-        if (r.rest) p.restUntilQ = eq + r.rest + 1;
+        if (r.rest) {
+          p.restUntilQ = eq + r.rest + 1;
+          p.restFromQ = eq;
+        }
         if (r.lose && p.batsu >= r.lose) lose();
       }
       break;
@@ -253,6 +261,7 @@ export const applyAnswer = (rule, player, result, { q = 1, now = Date.now() } = 
       } else {
         p.batsu += 1;
         p.restUntilQ = eq + p.batsu + 1; // k 回目の誤答で k 問休み
+        p.restFromQ = eq;
         if (r.lose && p.batsu >= r.lose) lose();
       }
       break;
@@ -322,7 +331,7 @@ export const applyDeclare = (rule, player, status) => {
   const s = status === 'lose' ? 'lose' : 'win';
   const rec = recOf(player);
   rec[s] += 1;
-  return { ok: true, player: { ...player, status: s, restUntilQ: null, rec } };
+  return { ok: true, player: { ...player, status: s, restUntilQ: null, restFromQ: null, rec } };
 };
 
 // 休み中の本人が「問題を進める」：自分の問題番号を1つ進める
@@ -414,6 +423,7 @@ export const freshRuleFields = () => ({
   winSeq: null,
   loseSeq: null,
   restUntilQ: null,
+  restFromQ: null,
   pq: null,
   streak: 0,
   correctAt: null,

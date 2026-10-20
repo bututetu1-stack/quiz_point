@@ -49,6 +49,7 @@ const snapOf = (p) => ({
   winSeq: p.winSeq ?? null,
   loseSeq: p.loseSeq ?? null,
   restUntilQ: p.restUntilQ ?? null,
+  restFromQ: p.restFromQ ?? null,
   pq: p.pq ?? null,
   streak: p.streak || 0,
   correctAt: p.correctAt ?? null,
