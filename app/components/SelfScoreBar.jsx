@@ -8,11 +8,12 @@ import { RoomContext } from '../context.js';
 import { myStanding, scoreText } from '../lib/ranking.js';
 import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
 import { playSound } from '../lib/sound.js';
-import { CheckCircle, Edit2, Eye, MoreHorizontal, RotateCcw, SkipForward, Trophy, Users, XCircle } from '../ui/icons.jsx';
+import { CheckCircle, Edit2, Eye, HelpCircle, MoreHorizontal, RotateCcw, SkipForward, Trophy, Users, XCircle } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
 import { Button, IconButton, Sheet, SheetItem } from '../ui/primitives.jsx';
 import { useChangeKey } from './PlayerList.jsx';
 import { FreeControls, SimpleButtons } from './ScoreControls.jsx';
+import { HelpSheet } from './HelpSheet.jsx';
 import { TeamButton, TeamChoices } from './Teams.jsx';
 
 // ルール時：大きな「正答 / 誤答」。休み中は「問題を進める」に替わる。終わった人はボタンを止める
@@ -97,7 +98,7 @@ const describe = (state, me, rule, st) => {
 // withAside：PC で右に管理パネルがある画面（ホスト）。パネルの中身を左の列にそろえる
 export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const { soundOn } = useContext(RoomContext);
-  const [sheet, setSheet] = useState(null); // 'menu' | 'team'
+  const [sheet, setSheet] = useState(null); // 'menu' | 'team' | 'help'
   const busy = useRef({ key: null, until: 0 });
   const { prompt } = useAsk();
   const rule = isRuleMode(state.rule);
@@ -272,7 +273,11 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
         >
           観戦にする
         </SheetItem>
+        <SheetItem icon={<HelpCircle size={18} />} onClick={() => setSheet('help')}>
+          使い方
+        </SheetItem>
       </Sheet>
+      <HelpSheet open={sheet === 'help'} onClose={close} />
       <Sheet open={sheet === 'team'} onClose={close} title="チームを選ぶ">
         <TeamChoices state={state} myPlayer={myPlayer} onOp={onOp} onDone={close} />
       </Sheet>

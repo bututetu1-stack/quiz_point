@@ -40,6 +40,7 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
       <AccessCheck />
       <Section icon={<Trophy size={18} />} title="進行">
         <ProgressControls state={state} onOp={onOp} />
+        <p className="hidden lg:block text-xs text-ink-3 mt-2">キーボードの → で次の問題、← で 1 問戻す</p>
         <Button className="w-full py-3 text-sm mt-3" onClick={() => onOp('setPhase', { phase: 'result' })}>
           <Trophy size={16} /> 結果発表（全員の画面に表示）
         </Button>
@@ -84,7 +85,9 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
         </div>
       </Section>
       <Section icon={<Users size={18} />} title="チーム">
-        <p className="text-xs text-ink-3 mb-3">所属は各自が選びます（ホストはランキングの行を押して変えることもできます）。ここでは作成・改名・削除・「外す」ができます。</p>
+        <p className="text-xs text-ink-3 mb-3">
+          所属は各自が選びます（ホストはランキングの行を押して変えることもできます）。ここでは作成・改名・削除・「外す」ができます。
+        </p>
         <div className="flex gap-2 mb-3">
           <input
             value={newTeam}

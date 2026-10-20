@@ -484,3 +484,33 @@ test('v45：大画面の結果発表は画面いっぱいの専用表示（閉�
   h.close();
   p.close();
 });
+
+test('v46：ホームと部屋のメニューから「使い方」。ホストは PC のキーボード → / ← で問題を進める・戻す', async () => {
+  const db = createMemoryAdapter();
+  const home = boot({ db });
+  await waitFor(() => home.doc.querySelector('button[aria-label="使い方"]'), { msg: 'help on home' });
+  home.click(home.doc.querySelector('button[aria-label="使い方"]'));
+  await waitFor(() => home.doc.querySelector('[data-help]'), { msg: 'help sheet' });
+  home.close();
+  const { h, p } = await hostAndAlice(db);
+  p.click(p.doc.querySelector('button[aria-label="メニュー"]'));
+  await waitFor(() => p.doc.querySelector('[data-sheet]'));
+  p.click(p.byText('使い方', p.doc.querySelector('[data-sheet]')));
+  await waitFor(() => p.doc.querySelector('[data-help]'), { msg: 'help from menu' });
+  // ホストのキーボード
+  const key = (k) => h.w.dispatchEvent(new h.w.KeyboardEvent('keydown', { key: k, bubbles: true }));
+  key('ArrowRight');
+  await waitFor(() => room(db).q === 2, { msg: 'q2 by arrow' });
+  key('ArrowRight');
+  await waitFor(() => room(db).q === 3);
+  key('ArrowLeft');
+  await waitFor(() => room(db).q === 2, { msg: 'back by arrow' });
+  // 入力欄にいるときは効かない
+  const input = h.doc.querySelector('input[placeholder="新チーム名"]');
+  input.focus();
+  input.dispatchEvent(new h.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  await new Promise((r) => setTimeout(r, 80));
+  assert.equal(room(db).q, 2);
+  h.close();
+  p.close();
+});
