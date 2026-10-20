@@ -284,6 +284,12 @@ export const createStore = (db) => {
     },
 
     // 入室：保存済み playerId があれば名前だけ更新、無ければ新規作成（得点はルールの初期点から）
+    // 部屋にいる人の名前（入室前に同じ名前がいないか確かめる用）。読めなければ空
+    async playerNames(room) {
+      const players = await soft(db.get(`${R(room)}/players`));
+      return Object.values(players || {}).map((p) => cleanName(p && p.name));
+    },
+
     async joinRoom(room, name, playerId) {
       const nm = cleanName(name);
       if (!nm) return err('invalid_name');

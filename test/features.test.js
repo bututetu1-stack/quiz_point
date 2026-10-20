@@ -583,3 +583,24 @@ test('大画面：「全画面」ボタンで全画面に（対応ブラウザ�
   p.close();
   b.close();
 });
+
+test('同じ名前の人がいる部屋に入るときは確かめる（やめれば名前を変えられる・このまま入れば 2 人目）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  const q = boot({ db, url: `/?room=${code}` });
+  await waitFor(() => q.doc.querySelector('#join-name'));
+  q.type(q.doc.querySelector('#join-name'), 'アリス');
+  q.click(q.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
+  await waitFor(() => q.doc.querySelector('[data-ask="confirm"]'), { msg: 'duplicate name confirm' });
+  assert.ok(q.doc.querySelector('[data-ask]').textContent.includes('「アリス」がもういます'));
+  q.click(q.doc.querySelector('[data-ask-cancel]'));
+  await waitFor(() => !q.doc.querySelector('[data-ask]'));
+  assert.ok(q.doc.querySelector('#join-name'), 'やめたら入室画面のまま');
+  assert.equal(Object.keys(room(db).players).length, 2);
+  q.type(q.doc.querySelector('#join-name'), 'アリス2');
+  q.click(q.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
+  await waitFor(() => q.text().includes('あなた（アリス2）'), { msg: 'joined with new name' });
+  h.close();
+  p.close();
+  q.close();
+});
