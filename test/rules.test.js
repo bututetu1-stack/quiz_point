@@ -8,6 +8,7 @@ import {
   normalizeRule,
   playerState,
   progressHint,
+  ruleDetails,
   ruleLabel,
   sortForRule,
   swedishPenalty,
@@ -34,7 +35,14 @@ test('normalizeRule：既定値で補い範囲内に収める・ルール無し�
   // v32 までの N by N（n）→ ✕側の初期値 n・N×N 点で勝ち抜け
   assert.deepEqual(normalizeRule({ type: 'by', n: 5 }), { type: 'by', cInit: 0, cPer: 1, wInit: 5, wPer: 1, win: 25 });
   // v32 までのディバイド（÷D）→ 毎回 ÷D・初期 0 点
-  assert.deepEqual(normalizeRule({ type: 'divide', pt: 3, div: 2, win: 10 }), { type: 'divide', init: 0, pt: 3, mode: 'fixed', div: 2, win: 10 });
+  assert.deepEqual(normalizeRule({ type: 'divide', pt: 3, div: 2, win: 10 }), {
+    type: 'divide',
+    init: 0,
+    pt: 3,
+    mode: 'fixed',
+    div: 2,
+    win: 10,
+  });
   assert.equal(normalizeRule({ type: 'divide' }).mode, 'count');
   assert.equal(normalizeRule({ type: 'divide', mode: '???' }).mode, 'count');
   assert.equal(normalizeRule(null).type, 'free');
@@ -143,10 +151,7 @@ test('M by N：(〇初期+〇増分×〇) × (✕初期−✕減分×✕)、✕�
 });
 
 test('スウェーディッシュ：✕＝ceil((√(8c+9)−1)/2)（0→1, 1〜2→2, 3〜5→3, 6〜9→4, 10〜→5…）', () => {
-  assert.deepEqual(
-    [0, 1, 2, 3, 5, 6, 9, 10, 14, 15].map(swedishPenalty),
-    [1, 2, 2, 3, 3, 4, 4, 5, 5, 6],
-  );
+  assert.deepEqual([0, 1, 2, 3, 5, 6, 9, 10, 14, 15].map(swedishPenalty), [1, 2, 2, 3, 3, 4, 4, 5, 5, 6]);
   const rule = { type: 'swedish', n: 10 };
   assert.equal(run(rule, 'x').p.batsu, 1);
   assert.equal(run(rule, 'ox').p.batsu, 2);
@@ -217,12 +222,28 @@ test('並び順：勝ち抜け（抜けた順）→ 競技中（得点・〇・�
     { id: 'many', score: '2/1', maru: 5 },
     { id: 'few', score: '2/1', maru: 2 },
   ];
-  assert.deepEqual(sortForRule(ud, { type: 'updown' }).map((p) => p.id), ['few', 'many']);
-  assert.deepEqual(sortForRule(ud, { type: 'plusminus' }).map((p) => p.id), ['many', 'few']);
+  assert.deepEqual(
+    sortForRule(ud, { type: 'updown' }).map((p) => p.id),
+    ['few', 'many'],
+  );
+  assert.deepEqual(
+    sortForRule(ud, { type: 'plusminus' }).map((p) => p.id),
+    ['many', 'few'],
+  );
 });
 
 test('あと何問の表示', () => {
   assert.equal(progressHint({ type: 'nomx', win: 7, lose: 3 }, { maru: 5, batsu: 1 }), 'あと2〇・✕あと2');
   assert.equal(progressHint({ type: 'by', n: 10 }, { maru: 5, batsu: 1, score: '45/1' }), 'あと55点・✕あと9');
   assert.equal(progressHint({ type: 'divide' }, { batsu: 1, score: '20/1' }), 'あと80点・次の✕は÷2');
+});
+
+test('ruleDetails：0 で「なし」になる設定は「なし」と表示', () => {
+  const d = ruleDetails({ type: 'nomx', win: 0, lose: 0, rest: 0 });
+  assert.deepEqual(
+    d.map((x) => x.value),
+    ['なし', 'なし', 'なし', 'なし'],
+  );
+  assert.equal(ruleDetails({ type: 'nomx', win: 7, lose: 3, rest: 1 })[0].value, '7');
+  assert.equal(ruleDetails({ type: 'divide', mode: 'fixed' }).find((x) => x.label === '誤答したとき').value, '毎回 ÷D');
 });
