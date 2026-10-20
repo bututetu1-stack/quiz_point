@@ -681,3 +681,15 @@ test('招待リンクから保存済みの情報で直接戻ったときも、�
   p.close();
   q.close();
 });
+
+test('大画面：無い部屋コードなら「この部屋は見つかりません」（「参加者を待っています」と出さない）', async () => {
+  const db = createMemoryAdapter();
+  const b = boot({ db, url: '/?room=9999&view=board' });
+  await waitFor(
+    () => b.doc.querySelector('[data-board]') && b.doc.querySelector('[data-board]').textContent.includes('この部屋は見つかりません'),
+    {
+      msg: 'not found on board',
+    },
+  );
+  b.close();
+});

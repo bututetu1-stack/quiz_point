@@ -224,7 +224,16 @@ export const PlayerList = ({ state, myPlayerId, hostOp }) => {
   const tap = hostOp ? (p) => setMenu(p) : null;
   return (
     <div className="flex flex-col gap-3">
-      {!state.players.length && <Card className="p-8 text-center text-ink-3 font-bold">まだ参加者がいません</Card>}
+      {!state.players.length && (
+        <Card className="p-8 text-center text-ink-3 font-bold" data-list-empty>
+          {/* 部屋を読み込むまで（exists が未定）は「読み込み中」。読めたのに部屋が無ければ終わった部屋 */}
+          {state.exists === undefined
+            ? '読み込み中…'
+            : state.exists === false
+              ? 'この部屋は見つかりません（部屋は 24 時間で消えます）'
+              : 'まだ参加者がいません'}
+        </Card>
+      )}
       <div className="flex flex-col gap-1.5" ref={listRef}>
         {sorted.map((p, i) => (
           <PlayerRow
