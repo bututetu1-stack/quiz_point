@@ -7,6 +7,7 @@ import { getTeamDisplayScore } from '../lib/score.js';
 import { Calculator, Download, Edit2, Monitor, Plus, RefreshCw, Trash2, Trophy, Users } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
 import { Button, Section } from '../ui/primitives.jsx';
+import { AccessCheck } from './AccessCheck.jsx';
 import { boardUrl } from './InviteDialog.jsx';
 import { ProgressControls, RuleCard } from './RuleSettings.jsx';
 import { teamColor } from './Teams.jsx';
@@ -36,6 +37,7 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
   };
   return (
     <div className="flex flex-col gap-3">
+      <AccessCheck />
       <Section icon={<Trophy size={18} />} title="進行">
         <ProgressControls state={state} onOp={onOp} />
         <Button className="w-full py-3 text-sm mt-3" onClick={() => onOp('setPhase', { phase: 'result' })}>

@@ -369,3 +369,66 @@ test('v40：正答の二度押しは 1 回だけ数える。戻せる操作が�
   h.close();
   p.close();
 });
+
+test('v41：グラフ・ログが読めない（データベースの設定で拒否）ときは理由を出す', async () => {
+  const base = createMemoryAdapter();
+  // timeline と log の読み込みだけ拒否する
+  const denied = (p) => p.startsWith('timeline/') || p.startsWith('log/');
+  const db = {
+    ...base,
+    onValue: (p, cb) => {
+      if (!denied(p)) return base.onValue(p, cb);
+      setTimeout(() => cb(null, new Error('permission_denied')), 0);
+      return () => {};
+    },
+    onValueLast: (p, n, cb) => {
+      if (!denied(p)) return base.onValueLast(p, n, cb);
+      setTimeout(() => cb(null, new Error('permission_denied')), 0);
+      return () => {};
+    },
+  };
+  const { h, p } = await hostAndAlice(db);
+  p.click(p.buttons().find((b) => b.textContent.includes('グラフ')));
+  await waitFor(() => p.doc.querySelector('[data-unavailable]'), { msg: 'graph unavailable' });
+  assert.ok(p.doc.querySelector('[data-unavailable]').textContent.includes('グラフ'));
+  p.click(p.buttons().find((b) => b.textContent.includes('ログ')));
+  await waitFor(() => p.doc.querySelector('[data-unavailable]') && p.doc.querySelector('[data-unavailable]').textContent.includes('操作ログ'), {
+    msg: 'log unavailable',
+  });
+  h.close();
+  p.close();
+});
+
+test('v41：データベースの設定が足りないと、ホストの管理パネルに知らせとルールのコピーが出る', async () => {
+  const base = createMemoryAdapter();
+  const db = {
+    ...base,
+    get: async (p) => {
+      if (p.startsWith('timeline/') || p.startsWith('presence/')) throw new Error('permission_denied');
+      return base.get(p);
+    },
+  };
+  const h = boot({ db });
+  await waitFor(() => h.byText('ホストとして部屋を作る'));
+  h.click(h.byText('ホストとして部屋を作る'));
+  await waitFor(() => h.doc.querySelector('input[placeholder="司会"]'));
+  h.type(h.doc.querySelector('input[placeholder="司会"]'), '司会');
+  h.click(h.buttons().find((b) => b.textContent.trim() === '部屋を作る'));
+  await waitFor(() => h.doc.querySelector('[data-access-warning]'), { msg: 'access warning' });
+  const t = h.doc.querySelector('[data-access-warning]').textContent;
+  assert.ok(t.includes('グラフ') && t.includes('オンライン表示'));
+  assert.ok(!t.includes('操作ログ'), '読めるものは出さない');
+  h.close();
+  // 全部読めるなら出ない
+  const db2 = createMemoryAdapter();
+  const h2 = boot({ db: db2 });
+  await waitFor(() => h2.byText('ホストとして部屋を作る'));
+  h2.click(h2.byText('ホストとして部屋を作る'));
+  await waitFor(() => h2.doc.querySelector('input[placeholder="司会"]'));
+  h2.type(h2.doc.querySelector('input[placeholder="司会"]'), '司会');
+  h2.click(h2.buttons().find((b) => b.textContent.trim() === '部屋を作る'));
+  await waitFor(() => h2.text().includes('あなた（司会）'));
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(!h2.doc.querySelector('[data-access-warning]'));
+  h2.close();
+});

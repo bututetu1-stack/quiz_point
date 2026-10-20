@@ -4,7 +4,7 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } fro
 import { RoomContext } from '../context.js';
 import { parseScoreToNumber } from '../lib/score.js';
 import { eventsToSnapshots, groupByQuestion } from '../lib/timeline.js';
-import { Card } from '../ui/primitives.jsx';
+import { Card, Unavailable } from '../ui/primitives.jsx';
 
 export const GRAPH_COLORS = [
   '#f59e0b',
@@ -165,14 +165,19 @@ export const ScoreGraph = ({ state }) => {
 export const GraphPanel = ({ state }) => {
   const { store, roomId } = useContext(RoomContext);
   const [events, setEvents] = useState([]);
+  const [denied, setDenied] = useState(false);
   useEffect(() => {
     if (!store || !roomId) return undefined;
-    return store.subscribeTimeline(roomId, setEvents);
+    return store.subscribeTimeline(roomId, (xs, d) => {
+      setEvents(xs);
+      setDenied(!!d);
+    });
   }, [store, roomId]);
   const simple = state.scoreMode === 'simple' && (!state.rule || state.rule.type === 'free');
   const timeline = useMemo(
     () => groupByQuestion(eventsToSnapshots(events, state.players, simple ? 'simple' : 'addsub')),
     [events, state.players, simple],
   );
+  if (denied) return <Unavailable what="グラフ（得点の推移）" />;
   return <ScoreGraph state={{ ...state, timeline }} />;
 };

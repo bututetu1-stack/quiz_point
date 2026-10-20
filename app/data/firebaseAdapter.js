@@ -35,7 +35,7 @@ export const createFirebaseAdapter = (config) => {
         (s) => cb(s.val()),
         (e) => {
           console.warn('quiz_point: 読み込みできません', p, e && e.message);
-          cb(null);
+          cb(null, e || new Error('denied'));
         },
       ),
     onConnected: (cb) => onValue(r('.info/connected'), (s) => cb(!!s.val())),
@@ -44,7 +44,7 @@ export const createFirebaseAdapter = (config) => {
       onValue(
         query(r(p), limitToLast(n)),
         (s) => cb(s.val()),
-        () => cb(null),
+        (e) => cb(null, e || new Error('denied')),
       ),
     // 在室フラグ：接続中は true、切断されたらサーバ側で消える。戻り値で解除
     presence: (p) => {

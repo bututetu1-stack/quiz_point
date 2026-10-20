@@ -2,7 +2,7 @@
 // db は「アダプタ」（本番は firebaseAdapter.js、テストはメモリ実装）で、次を持つ:
 //   get(path) / set(path, v) / update(path, obj) / remove(path) / push(path, v) → key
 //   transaction(path, fn) → { committed, value }   （fn が undefined を返すと中止）
-//   onValue(path, cb) → 購読解除関数 / onConnected(cb) → 購読解除関数
+//   onValue(path, cb) → 購読解除関数（読めないときは cb(null, error)） / onConnected(cb) → 購読解除関数
 //
 // データ構造:
 //   rooms/{room}            : { hostToken, createdAt, scoreMode, teamMode, rule, q, seq, phase, players: {pid: {...}}, teams: {tid: {...}} }
@@ -279,18 +279,36 @@ export const createStore = (db) => {
     },
 
     subscribeRoom: (room, cb) => db.onValue(R(room), (v) => cb(roomState(room, v))),
-    subscribeTimeline: (room, cb) => db.onValue(T(room), (v) => cb(Object.values(v || {}))),
-    // 操作ログ：新しい順に最新50件
+    // 得点推移：cb(イベントの配列, 読めなかったか)
+    subscribeTimeline: (room, cb) => db.onValue(T(room), (v, e) => cb(Object.values(v || {}), !!e)),
+    // 操作ログ：新しい順に最新50件。cb(配列, 読めなかったか)
     subscribeLog: (room, cb) =>
-      db.onValueLast(`log/${room}`, 50, (v) =>
+      db.onValueLast(`log/${room}`, 50, (v, err) =>
         cb(
           Object.entries(v || {})
             .sort(([a], [b]) => (a < b ? 1 : -1))
             .map(([, e]) => e),
+          !!err,
         ),
       ),
     // 接続中の人：{ pid: true }
     subscribePresence: (room, cb) => db.onValue(`presence/${room}`, (v) => cb(v || {})),
+    // 付随データの場所を読めるか（Firebase のルールで拒否されていないか）：{ timeline, log, presence, roomIndex } → true / false
+    async checkAccess(room) {
+      const paths = { timeline: T(room), log: `log/${room}`, presence: `presence/${room}`, roomIndex: `roomIndex/${room}` };
+      const out = {};
+      await Promise.all(
+        Object.entries(paths).map(async ([k, p]) => {
+          try {
+            await db.get(p);
+            out[k] = true;
+          } catch {
+            out[k] = false;
+          }
+        }),
+      );
+      return out;
+    },
     // 自分を「接続中」にする（戻り値で解除）。書けなくても動作は止めない
     goOnline: (room, pid) => {
       try {
