@@ -40,6 +40,8 @@ export const useFlip = (ref) => {
 export const useRankUps = (ids, ms = 3500) => {
   const prev = useRef(null);
   const [ups, setUps] = useState({});
+  const timers = useRef([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const key = ids.join(',');
   useEffect(() => {
     const now = {};
@@ -61,7 +63,9 @@ export const useRankUps = (ids, ms = 3500) => {
           });
           return n;
         });
-        setTimeout(() => setUps((u) => Object.fromEntries(Object.entries(u).filter(([, v]) => v.stamp !== stamp))), ms);
+        timers.current.push(
+          setTimeout(() => setUps((u) => Object.fromEntries(Object.entries(u).filter(([, v]) => v.stamp !== stamp))), ms),
+        );
       }
     }
     prev.current = now;

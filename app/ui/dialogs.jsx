@@ -55,7 +55,16 @@ const AskSheet = ({ req, onDone }) => {
 
 export const AskProvider = ({ children }) => {
   const [req, setReq] = useState(null);
-  const ask = useCallback((r) => new Promise((resolve) => setReq({ ...r, resolve })), []);
+  const ask = useCallback(
+    (r) =>
+      new Promise((resolve) =>
+        setReq((prev) => {
+          if (prev) prev.resolve(prev.kind === 'prompt' ? null : false);
+          return { ...r, resolve };
+        }),
+      ),
+    [],
+  );
   const api = useMemo(
     () => ({
       confirm: (message, opts = {}) => ask({ kind: 'confirm', message, ...opts }),

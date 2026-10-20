@@ -501,6 +501,11 @@ test('v46：ホームと部屋のメニューから「使い方」。ホスト�
   const key = (k) => h.w.dispatchEvent(new h.w.KeyboardEvent('keydown', { key: k, bubbles: true }));
   key('ArrowRight');
   await waitFor(() => room(db).q === 2, { msg: 'q2 by arrow' });
+  // 同じ向きの連打は 0.5 秒に 1 回だけ
+  key('ArrowRight');
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(room(db).q, 2, '連打は 1 回だけ');
+  await new Promise((r) => setTimeout(r, 500));
   key('ArrowRight');
   await waitFor(() => room(db).q === 3);
   key('ArrowLeft');
@@ -529,4 +534,15 @@ test('v48：退出してホームに戻っても「前の部屋に戻る」で�
   assert.ok(p.w.location.search.includes(`room=${code}`));
   h.close();
   p.close();
+});
+
+test('v50：ホームの「前の部屋に戻る」は、部屋がもう無ければ作り直さずに知らせる', async () => {
+  const db = createMemoryAdapter();
+  const h = boot({ db, storage: { qp_last_room: '9999', hostToken_9999: 'tok', playerName: '司会' } });
+  await waitFor(() => h.doc.querySelector('[data-last-room]'), { msg: 'resume button' });
+  h.click(h.doc.querySelector('[data-last-room]'));
+  await waitFor(() => h.doc.querySelector('[data-toast]'), { msg: 'toast' });
+  assert.ok(h.doc.querySelector('[data-toast]').textContent.includes('もう終わっています'));
+  assert.ok(!((db._dump() || {}).rooms || {})['9999'], '消えた部屋を作り直さない');
+  h.close();
 });

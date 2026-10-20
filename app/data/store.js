@@ -217,6 +217,24 @@ export const createStore = (db) => {
     return OK;
   };
 
+  // 付随データの場所を読めるか（中身は取らない）。checkAccess が部屋ごとに 1 回だけ呼ぶ
+  const accessCache = {};
+  const probeAccess = async (room) => {
+    const paths = { timeline: T(room), log: `log/${room}`, presence: `presence/${room}`, roomIndex: `roomIndex/${room}` };
+    const out = {};
+    await Promise.all(
+      Object.entries(paths).map(async ([k, p]) => {
+        try {
+          await (db.probe ? db.probe(p) : db.get(p));
+          out[k] = true;
+        } catch {
+          out[k] = false;
+        }
+      }),
+    );
+    return out;
+  };
+
   const removeRoomData = (room) =>
     Promise.all(
       [R(room), `history/${room}`, T(room), `roomIndex/${room}`, `log/${room}`, `presence/${room}`].map((p) => soft(db.remove(p))),
@@ -294,20 +312,14 @@ export const createStore = (db) => {
     // 接続中の人：{ pid: true }
     subscribePresence: (room, cb) => db.onValue(`presence/${room}`, (v) => cb(v || {})),
     // 付随データの場所を読めるか（Firebase のルールで拒否されていないか）：{ timeline, log, presence, roomIndex } → true / false
-    async checkAccess(room) {
-      const paths = { timeline: T(room), log: `log/${room}`, presence: `presence/${room}`, roomIndex: `roomIndex/${room}` };
-      const out = {};
-      await Promise.all(
-        Object.entries(paths).map(async ([k, p]) => {
-          try {
-            await db.get(p);
-            out[k] = true;
-          } catch {
-            out[k] = false;
-          }
-        }),
-      );
-      return out;
+    checkAccess(room) {
+      if (!accessCache[room]) accessCache[room] = probeAccess(room);
+      return accessCache[room];
+    },
+    // 部屋がまだあるか（作成から 24 時間以内）
+    async roomAlive(room) {
+      const createdAt = await soft(db.get(`${R(room)}/createdAt`));
+      return !!createdAt && now() - createdAt <= ROOM_TTL;
     },
     // 自分を「接続中」にする（戻り値で解除）。書けなくても動作は止めない
     goOnline: (room, pid) => {

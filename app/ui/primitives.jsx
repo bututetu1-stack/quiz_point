@@ -154,7 +154,7 @@ export const Sheet = ({ open, onClose, title, children, wide = false }) => {
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-scrim/50 flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
       onClick={onClose}
       data-sheet
     >
