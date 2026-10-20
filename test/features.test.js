@@ -165,8 +165,10 @@ test('v33：休み中は「問題を進める」（ホストの次の問題と�
   await waitFor(() => room(db).q === 2);
   await new Promise((r) => setTimeout(r, 30));
   assert.ok(p.doc.querySelector('[data-rest]').textContent.includes('あと2問'), '二重に減らない');
+  await new Promise((r) => setTimeout(r, 450)); // 同じボタンの二度押しは 0.4 秒間受け付けないので、実際の間隔をあける
   p.click(p.byText('問題を進める'));
   await waitFor(() => p.doc.querySelector('[data-rest]').textContent.includes('あと1問'), { msg: 'rest 1' });
+  await new Promise((r) => setTimeout(r, 450)); // 同じボタンの二度押しは 0.4 秒間受け付けないので、実際の間隔をあける
   p.click(p.byText('問題を進める'));
   await waitFor(() => p.byText('正答') && !p.byText('正答').disabled, { msg: 'back to play' });
 
@@ -325,6 +327,7 @@ test('v38：順位が上がった人の行に ▲（数秒で消える）。大�
   await waitFor(() => Object.values(room(db).players).find((x) => x.name === '司会').maru === 1);
   p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
   await waitFor(() => room(db).players[aliceId].maru === 1);
+  await new Promise((r) => setTimeout(r, 450)); // 同じボタンの二度押しは 0.4 秒間受け付けないので、実際の間隔をあける
   p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
   await waitFor(() => room(db).players[aliceId].maru === 2);
   await waitFor(() => h.doc.querySelector(`[data-player-id="${aliceId}"] [data-rank-up]`), { msg: 'rank up chip on host' });
@@ -341,6 +344,28 @@ test('v39：初めての人には最初の〇✕まで「正答／誤答を押�
   await waitFor(() => p.doc.querySelector('[data-first-tip]'), { msg: 'first tip' });
   p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
   await waitFor(() => !p.doc.querySelector('[data-first-tip]'), { msg: 'tip hidden after first answer' });
+  h.close();
+  p.close();
+});
+
+test('v40：正答の二度押しは 1 回だけ数える。戻せる操作が無いときは知らせる', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  // 元に戻す（まだ何もしていない）→ 知らせが出る
+  p.click(p.byText('元に戻す'));
+  await waitFor(() => p.doc.querySelector('[data-toast]'), { msg: 'toast' });
+  assert.ok(p.doc.querySelector('[data-toast]').textContent.includes('戻せる操作はもうありません'));
+  // 正答を素早く 2 回 → 1 回だけ
+  const bar = p.doc.querySelector('[data-selfbar]');
+  p.click(p.byText('正答', bar));
+  p.click(p.byText('正答', bar));
+  await waitFor(() => room(db).players[aliceId].maru === 1);
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(room(db).players[aliceId].maru, 1, '二度押しは 1 回だけ');
+  // 別のボタンはすぐ押せる（誤答）
+  p.click(p.byText('誤答', bar));
+  await waitFor(() => room(db).players[aliceId].batsu === 1, { msg: 'different button allowed' });
   h.close();
   p.close();
 });

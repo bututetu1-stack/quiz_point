@@ -131,6 +131,7 @@ const VIEWS = {
   log: { url: '?room=0427', storage: alice, act: clickText('ログ') },
   record: { url: '?room=0427', storage: alice, act: clickText('記録') },
   alone: { url: '?room=0427', storage: host, alone: true },
+  toast: { url: '?room=0427', storage: alice, act: clickText('元に戻す') },
   askConfirm: {
     url: '?room=0427',
     storage: host,

@@ -8,13 +8,16 @@ import { createFirebaseAdapter } from './data/firebaseAdapter.js';
 import { createStore } from './data/store.js';
 import { applyTheme, loadTheme, watchSystemTheme } from './lib/theme.js';
 import { AskProvider } from './ui/dialogs.jsx';
+import { ToastProvider } from './ui/toast.jsx';
 
 applyTheme(loadTheme());
 watchSystemTheme();
 
 const adapter = window.__QP_ADAPTER__ || createFirebaseAdapter(firebaseConfig);
 createRoot(document.getElementById('root')).render(
-  <AskProvider>
-    <App store={createStore(adapter)} />
-  </AskProvider>,
+  <ToastProvider>
+    <AskProvider>
+      <App store={createStore(adapter)} />
+    </AskProvider>
+  </ToastProvider>,
 );

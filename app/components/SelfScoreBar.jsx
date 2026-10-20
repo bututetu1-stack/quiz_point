@@ -98,6 +98,7 @@ const describe = (state, me, rule, st) => {
 export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const { soundOn } = useContext(RoomContext);
   const [sheet, setSheet] = useState(null); // 'menu' | 'team'
+  const busy = useRef({ key: null, until: 0 });
   const { prompt } = useAsk();
   const rule = isRuleMode(state.rule);
   const simple = state.scoreMode === 'simple';
@@ -138,6 +139,17 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
     }
   };
   const close = () => setSheet(null);
+  // 同じボタンは、送っている間と直後 0.4 秒は受け付けない（興奮して二度押ししても 1 回だけ。別のボタンはすぐ押せる）
+  const once = async (key, fn) => {
+    const b = busy.current;
+    if (b.key === key && Date.now() < b.until) return;
+    busy.current = { key, until: Infinity };
+    try {
+      await fn();
+    } finally {
+      if (busy.current.key === key) busy.current = { key, until: Date.now() + 400 };
+    }
+  };
   return (
     <>
       <div
@@ -206,19 +218,25 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
               {rule ? (
                 <AnswerButtons
                   st={st}
-                  onAnswer={(result) => {
-                    playSound(result === 'correct' ? 'correct' : 'wrong', soundOn);
-                    buzz(soundOn, result === 'correct' ? 20 : [30, 40, 30]);
-                    onOp('answer', { ...me, result });
-                  }}
-                  onDeclare={(status) => {
-                    if (status === 'win') playSound('correct', soundOn);
-                    onOp('declare', { ...me, status });
-                  }}
-                  onAdvance={() => {
-                    playSound('pop', soundOn);
-                    onOp('advanceSelf', me);
-                  }}
+                  onAnswer={(result) =>
+                    once(`answer-${result}`, () => {
+                      playSound(result === 'correct' ? 'correct' : 'wrong', soundOn);
+                      buzz(soundOn, result === 'correct' ? 20 : [30, 40, 30]);
+                      return onOp('answer', { ...me, result });
+                    })
+                  }
+                  onDeclare={(status) =>
+                    once(`declare-${status}`, () => {
+                      if (status === 'win') playSound('correct', soundOn);
+                      return onOp('declare', { ...me, status });
+                    })
+                  }
+                  onAdvance={() =>
+                    once('advance', () => {
+                      playSound('pop', soundOn);
+                      return onOp('advanceSelf', me);
+                    })
+                  }
                 />
               ) : simple ? (
                 <SimpleButtons onAct={selfAct} />

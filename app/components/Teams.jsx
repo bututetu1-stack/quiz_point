@@ -49,9 +49,16 @@ export const TeamButton = ({ state, myPlayer, onOpen }) => {
         team ? 'bg-card text-ink-2 border-line hover:border-brand/60' : 'bg-brand text-on-brand border-brand motion-safe:animate-attn'
       }`}
       data-team-button
+      aria-label={team ? `チーム：${team.name}（押すと変える）` : 'チームを選ぶ'}
     >
       {team ? <span className="w-2 h-2 rounded-full shrink-0" style={{ background: teamColor(state, team.id) }} /> : <Users size={14} />}
-      <span className="truncate">{team ? team.name : 'チームを選ぶ'}</span>
+      {team ? (
+        <span className="truncate">{team.name}</span>
+      ) : (
+        <span className="truncate">
+          チーム<span className="hidden min-[420px]:inline">を選ぶ</span>
+        </span>
+      )}
     </button>
   );
 };
