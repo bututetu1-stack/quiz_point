@@ -49,10 +49,18 @@ export const useRankUps = (ids, ms = 3500) => {
       now[id] = i + 1;
     });
     if (prev.current) {
+      // 前後どちらにもいる人の中での順位で比べる（だれかが抜けた・観戦に回っただけで「▲」が出ないように。追い越したときだけ）
+      const before = prev.current;
+      const common = ids.filter((id) => before[id]);
+      const prevRank = {};
+      [...common]
+        .sort((a, b) => before[a] - before[b])
+        .forEach((id, i) => {
+          prevRank[id] = i + 1;
+        });
       const fresh = {};
-      ids.forEach((id) => {
-        const was = prev.current[id];
-        if (was && was > now[id]) fresh[id] = was - now[id];
+      common.forEach((id, i) => {
+        if (prevRank[id] > i + 1) fresh[id] = prevRank[id] - (i + 1);
       });
       const stamp = Date.now() + Math.random();
       if (Object.keys(fresh).length) {
