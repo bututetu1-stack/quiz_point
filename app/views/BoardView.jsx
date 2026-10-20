@@ -6,7 +6,7 @@ import { inviteUrl, QrSvg } from '../components/InviteDialog.jsx';
 import { teamColor } from '../components/Teams.jsx';
 import { WinToast } from '../components/WinToast.jsx';
 import { rankPlayers, scoreText } from '../lib/ranking.js';
-import { isRuleMode, playerState, ruleLabel, winRanks } from '../lib/rules.js';
+import { isReach, isRuleMode, playerState, ruleLabel, winRanks } from '../lib/rules.js';
 import { calcTeamScore, getTeamDisplayScore, parseScoreToNumber } from '../lib/score.js';
 import { Crown, Users } from '../ui/icons.jsx';
 import { useFlip, useRankUps } from '../ui/motion.js';
@@ -44,7 +44,7 @@ const useBoardLevel = (n, listRef) => {
   return 'dense';
 };
 
-const StatusTag = ({ st, rank }) => {
+const StatusTag = ({ st, rank, reach }) => {
   if (st.kind === 'win')
     return (
       <span className="text-sm font-black text-white bg-emerald-700 rounded-full px-2.5 py-0.5 whitespace-nowrap">勝ち抜け {rank}位</span>
@@ -54,6 +54,8 @@ const StatusTag = ({ st, rank }) => {
     return (
       <span className="text-sm font-black text-white bg-sky-700 rounded-full px-2.5 py-0.5 whitespace-nowrap">休み {st.restLeft}</span>
     );
+  if (reach)
+    return <span className="text-sm font-black text-slate-900 bg-amber-300 rounded-full px-2.5 py-0.5 whitespace-nowrap">リーチ</span>;
   return null;
 };
 
@@ -142,7 +144,7 @@ export const BoardView = ({ state, roomId }) => {
                       <span className="tabular-nums">
                         〇{p.maru || 0} ✕{p.batsu || 0}
                       </span>
-                      <StatusTag st={st} rank={ranks[p.id]} />
+                      <StatusTag st={st} rank={ranks[p.id]} reach={st.kind === 'play' && isReach(state.rule, p)} />
                     </span>
                   )}
                 </span>

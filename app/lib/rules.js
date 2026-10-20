@@ -324,6 +324,13 @@ export const applyAnswer = (rule, player, result, { q = 1, now = Date.now() } = 
   return { ok: true, player: p };
 };
 
+// リーチ：あと 1 問正答すれば勝ち抜け（ルールの計算でそのまま確かめる。休み中なら、休み明けの 1 問で）
+export const isReach = (rule, p) => {
+  if (!isRuleMode(rule) || p.status || p.spectator) return false;
+  const res = applyAnswer(rule, { ...p, restUntilQ: null, restFromQ: null }, 'correct', { q: effectiveQ(p, 1) });
+  return !!(res.ok && res.player.status === 'win');
+};
+
 // 本人が「勝ち抜け」「脱落」を宣言する（休み中でも可）
 export const applyDeclare = (rule, player, status) => {
   if (!isRuleMode(rule)) return { ok: false, error: 'free_rule' };
