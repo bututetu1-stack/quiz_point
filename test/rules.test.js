@@ -11,6 +11,7 @@ import {
   progressHint,
   ruleDetails,
   ruleLabel,
+  ruleSummary,
   sortForRule,
   swedishPenalty,
   winRanks,
@@ -258,4 +259,12 @@ test('リーチ：あと 1 問正答で勝ち抜けのときだけ（休み中�
   assert.equal(isReach({ ...rule, win: 0 }, { ...fresh(), maru: 9, score: '9/1' }), false, '勝ち抜けなしのルール');
   assert.equal(isReach({ type: 'free' }, fresh()), false);
   assert.equal(isReach({ type: 'freeze' }, { ...fresh(), maru: 9, score: '9/1' }), true, 'フリーズ 10〇');
+});
+
+test('いまのルールを具体的な文で', () => {
+  assert.equal(ruleSummary({ type: 'nomx', win: 7, lose: 3, rest: 1 }), '7問正答で勝ち抜け、3回誤答で脱落、誤答のあと1問休み。');
+  assert.equal(ruleSummary({ type: 'nomx', win: 0, lose: 0, rest: 0 }), '勝ち抜けなし、脱落なし。');
+  assert.equal(ruleSummary({ type: 'freeze', win: 10, lose: 0 }), 'k 回目の誤答で k 問休み。10問正答で勝ち抜け、脱落なし。');
+  assert.ok(ruleSummary({ type: 'divide', init: 10, pt: 10, mode: 'fixed', div: 3, win: 100 }).includes('毎回 ÷3'));
+  assert.ok(ruleSummary({ type: 'by' }).includes('100点で勝ち抜け'));
 });

@@ -184,6 +184,40 @@ export const ruleDetails = (rule) => {
     }));
 };
 
+// いまの設定を具体的な文で（参加者向けの「いまのルール」・ホストのルール欄。種類の一般説明 desc とは別）
+export const ruleSummary = (rule) => {
+  const r = normalizeRule(rule);
+  const winQ = (n) => (n ? `${n}問正答で勝ち抜け` : '勝ち抜けなし');
+  const winP = (n) => (n ? `${n}点で勝ち抜け` : '勝ち抜けなし');
+  const lose = (n) => (n ? `${n}回誤答で脱落` : '脱落なし');
+  switch (r.type) {
+    case 'nomx':
+      return (
+        [
+          r.combo ? `正答で +1 点（n 問連続の正答は +n 点）。${winP(r.win)}` : winQ(r.win),
+          lose(r.lose),
+          r.rest ? `誤答のあと${r.rest}問休み` : '',
+        ]
+          .filter(Boolean)
+          .join('、') + '。'
+      );
+    case 'freeze':
+      return `k 回目の誤答で k 問休み。${winQ(r.win)}、${lose(r.lose)}。`;
+    case 'swedish':
+      return `${r.n}問正答で勝ち抜け、✕が${r.n}つで脱落。誤答すると、それまでの正答数に応じて✕が付く（0問→1つ・1〜2問→2つ・3〜5問→3つ・6〜9問→4つ…）。`;
+    case 'plusminus':
+      return `正答で +${r.plus} 点、誤答で −${r.minus} 点。${winP(r.win)}、${lose(r.lose)}。`;
+    case 'updown':
+      return `正答で +1 点、誤答で 0 点に戻る。${winP(r.win)}、${lose(r.lose)}。`;
+    case 'by':
+      return `得点＝〇側×✕側。〇側は ${r.cInit} から正答ごとに +${r.cPer}、✕側は ${r.wInit} から誤答ごとに −${r.wPer}（0 になると脱落）。${winP(r.win)}。`;
+    case 'divide':
+      return `${r.init} 点から始め、正答で +${r.pt} 点。誤答すると ${r.mode === 'fixed' ? `毎回 ÷${r.div}` : 'n 回目は ÷n'}（小数は切り捨て）。${winP(r.win)}。`;
+    default:
+      return RULE_TYPES.find((d) => d.type === 'free').desc;
+  }
+};
+
 const int = (n) => `${n}/1`;
 
 // ルールを始めたとき（リセット・途中参加）の得点
