@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMemoryAdapter } from './helpers/memoryAdapter.js';
-import { boot, builtHtml, waitFor } from './helpers/dom.js';
+import { answerAsk, boot, builtHtml, waitFor } from './helpers/dom.js';
 
 const room = (db) => {
   const rooms = db._dump().rooms || {};
@@ -26,14 +26,15 @@ const createAsHost = async (db, name = '司会') => {
 test('ビルド成果物は外部読み込みなしの1ファイル', () => {
   const html = builtHtml();
   assert.ok(!/<script[^>]+src=/i.test(html), '外部 script を読み込まない');
-  assert.ok(!/<link\b/i.test(html), '外部 link を読み込まない');
+  assert.ok(!/<link\b[^>]*href=["']?(https?:)?\/\//i.test(html), '外部 link を読み込まない（アイコンは data URI）');
+  assert.ok(/<link rel="icon" href="data:image\/svg\+xml,/.test(html), 'タブのアイコンがある');
   assert.ok(!/cdn\.tailwindcss|unpkg\.com|gstatic\.com\/firebasejs/.test(html), 'CDN の URL を含まない');
 });
 
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v36'));
+  assert.ok(h.text().includes('v37'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -143,6 +144,7 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   h.type(field('脱落（✕の数）'), '2');
   await waitFor(() => field('脱落（✕の数）').value === '2');
   h.click(h.byText('このルールで始める'));
+  await answerAsk(h);
   await waitFor(() => (room(db).rule || {}).win === 2 && room(db).rule.lose === 2, { msg: 'rule saved' });
   await waitFor(() => h.doc.querySelector('[data-room-status]').textContent.includes('2〇2✕'), { msg: 'status label' });
 
@@ -175,6 +177,7 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   h.click(h.buttons().find((b) => b.textContent.trim() === '自由計算'));
   await waitFor(() => h.text().includes('各自が ＋ − × ÷'), { msg: 'free rule selected in editor' });
   h.click(h.byText('このルールで始める'));
+  await answerAsk(h);
   await waitFor(() => p.text().includes('自由計算') && p.text().includes('加点のみ'), { msg: 'free mode controls' });
   await waitFor(() => h.text().includes('全員 1'), { msg: 'set-all shown in free' });
   h.close();

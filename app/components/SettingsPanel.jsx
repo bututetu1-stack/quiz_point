@@ -5,6 +5,7 @@ import { toCsv } from '../lib/ranking.js';
 import { isRuleMode } from '../lib/rules.js';
 import { getTeamDisplayScore } from '../lib/score.js';
 import { Calculator, Download, Edit2, Monitor, Plus, RefreshCw, Trash2, Trophy, Users } from '../ui/icons.jsx';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Button, Section } from '../ui/primitives.jsx';
 import { boardUrl } from './InviteDialog.jsx';
 import { ProgressControls, RuleCard } from './RuleSettings.jsx';
@@ -24,6 +25,7 @@ const downloadCsv = (state, roomId) => {
 
 export const SettingsPanel = ({ state, roomId, onOp }) => {
   const [newTeam, setNewTeam] = useState('');
+  const { confirm, prompt } = useAsk();
   const rule = isRuleMode(state.rule);
   const unassigned = state.players.filter((p) => !p.teamId);
   const addTeam = () => {
@@ -56,8 +58,8 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
             <Button
               variant="soft"
               className="py-2.5 text-sm"
-              onClick={() => {
-                if (window.confirm('全員を1にしますか？')) onOp('setAll', { valueStr: '1' });
+              onClick={async () => {
+                if (await confirm('全員の得点を 1 にしますか？', { ok: '全員 1 にする' })) onOp('setAll', { valueStr: '1' });
               }}
             >
               <Calculator size={16} /> 全員 1
@@ -66,8 +68,13 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
           <Button
             variant="soft"
             className={`py-2.5 text-sm text-ng-ink ${rule ? 'col-span-2' : ''}`}
-            onClick={() => {
-              if (window.confirm(rule ? '全員の得点・状態をリセットして Q1 に戻しますか？（記録タブの成績は残ります）' : '全員を0にリセットしますか？')) onOp('resetAll');
+            onClick={async () => {
+              const ok = await confirm(rule ? '全員の得点・状態をリセットして Q1 に戻しますか？' : '全員の得点を 0 にリセットしますか？', {
+                ok: 'リセットする',
+                danger: true,
+                note: '記録タブの成績は残ります。各自「元に戻す」で直前に戻せます。',
+              });
+              if (ok) onOp('resetAll');
             }}
           >
             <RefreshCw size={16} /> {rule ? '全員リセット' : '全員 0 リセット'}
@@ -100,9 +107,9 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
                   <span className="flex-1 min-w-0 font-bold text-ink truncate text-sm">{team.name}</span>
                   <span className="font-black tabular-nums text-ink">{getTeamDisplayScore(team.id, state)}</span>
                   <button
-                    onClick={() => {
-                      const n = prompt('新しいチーム名', team.name);
-                      if (n && n.trim()) onOp('renameTeam', { teamId: team.id, name: n.trim() });
+                    onClick={async () => {
+                      const n = await prompt('新しいチーム名', team.name, { title: 'チーム名を変える' });
+                      if (n) onOp('renameTeam', { teamId: team.id, name: n });
                     }}
                     className="p-1.5 rounded-lg text-ink-3 hover:text-brand-ink hover:bg-card"
                     aria-label={`${team.name} の名前を変える`}
@@ -110,8 +117,8 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
                     <Edit2 size={14} />
                   </button>
                   <button
-                    onClick={() => {
-                      if (window.confirm(`チーム「${team.name}」を削除しますか？`)) onOp('removeTeam', { teamId: team.id });
+                    onClick={async () => {
+                      if (await confirm(`チーム「${team.name}」を削除しますか？`, { ok: '削除する', danger: true, note: 'メンバーは未所属に戻ります。' })) onOp('removeTeam', { teamId: team.id });
                     }}
                     className="p-1.5 rounded-lg text-ink-3 hover:text-ng-ink hover:bg-card"
                     aria-label={`${team.name} を削除`}

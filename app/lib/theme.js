@@ -20,6 +20,9 @@ export const applyTheme = (pref) => {
   const m = media();
   const dark = pref === 'dark' || (pref === 'auto' && !!m && m.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  // スマホのブラウザのバーの色も合わせる
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0d1322' : '#fbf7ef');
 };
 
 export const saveTheme = (pref) => {

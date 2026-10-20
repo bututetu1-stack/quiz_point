@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ResultOverlay } from './components/ResultOverlay.jsx';
 import { RoomContext } from './context.js';
+import { ruleLabel } from './lib/rules.js';
 import { BoardView } from './views/BoardView.jsx';
 import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
 import { HostView } from './views/HostView.jsx';
@@ -70,6 +71,11 @@ export const App = ({ store }) => {
     if (!inRoom || view === 'board' || !roomId || !myPlayerId) return undefined;
     return store.goOnline(roomId, myPlayerId);
   }, [store, inRoom, view, roomId, myPlayerId]);
+
+  // タブの名前：部屋にいる間は部屋コードとルール（複数の部屋を開いていても見分けられる）
+  useEffect(() => {
+    document.title = inRoom && roomId ? `${view === 'board' ? '大画面 ' : ''}#${roomId} ${ruleLabel(state.rule)} | Quiz Score Pro` : 'Quiz Score Pro — クイズの得点表';
+  }, [inRoom, roomId, view, state.rule]);
 
   // 結果発表が新しく出たら、閉じた状態を戻す
   useEffect(() => {

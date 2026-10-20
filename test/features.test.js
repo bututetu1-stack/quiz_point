@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMemoryAdapter } from './helpers/memoryAdapter.js';
-import { boot, waitFor } from './helpers/dom.js';
+import { answerAsk, boot, waitFor } from './helpers/dom.js';
 import { myStanding, toCsv } from '../app/lib/ranking.js';
 
 const room = (db) => {
@@ -80,6 +80,7 @@ test('勝ち抜け通知：誰かが勝ち抜けると他の人の画面にバ�
   h.type(field('勝ち抜け（〇の数）'), '1');
   await waitFor(() => field('勝ち抜け（〇の数）').value === '1');
   h.click(h.byText('このルールで始める'));
+  await answerAsk(h);
   await waitFor(() => (room(db).rule || {}).win === 1);
   await waitFor(() => p.text().includes('1〇'), { msg: 'participant sees new rule' });
   p.click(p.byText('正答'));
@@ -152,6 +153,7 @@ test('v33：休み中は「問題を進める」（ホストの次の問題と�
   const restField = () => [...h.doc.querySelectorAll('label')].find((l) => l.textContent.includes('誤答後の休み')).querySelector('input');
   await waitFor(() => restField().value === '2', { msg: 'preset applied' });
   h.click(h.byText('このルールで始める'));
+  await answerAsk(h);
   await waitFor(() => (room(db).rule || {}).rest === 2, { msg: 'rest rule saved' });
   await waitFor(() => p.text().includes('誤答2休'), { msg: 'participant sees rule' });
 
@@ -171,6 +173,7 @@ test('v33：休み中は「問題を進める」（ホストの次の問題と�
 
   // 勝ち抜けを宣言 → ホストにも「勝ち抜け 1位」→ 元に戻す
   p.click(p.byText('勝ち抜け', p.doc.querySelector('[data-declare]')));
+  await answerAsk(p);
   await waitFor(() => h.text().includes('勝ち抜け 1位'), { msg: 'win badge on host' });
   assert.ok(p.text().includes('勝ち抜けました'));
   p.click(p.byText('元に戻す'));
@@ -223,6 +226,7 @@ test('v33：ルール選択は2系統に分かれ、ディバイドの「割る�
   h.click(h.byText('n 回目は ÷n'));
   await waitFor(() => !h.text().includes('割る数（D）'), { msg: 'divisor hidden' });
   h.click(h.byText('このルールで始める'));
+  await answerAsk(h);
   await waitFor(() => (room(db).rule || {}).type === 'divide', { msg: 'divide saved' });
   await waitFor(() => p.text().includes('10 ディバイド'), { msg: 'label' });
   assert.ok(Object.values(room(db).players).every((x) => x.score === '10/1'), '全員 初期 10 点');
@@ -266,10 +270,10 @@ test('v34：ホストは行を押すとメニューから改名・観戦・削�
   await waitFor(() => p.doc.querySelector(`[data-player-id="${aliceId}"]`));
   assert.equal(p.doc.querySelector(`[data-player-id="${aliceId}"]`).tagName, 'DIV', '参加者の画面の行はボタンではない');
   // 改名
-  h.w.__promptAnswer = 'アリス2';
   h.click(row());
   await waitFor(() => h.doc.querySelector('[data-sheet]'), { msg: 'menu' });
   h.click(h.byText('名前を変える', h.doc.querySelector('[data-sheet]')));
+  await answerAsk(h, 'アリス2');
   await waitFor(() => room(db).players[aliceId].name === 'アリス2', { msg: 'renamed' });
   assert.ok(!h.doc.querySelector('[data-sheet]'), 'メニューは閉じる');
   // 観戦にする
@@ -282,6 +286,7 @@ test('v34：ホストは行を押すとメニューから改名・観戦・削�
   h.click(h.doc.querySelector(`[data-spectator-id="${aliceId}"]`));
   await waitFor(() => h.doc.querySelector('[data-sheet]'));
   h.click(h.byText('削除する', h.doc.querySelector('[data-sheet]')));
+  await answerAsk(h);
   await waitFor(() => !room(db).players[aliceId], { msg: 'removed' });
   h.close();
   p.close();

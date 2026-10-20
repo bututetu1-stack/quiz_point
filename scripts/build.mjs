@@ -29,6 +29,9 @@ const css = execFileSync(
   { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
 );
 
+// タブのアイコン（琥珀の角丸に稲妻。外部ファイルにせず data URI で埋め込む）
+const ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="16" fill="#f59e0b"/><path d="M35 10 17 36h13l-3 18 20-27H34z" fill="#fff"/></svg>`;
+
 // </script> が JS 中に現れても HTML が壊れないようにする
 const code = js.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 
@@ -37,7 +40,10 @@ const html = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Quiz Scoreboard</title>
+<meta name="description" content="クイズ大会・フリバ用のリアルタイム得点表。部屋を作って QR で招待、各自のスマホで正答・誤答を押すだけ。" />
+<meta name="theme-color" content="#fbf7ef" />
+<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(ICON)}" />
+<title>Quiz Score Pro — クイズの得点表</title>
 <style>${css}</style>
 </head>
 <body>

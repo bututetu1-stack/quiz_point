@@ -9,6 +9,7 @@ import { myStanding, scoreText } from '../lib/ranking.js';
 import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
 import { playSound } from '../lib/sound.js';
 import { CheckCircle, Edit2, Eye, MoreHorizontal, RotateCcw, SkipForward, Trophy, Users, XCircle } from '../ui/icons.jsx';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Button, IconButton, Sheet, SheetItem } from '../ui/primitives.jsx';
 import { useChangeKey } from './PlayerList.jsx';
 import { FreeControls, SimpleButtons } from './ScoreControls.jsx';
@@ -16,7 +17,9 @@ import { TeamButton, TeamChoices } from './Teams.jsx';
 
 // ルール時：大きな「正答 / 誤答」。休み中は「問題を進める」に替わる。終わった人はボタンを止める
 const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
+  const { confirm } = useAsk();
   const done = st.kind === 'win' || st.kind === 'lose';
+  const note = '間違えたら「元に戻す」で取り消せます。';
   return (
     <div className="flex flex-col gap-2">
       {st.kind === 'rest' ? (
@@ -46,13 +49,13 @@ const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
       {!done && (
         <div className="flex justify-center gap-2" data-declare>
           <button
-            onClick={() => window.confirm('勝ち抜けにしますか？（「元に戻す」で取り消せます）') && onDeclare('win')}
+            onClick={async () => (await confirm('勝ち抜けにしますか？', { ok: '勝ち抜け', note })) && onDeclare('win')}
             className="px-3 py-1 rounded-full text-xs font-bold bg-ok-soft text-ok-ink border border-ok/30 flex items-center gap-1 hover:border-ok"
           >
             <Trophy size={12} /> 勝ち抜け
           </button>
           <button
-            onClick={() => window.confirm('脱落にしますか？（「元に戻す」で取り消せます）') && onDeclare('lose')}
+            onClick={async () => (await confirm('脱落にしますか？', { ok: '脱落', danger: true, note })) && onDeclare('lose')}
             className="px-3 py-1 rounded-full text-xs font-bold bg-sunken text-ink-2 border border-line flex items-center gap-1 hover:border-ink-3"
           >
             <XCircle size={12} /> 脱落
@@ -93,6 +96,7 @@ const describe = (state, me, rule, st) => {
 export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const { soundOn } = useContext(RoomContext);
   const [sheet, setSheet] = useState(null); // 'menu' | 'team'
+  const { prompt } = useAsk();
   const rule = isRuleMode(state.rule);
   const simple = state.scoreMode === 'simple';
   const barRef = useRef(null);
@@ -120,12 +124,12 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
     if (op === 'maru' || op === 'batsu') onOp(op, me);
     else onOp('score', { ...me, operator: op, valueStr: val });
   };
-  const rename = () => {
-    const n = window.prompt('あなたの名前', myPlayer.name);
-    if (n && n.trim()) {
-      onOp('renamePlayer', { ...me, name: n.trim() });
+  const rename = async () => {
+    const n = await prompt('あなたの新しい名前', myPlayer.name, { title: '名前を変える' });
+    if (n) {
+      onOp('renamePlayer', { ...me, name: n });
       try {
-        localStorage.setItem('playerName', n.trim());
+        localStorage.setItem('playerName', n);
       } catch {
         // 保存できなくても続ける
       }

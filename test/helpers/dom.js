@@ -56,3 +56,14 @@ export const waitFor = async (cond, { timeout = 3000, msg = 'condition' } = {}) 
     await new Promise((r) => setTimeout(r, 10));
   }
 };
+
+// 画面の中の確認・入力（[data-ask]）に答える。value を渡すと入力してから決定する
+export const answerAsk = async (h, value) => {
+  await waitFor(() => h.doc.querySelector('[data-ask-ok]'), { msg: 'ask dialog' });
+  if (value !== undefined) {
+    h.type(h.doc.querySelector('[data-ask-input]'), value);
+    await waitFor(() => !h.doc.querySelector('[data-ask-ok]').disabled, { msg: 'ask input' });
+  }
+  h.click(h.doc.querySelector('[data-ask-ok]'));
+  await waitFor(() => !h.doc.querySelector('[data-ask]'), { msg: 'ask closed' });
+};

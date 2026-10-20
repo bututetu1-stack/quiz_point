@@ -7,6 +7,7 @@ import { rankPlayers, scoreText } from '../lib/ranking.js';
 import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
 import { parseScoreToNumber } from '../lib/score.js';
 import { Crown, Edit2, Eye, Trash2, UserPlus } from '../ui/icons.jsx';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Card, Chip, Sheet, SheetItem } from '../ui/primitives.jsx';
 import { teamColor } from './Teams.jsx';
 
@@ -158,6 +159,7 @@ const Spectators = ({ state, myPlayerId, online, onTap }) => {
 
 // ホストの他人操作メニュー
 const PlayerMenu = ({ player, onOp, onClose }) => {
+  const { confirm, prompt } = useAsk();
   if (!player) return null;
   const id = player.id;
   const done = (fn) => () => {
@@ -168,9 +170,9 @@ const PlayerMenu = ({ player, onOp, onClose }) => {
     <Sheet open={true} onClose={onClose} title={player.name}>
       <SheetItem
         icon={<Edit2 size={18} />}
-        onClick={done(() => {
-          const n = window.prompt('新しい名前', player.name);
-          if (n && n.trim()) onOp('renamePlayer', { playerId: id, name: n.trim() });
+        onClick={done(async () => {
+          const n = await prompt(`${player.name} の新しい名前`, player.name, { title: '名前を変える' });
+          if (n) onOp('renamePlayer', { playerId: id, name: n });
         })}
       >
         名前を変える
@@ -187,8 +189,8 @@ const PlayerMenu = ({ player, onOp, onClose }) => {
       <SheetItem
         icon={<Trash2 size={18} />}
         tone="ng"
-        onClick={done(() => {
-          if (window.confirm(`${player.name} を削除しますか？`)) onOp('removePlayer', { playerId: id });
+        onClick={done(async () => {
+          if (await confirm(`${player.name} を削除しますか？`, { ok: '削除する', danger: true, note: 'この人の得点・記録も消えます。' })) onOp('removePlayer', { playerId: id });
         })}
       >
         削除する

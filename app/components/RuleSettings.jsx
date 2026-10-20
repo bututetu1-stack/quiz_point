@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { normalizeRule, RULE_GROUPS, RULE_TYPES, ruleLabel } from '../lib/rules.js';
 import { ChevronLeft, ChevronRight, Zap } from '../ui/icons.jsx';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Button, Section, Seg } from '../ui/primitives.jsx';
 
 // N〇M✕ のよく使う設定（「誤答2休」は Tokuten の M〇N休）
@@ -34,9 +35,10 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
   const def = RULE_TYPES.find((d) => d.type === draft.type);
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
   const pick = (type) => setDraft(normalizeRule({ type }));
-  const apply = () => {
+  const { confirm } = useAsk();
+  const apply = async () => {
     const rule = normalizeRule(draft);
-    if (window.confirm(`ルールを「${ruleLabel(rule)}」にします。\n全員の得点・状態と問題番号はリセットされます。よろしいですか？`)) onApply(rule);
+    if (await confirm(`ルールを「${ruleLabel(rule)}」にしますか？`, { ok: 'ルールを変える', note: '全員の得点・状態と問題番号はリセットされます（記録タブの成績は残ります）。' })) onApply(rule);
   };
   const presetOn = (patch) => Object.entries(patch).every(([k, v]) => Number(draft[k]) === v);
   return (
