@@ -120,6 +120,7 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const { soundOn } = useContext(RoomContext);
   const [sheet, setSheet] = useState(null); // 'menu' | 'team' | 'help'
   const busy = useRef({ key: null, until: 0 });
+  const inflight = useRef(Promise.resolve());
   const [slow, setSlow] = useState(null);
   const toast = useToast();
   const { prompt } = useAsk();
@@ -167,10 +168,14 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
     const b = busy.current;
     if (b.key === key && Date.now() < b.until) return;
     busy.current = { key, until: Infinity };
+    // 送っている途中の操作（「元に戻す」はこれが届くのを待つ）
+    const before = inflight.current;
     // 0.5 秒たっても届かなければ「送信中…」（通信の遅い会場で、押せたか分からず何度も押さないように）
     const t = setTimeout(() => setSlow(key), 500);
+    const run = Promise.resolve().then(() => fn(before));
+    inflight.current = run.catch(() => {});
     try {
-      await fn();
+      await run;
     } finally {
       clearTimeout(t);
       setSlow((k) => (k === key ? null : k));
@@ -242,7 +247,9 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
                     variant="soft"
                     className="px-2.5 py-2 text-xs shrink-0"
                     onClick={() =>
-                      once('undo', async () => {
+                      once('undo', async (before) => {
+                        // 直前の操作がまだ届いていなければ待つ（遅い通信で、正答より先に取り消しが届いて別の操作を戻さないように）
+                        await before;
                         // 変化が小さいと戻せたか分かりにくいので、短く知らせる
                         const r = await onOp('undo', me);
                         if (r && r.ok) toast('元に戻しました');

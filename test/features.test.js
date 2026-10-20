@@ -777,3 +777,26 @@ test('順位アップの「▲」は追い越したときだけ（前の人が�
   h.close();
   p.close();
 });
+
+test('通信が遅いとき「正答」の直後に「元に戻す」を押しても、その正答を取り消す（先に届いて別の操作を戻さない）', async () => {
+  const base = createMemoryAdapter();
+  let delay = 0;
+  const db = {
+    ...base,
+    transaction: async (...args) => {
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+      return base.transaction(...args);
+    },
+  };
+  const { h, p } = await hostAndAlice(db);
+  const alice = () => Object.values(room(db).players).find((x) => x.name === 'アリス');
+  delay = 600;
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await new Promise((r) => setTimeout(r, 50));
+  p.click(p.buttons().find((b) => b.title && b.title.startsWith('元に戻す')));
+  await waitFor(() => p.text().includes('元に戻しました'), { msg: 'undo done', timeout: 5000 });
+  assert.equal(alice().maru || 0, 0, '正答が取り消されている');
+  delay = 0;
+  h.close();
+  p.close();
+});
