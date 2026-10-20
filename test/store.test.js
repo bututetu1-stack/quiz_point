@@ -359,3 +359,21 @@ test('グラフ：記録がまだ無い人はルールの初期点から（デ�
   assert.equal(snaps[1].scores.b, '10/1', 'まだ何もしていない人は初期点のまま');
   assert.equal(eventsToSnapshots([], players, 'addsub')[0].scores.a, '0/1', '既定は 0');
 });
+
+test('チームは作った順に並ぶ（id の並びに左右されない）', async () => {
+  const st = roomState('1234', {
+    createdAt: 1,
+    teams: {
+      t_z: { id: 't_z', name: '白組', createdAt: 20 },
+      t_a: { id: 't_a', name: '青組', createdAt: 30 },
+      t_m: { id: 't_m', name: '赤組', createdAt: 10 },
+    },
+  });
+  assert.deepEqual(
+    st.teams.map((t) => t.name),
+    ['赤組', '白組', '青組'],
+  );
+  const { db, store, roomId } = await setup();
+  await store.op(roomId, 'createTeam', { name: '赤組' });
+  assert.ok(Object.values(db._dump().rooms[roomId].teams)[0].createdAt > 0, '作成時刻を持つ');
+});

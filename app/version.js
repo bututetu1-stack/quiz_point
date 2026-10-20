@@ -1,2 +1,2 @@
 // 反映確認用バージョン（更新のたびに番号を上げる。Home 画面の下に表示）
-export const BUILD = 'v87 ・ 使い方に大画面の全画面';
+export const BUILD = 'v88 ・ チームを作った順に並べる';

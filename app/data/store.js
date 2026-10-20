@@ -71,7 +71,8 @@ export const roomState = (roomId, v) => {
     players: all.filter((p) => !p.spectator), // 参加者（ランキング・チーム・グラフの対象）
     spectators: all.filter((p) => p.spectator),
     allPlayers: all,
-    teams: Object.values(v.teams || {}),
+    // チームは作った順（id はでたらめなので、そのままだと並びが毎回ばらばら。同点の並びもこの順になる）
+    teams: Object.values(v.teams || {}).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
     teamMode: v.teamMode || 'product',
     scoreMode: v.scoreMode || 'addsub',
     rule: normalizeRule(v.rule),
@@ -465,7 +466,7 @@ export const createStore = (db) => {
             const nm = cleanName(payload.name);
             if (!nm) return err('invalid_name');
             const tid = genId('t');
-            await db.set(`${R(room)}/teams/${tid}`, { id: tid, name: nm });
+            await db.set(`${R(room)}/teams/${tid}`, { id: tid, name: nm, createdAt: now() });
             return OK;
           }
           case 'renameTeam': {
