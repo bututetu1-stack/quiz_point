@@ -236,7 +236,7 @@ test('並び順：勝ち抜け（抜けた順）→ 競技中（得点・〇・�
 
 test('あと何問の表示', () => {
   assert.equal(progressHint({ type: 'nomx', win: 7, lose: 3 }, { maru: 5, batsu: 1 }), '〇あと2・✕あと2');
-  assert.equal(progressHint({ type: 'by', n: 10 }, { maru: 5, batsu: 1, score: '45/1' }), 'あと55点・✕あと9');
+  assert.equal(progressHint({ type: 'by', n: 10 }, { maru: 5, batsu: 1, score: '45/1' }), '5×9・あと55点・✕あと9', 'M by N は内訳（〇側×✕側）も');
   assert.equal(progressHint({ type: 'divide' }, { batsu: 1, score: '20/1' }), 'あと80点・次の✕は÷2');
 });
 
