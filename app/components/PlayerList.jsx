@@ -149,7 +149,8 @@ const Spectators = ({ state, myPlayerId, online, onTap }) => {
 };
 
 // ホストの他人操作メニュー
-const PlayerMenu = ({ state, player, onOp, onClose }) => {
+// isSelf：ホスト自身の行（自分は削除できない。消すと操作欄が無くなり戻せないため）
+const PlayerMenu = ({ state, player, onOp, onClose, isSelf }) => {
   const { confirm, prompt } = useAsk();
   const [teamMode, setTeamMode] = useState(false);
   if (!player) return null;
@@ -194,16 +195,18 @@ const PlayerMenu = ({ state, player, onOp, onClose }) => {
           観戦にする
         </SheetItem>
       )}
-      <SheetItem
-        icon={<Trash2 size={18} />}
-        tone="ng"
-        onClick={done(async () => {
-          if (await confirm(`${player.name} を削除しますか？`, { ok: '削除する', danger: true, note: 'この人の得点・記録も消えます。' }))
-            onOp('removePlayer', { playerId: id });
-        })}
-      >
-        削除する
-      </SheetItem>
+      {!isSelf && (
+        <SheetItem
+          icon={<Trash2 size={18} />}
+          tone="ng"
+          onClick={done(async () => {
+            if (await confirm(`${player.name} を削除しますか？`, { ok: '削除する', danger: true, note: 'この人の得点・記録も消えます。' }))
+              onOp('removePlayer', { playerId: id });
+          })}
+        >
+          削除する
+        </SheetItem>
+      )}
     </Sheet>
   );
 };
@@ -238,7 +241,16 @@ export const PlayerList = ({ state, myPlayerId, hostOp }) => {
         ))}
       </div>
       <Spectators state={state} myPlayerId={myPlayerId} online={presenceKnown ? online : null} onTap={tap} />
-      {hostOp && <PlayerMenu key={menu ? menu.id : 'none'} state={state} player={menu} onOp={hostOp} onClose={() => setMenu(null)} />}
+      {hostOp && (
+        <PlayerMenu
+          key={menu ? menu.id : 'none'}
+          state={state}
+          player={menu}
+          isSelf={!!menu && menu.id === myPlayerId}
+          onOp={hostOp}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 };
