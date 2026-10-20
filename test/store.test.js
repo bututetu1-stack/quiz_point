@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStore, ROOM_TTL, roomState } from '../app/data/store.js';
 import { playerState, sortForRule } from '../app/lib/rules.js';
+import { eventsToSnapshots } from '../app/lib/timeline.js';
 import { createMemoryAdapter } from './helpers/memoryAdapter.js';
 
 const setup = async () => {
@@ -264,7 +265,10 @@ test('勝ち抜け・脱落の宣言：通し番号が付き、元に戻すで�
   await store.op(roomId, 'declare', { playerId: c, status: 'lose' });
   assert.ok(player(db, roomId, c).loseSeq > player(db, roomId, b).loseSeq);
   const order = roomState(roomId, db._dump().rooms[roomId]).players;
-  assert.deepEqual(sortForRule(order, db._dump().rooms[roomId].rule).map((p) => p.name), ['A', 'C', 'B']);
+  assert.deepEqual(
+    sortForRule(order, db._dump().rooms[roomId].rule).map((p) => p.name),
+    ['A', 'C', 'B'],
+  );
   assert.deepEqual(player(db, roomId, a).rec, { o: 0, x: 0, win: 1, lose: 0 });
   await store.op(roomId, 'undo', { playerId: a });
   assert.equal(player(db, roomId, a).status, undefined);
@@ -303,8 +307,14 @@ test('観戦：players から外れ（spectators に入り）、参加に戻せ�
   await store.joinRoom(roomId, 'B', null);
   await store.op(roomId, 'setSpectator', { playerId: a, on: true });
   let s = roomState(roomId, db._dump().rooms[roomId]);
-  assert.deepEqual(s.players.map((p) => p.name), ['B']);
-  assert.deepEqual(s.spectators.map((p) => p.name), ['A']);
+  assert.deepEqual(
+    s.players.map((p) => p.name),
+    ['B'],
+  );
+  assert.deepEqual(
+    s.spectators.map((p) => p.name),
+    ['A'],
+  );
   assert.equal(s.allPlayers.length, 2);
   await store.op(roomId, 'setSpectator', { playerId: a, on: false });
   s = roomState(roomId, db._dump().rooms[roomId]);
@@ -339,4 +349,13 @@ test('ディバイド：途中参加・リセット・ルール変更のどれ�
   await store.op(roomId, 'resetAll');
   assert.equal(player(db, roomId, b).score, '10/1');
   assert.equal(player(db, roomId, b).batsu, 0);
+});
+
+test('グラフ：記録がまだ無い人はルールの初期点から（ディバイドで途中参加しても 0 から始まらない）', () => {
+  const players = [{ id: 'a' }, { id: 'b' }];
+  const snaps = eventsToSnapshots([{ t: 1, p: 'a', s: '20/1', m: 1, b: 0, q: 1 }], players, 'addsub', '10/1');
+  assert.equal(snaps[0].scores.a, '10/1');
+  assert.equal(snaps[1].scores.a, '20/1');
+  assert.equal(snaps[1].scores.b, '10/1', 'まだ何もしていない人は初期点のまま');
+  assert.equal(eventsToSnapshots([], players, 'addsub')[0].scores.a, '0/1', '既定は 0');
 });
