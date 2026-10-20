@@ -89,15 +89,16 @@ export const InviteDialog = ({ roomId, isHost, onClose }) => {
         role="dialog"
         aria-modal="true"
         aria-label="招待"
-        className="outline-none w-full max-w-sm p-6 relative text-center"
+        className="outline-none w-full max-w-sm max-h-[92vh] overflow-y-auto p-6 short:p-4 relative text-center"
         onClick={(e) => e.stopPropagation()}
       >
         <IconButton label="閉じる" onClick={onClose} className="absolute top-3 right-3">
           <X size={20} />
         </IconButton>
         <div className="text-sm font-bold text-ink-3">部屋コード</div>
-        <div className="text-5xl font-black tracking-[0.2em] tabular-nums text-brand-ink mb-3">{roomId}</div>
-        <div className="flex justify-center mb-3">
+        <div className="text-5xl short:text-3xl font-black tracking-[0.2em] tabular-nums text-brand-ink mb-3 short:mb-2">{roomId}</div>
+        {/* スマホ横向きでは QR を小さくして、閉じるボタンまで画面に収める */}
+        <div className="flex justify-center mb-3 short:mb-2 short:[&_svg]:w-32 short:[&_svg]:h-32">
           <div className="bg-white p-2 rounded-2xl border border-line">
             <QrSvg text={url} size={200} />
           </div>
