@@ -609,3 +609,28 @@ test('同じ名前の人がいる部屋に入るときは確かめる（やめ�
   p.close();
   q.close();
 });
+
+test('通信が遅いときは押したボタンに「送信中…」（届いたら元に戻る）', async () => {
+  const base = createMemoryAdapter();
+  let delay = 0;
+  const db = {
+    ...base,
+    transaction: async (...args) => {
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+      return base.transaction(...args);
+    },
+  };
+  const { h, p } = await hostAndAlice(db);
+  h.click(h.byText('変更する'));
+  await waitFor(() => h.byText('このルールで始める'));
+  h.click(h.byText('このルールで始める'));
+  await answerAsk(h);
+  await waitFor(() => p.byText('正答', p.doc.querySelector('[data-selfbar]')), { msg: 'rule mode' });
+  delay = 1200;
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => p.doc.querySelector('[data-selfbar]').textContent.includes('送信中…'), { msg: 'sending shown' });
+  await waitFor(() => !p.doc.querySelector('[data-selfbar]').textContent.includes('送信中…'), { msg: 'sending cleared', timeout: 4000 });
+  delay = 0;
+  h.close();
+  p.close();
+});

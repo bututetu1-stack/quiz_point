@@ -17,7 +17,8 @@ import { HelpSheet } from './HelpSheet.jsx';
 import { TeamButton, TeamChoices } from './Teams.jsx';
 
 // ルール時：大きな「正答 / 誤答」。休み中は「問題を進める」に替わる。終わった人はボタンを止める
-const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
+// slow：送るのに時間がかかっているボタン（'answer-correct' など）。「送信中…」と出して、押せたことが分かるように
+const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance, slow }) => {
   const { confirm } = useAsk();
   const done = st.kind === 'win' || st.kind === 'lose';
   const note = '間違えたら「元に戻す」で取り消せます。';
@@ -26,7 +27,7 @@ const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
       {st.kind === 'rest' ? (
         <Button variant="info" className="w-full py-2.5 flex-col !gap-0" onClick={onAdvance}>
           <span className="flex items-center gap-2 text-xl">
-            <SkipForward size={24} /> 問題を進める
+            <SkipForward size={24} /> {slow === 'advance' ? '送信中…' : '問題を進める'}
           </span>
           <span className="text-xs font-bold text-white" data-rest>
             {st.upcoming ? `次の${st.restLeft}問は休み` : `休み中（あと${st.restLeft}問）`}・次の問題に移ったら押す
@@ -34,11 +35,23 @@ const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
         </Button>
       ) : (
         <div className="flex gap-3">
-          <Button variant="ok" className="flex-1 py-3.5 text-xl" disabled={done} onClick={() => onAnswer('correct')}>
-            <CheckCircle size={26} /> 正答
+          <Button
+            variant="ok"
+            className="flex-1 py-3.5 text-xl"
+            disabled={done}
+            aria-busy={slow === 'answer-correct'}
+            onClick={() => onAnswer('correct')}
+          >
+            <CheckCircle size={26} /> {slow === 'answer-correct' ? '送信中…' : '正答'}
           </Button>
-          <Button variant="ng" className="flex-1 py-3.5 text-xl" disabled={done} onClick={() => onAnswer('wrong')}>
-            <XCircle size={26} /> 誤答
+          <Button
+            variant="ng"
+            className="flex-1 py-3.5 text-xl"
+            disabled={done}
+            aria-busy={slow === 'answer-wrong'}
+            onClick={() => onAnswer('wrong')}
+          >
+            <XCircle size={26} /> {slow === 'answer-wrong' ? '送信中…' : '誤答'}
           </Button>
         </div>
       )}
@@ -104,6 +117,7 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const { soundOn } = useContext(RoomContext);
   const [sheet, setSheet] = useState(null); // 'menu' | 'team' | 'help'
   const busy = useRef({ key: null, until: 0 });
+  const [slow, setSlow] = useState(null);
   const { prompt } = useAsk();
   const rule = isRuleMode(state.rule);
   const simple = state.scoreMode === 'simple';
@@ -149,9 +163,13 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
     const b = busy.current;
     if (b.key === key && Date.now() < b.until) return;
     busy.current = { key, until: Infinity };
+    // 0.5 秒たっても届かなければ「送信中…」（通信の遅い会場で、押せたか分からず何度も押さないように）
+    const t = setTimeout(() => setSlow(key), 500);
     try {
       await fn();
     } finally {
+      clearTimeout(t);
+      setSlow((k) => (k === key ? null : k));
       if (busy.current.key === key) busy.current = { key, until: Date.now() + 400 };
     }
   };
@@ -230,6 +248,7 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
               {rule ? (
                 <AnswerButtons
                   st={st}
+                  slow={slow}
                   onAnswer={(result) =>
                     once(`answer-${result}`, () => {
                       playSound(result === 'correct' ? 'correct' : 'wrong', soundOn);
