@@ -4,11 +4,14 @@
 import { useRef } from 'react';
 import { rankPlayers, scoreText, statusText } from '../lib/ranking.js';
 import { winRanks } from '../lib/rules.js';
-import { calcTeamScore, getTeamDisplayScore } from '../lib/score.js';
+import { calcTeamScore, getTeamDisplayScore, parseScoreToNumber } from '../lib/score.js';
 import { Crown, Trophy, Users, X } from '../ui/icons.jsx';
 import { Button, Card, IconButton, useDialog } from '../ui/primitives.jsx';
 import { Confetti } from './Confetti.jsx';
 import { teamColor } from './Teams.jsx';
+
+// だれか得点したか（全員 0 点のまま結果発表したときは、お祝いの王冠・紙吹雪・「おめでとう」を出さない）
+const anyScored = (players) => players.some((p) => p.status === 'win' || parseScoreToNumber(p.score) > 0 || (p.maru || 0) > 0);
 
 const PODIUM = [
   { place: 2, h: 'h-24 short:h-12', color: 'bg-medal-2', delay: '0.3s' },
@@ -21,13 +24,14 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
   const ranks = winRanks(state.players);
   const status = (p) => statusText(p, ranks);
   const myRank = sorted.findIndex((p) => p.id === myPlayerId) + 1;
+  const party = anyScored(sorted);
   const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
   const ref = useRef(null);
   // ホストの Esc では全員の結果発表を終えない（終えるのはボタンだけ）
   useDialog(true, isHost ? null : onClose, ref);
   return (
     <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4 animate-fade-in" data-result>
-      <Confetti count={90} />
+      {party && <Confetti count={90} />}
       <Card
         ref={ref}
         tabIndex={-1}
@@ -45,7 +49,7 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
         {myRank > 0 && (
           <p className="text-center mt-2 short:mt-0 font-black text-ink" data-my-result>
             あなたは <span className="text-3xl text-brand-ink tabular-nums">{myRank}</span> 位
-            {myRank === 1 ? '！おめでとう！' : myRank <= 3 ? '！' : ''}
+            {!party ? '' : myRank === 1 ? '！おめでとう！' : myRank <= 3 ? '！' : ''}
           </p>
         )}
         <div className="flex items-end justify-center gap-3 mt-5 mb-6 short:mt-2 short:mb-3">
@@ -55,7 +59,7 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
               <div key={place} className="flex flex-col items-center w-24 motion-safe:animate-rise" style={{ animationDelay: delay }}>
                 {p ? (
                   <>
-                    {place === 1 && <Crown className="w-9 h-9 short:w-6 short:h-6 text-medal-1 drop-shadow" fill="currentColor" />}
+                    {place === 1 && party && <Crown className="w-9 h-9 short:w-6 short:h-6 text-medal-1 drop-shadow" fill="currentColor" />}
                     <div
                       className={`font-black text-center leading-tight break-all ${p.id === myPlayerId ? 'text-brand-ink' : 'text-ink'}`}
                     >
@@ -138,7 +142,7 @@ export const BoardResult = ({ state }) => {
       data-result
       data-board-result
     >
-      <Confetti count={140} />
+      {anyScored(sorted) && <Confetti count={140} />}
       <h2 className="text-center text-5xl lg:text-6xl font-black text-amber-300 flex items-center justify-center gap-4">
         <Trophy size={56} /> 結果発表
       </h2>
@@ -154,7 +158,7 @@ export const BoardResult = ({ state }) => {
               >
                 {p ? (
                   <>
-                    {place === 1 && <Crown className="w-16 h-16 text-amber-300" fill="currentColor" />}
+                    {place === 1 && anyScored(sorted) && <Crown className="w-16 h-16 text-amber-300" fill="currentColor" />}
                     <div className="text-3xl lg:text-4xl font-black text-center leading-tight break-all">{p.name}</div>
                     <div className="text-3xl lg:text-4xl font-black text-white/90 mb-2 tabular-nums">{scoreText(state, p)}</div>
                   </>
