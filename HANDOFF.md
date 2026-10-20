@@ -1,7 +1,7 @@
 # 引き継ぎ資料（2026-10-21 時点 / v90）
 
 次のセッションへの引き継ぎです。作業ルールは `CLAUDE.md`、使い方と構成は `README.md` を参照してください。
-（2026-10-21：Claude デスクトップアプリのセッションで v32 → v33 に更新。前のセッションは Claude Code on the web）
+（2026-10-21：Claude デスクトップアプリのセッションで v32 → v33 に更新。前のセッションは Claude Code on the web。同日の深夜〜朝に、ユーザーの指示「厳しく採点 → 改善 → 再採点を繰り返す」で v34 → v90 まで更新。経緯は 3 節と 8 節）
 
 ## 1. いまの状態
 
@@ -9,7 +9,7 @@
 - **PR のマージは Claude が行う**（2026-10-21 ユーザー指示「今後、マージは君が行って下さい」）。テストが通り CLEAN ならマージして、公開ページで確かめる。
 - 配信: GitHub Pages（`main` の `docs/index.html`）。URL は `https://bututetu1-stack.github.io/quiz_point/`（2026-10-21 に v32 の公開を確認済み）。
 - データ: Firebase Realtime Database（プロジェクト `quiz-point-8dfab`、設定は `app/data/config.js`）。
-- テスト: `npm test` で 53 件すべて PASS（データ層・ルール・画面 jsdom）。Windows でも動く（PR #20 でビルドを修正）。
+- テスト: `npm test` で 90 件すべて PASS（データ層・ルール・画面 jsdom。v90 時点）。UI の監査 `npm run audit` は全画面・全サイズで問題 0 件（自動 55/55）。Windows でも動く（PR #20 でビルドを修正）。
 - 手元の作業場所: `C:\Users\Kokik\quiz_point`（Windows 11）。Chrome の拡張機能（Claude in Chrome）と、デスクトップアプリ内のブラウザの両方が使える。2 つのブラウザは保存領域が別なので、**ホストと参加者の 2 台の動作確認**ができる。
 
 ## 2. このアプリの考え方（ユーザーと決めてきたこと）
