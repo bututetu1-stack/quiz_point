@@ -268,6 +268,11 @@ const measure = () => {
     if (el.matches('button, a, input, select, [role="button"]')) {
       if (Math.min(r.width, r.height) < 24) out.smallTargets.push(`${label(el)} ${Math.round(r.width)}x${Math.round(r.height)}`);
       if (el.matches('button') && !label(el) && !el.getAttribute('title')) out.unnamed.push(el.outerHTML.slice(0, 60));
+      // 入力欄の名前：<label> で包む・for で結ぶ・aria-label のどれか
+      if (el.matches('input:not([type="hidden"]), select')) {
+        const named = el.getAttribute('aria-label') || el.closest('label') || (el.id && document.querySelector(`label[for="${el.id}"]`));
+        if (!named) out.unnamed.push(`入力欄 ${el.getAttribute('placeholder') || el.outerHTML.slice(0, 40)}`);
+      }
     }
   }
   // 一画面に見える人数（ヘッダーの下〜下部パネルの上に収まる行）
@@ -282,6 +287,8 @@ const measure = () => {
     return r.top >= top - 1 && r.bottom <= bottom + 1;
   }).length;
   out.barHeight = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
+  // 画面の見出し（読み上げで今どこにいるか分かるように）
+  if (!document.querySelector('h1')) out.unnamed.push('見出し h1 が無い');
   return out;
 };
 

@@ -96,6 +96,7 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
               if (e.key === 'Enter') addTeam();
             }}
             placeholder="新チーム名"
+            aria-label="新チーム名"
             className="flex-1 min-w-0 bg-sunken rounded-xl px-3 py-2 text-sm font-bold text-ink placeholder:text-ink-3 outline-none focus:ring-2 focus:ring-brand/40"
           />
           <Button onClick={addTeam} className="px-3.5" aria-label="チームを作る">

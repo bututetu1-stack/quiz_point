@@ -63,6 +63,11 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
         </div>
       </header>
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">
+        <h1 className="sr-only">
+          部屋 {roomId}
+          {state ? `（${ruleLabel(state.rule)}・Q${state.q || 1}）` : ''}
+          {isHost ? '・ホスト' : ''}
+        </h1>
         {state && (
           <button
             onClick={() => setRuleOpen(true)}
