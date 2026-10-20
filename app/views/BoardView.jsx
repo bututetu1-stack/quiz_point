@@ -177,7 +177,11 @@ export const BoardView = ({ state, roomId }) => {
               </li>
             );
           })}
-          {!sorted.length && <li className="text-white/60 text-2xl font-bold">参加者を待っています…</li>}
+          {!sorted.length && (
+            <li className="text-white/60 text-2xl font-bold">
+              {state.exists === undefined ? '読み込み中…' : state.exists === false ? 'この部屋は見つかりません' : '参加者を待っています…'}
+            </li>
+          )}
         </ol>
         <aside className="flex flex-col gap-4">
           {teams.length > 0 && (
