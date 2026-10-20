@@ -22,9 +22,10 @@ const js = await esbuild.build({
   write: false,
 });
 
+// .bin/tailwindcss は Windows では直接起動できないので、CLI 本体を node で実行する
 const css = execFileSync(
-  path.join(ROOT, 'node_modules/.bin/tailwindcss'),
-  ['-c', path.join(ROOT, 'tailwind.config.cjs'), '-i', path.join(ROOT, 'app/styles.css'), '--minify'],
+  process.execPath,
+  [path.join(ROOT, 'node_modules/tailwindcss/lib/cli.js'), '-c', path.join(ROOT, 'tailwind.config.cjs'), '-i', path.join(ROOT, 'app/styles.css'), '--minify'],
   { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
 );
 
