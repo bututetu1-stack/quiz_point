@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BoardResult, ResultOverlay } from './components/ResultOverlay.jsx';
 import { RoomContext } from './context.js';
 import { ruleLabel } from './lib/rules.js';
+import { useWakeLock } from './lib/wakeLock.js';
 import { WifiOff } from './ui/icons.jsx';
 import { useToast } from './ui/toast.jsx';
 import { BoardView } from './views/BoardView.jsx';
@@ -93,6 +94,7 @@ export const App = ({ store }) => {
 
   // 部屋の画面にいる間だけ部屋データと接続状況を購読
   const inRoom = view === 'host' || view === 'participant' || view === 'board';
+  useWakeLock(inRoom);
   useEffect(() => {
     if (!inRoom || !roomId) return undefined;
     const offRoom = store.subscribeRoom(roomId, setState);
