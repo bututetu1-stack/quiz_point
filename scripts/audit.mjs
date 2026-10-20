@@ -103,6 +103,7 @@ const clickText = (text) => (p) =>
 const VIEWS = {
   home: { url: '' },
   join: { url: '?room=0427' },
+  help: { url: '', act: (p) => p.evaluate(() => document.querySelector('button[aria-label="使い方"]').click()) },
   host: { url: '?room=0427', storage: host },
   participant: { url: '?room=0427', storage: alice },
   spectator: { url: '?room=0427', storage: { playerId_0427: 'p_11', playerName: 'アイビー' } },

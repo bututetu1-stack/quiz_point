@@ -1,8 +1,9 @@
 // 画面：ホーム / 部屋を作る / 入室
 
 import { useState } from 'react';
+import { HelpSheet } from '../components/HelpSheet.jsx';
 import { ThemeButton } from '../components/ThemeButton.jsx';
-import { ChevronLeft, Crown, UserPlus, Zap } from '../ui/icons.jsx';
+import { ChevronLeft, Crown, HelpCircle, UserPlus, Zap } from '../ui/icons.jsx';
 import { Button, Card, IconButton, TextField } from '../ui/primitives.jsx';
 import { BUILD } from '../version.js';
 
@@ -32,23 +33,32 @@ const ErrorNote = ({ text }) =>
   ) : null;
 
 // 入口の画面の共通の枠（中央のカード・右上に表示切替）
-const EntryFrame = ({ children, onBack }) => (
-  <div className="min-h-screen bg-page flex flex-col">
-    <div className="flex items-center justify-between px-2 py-2">
-      {onBack ? (
-        <IconButton label="戻る" onClick={onBack}>
-          <ChevronLeft size={24} />
-        </IconButton>
-      ) : (
-        <span />
-      )}
-      <ThemeButton />
+const EntryFrame = ({ children, onBack }) => {
+  const [help, setHelp] = useState(false);
+  return (
+    <div className="min-h-screen bg-page flex flex-col">
+      <div className="flex items-center justify-between px-2 py-2">
+        {onBack ? (
+          <IconButton label="戻る" onClick={onBack}>
+            <ChevronLeft size={24} />
+          </IconButton>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center">
+          <IconButton label="使い方" onClick={() => setHelp(true)}>
+            <HelpCircle size={20} />
+          </IconButton>
+          <ThemeButton />
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center px-4 pb-10">
+        <Card className="w-full max-w-md p-6 sm:p-8">{children}</Card>
+      </div>
+      <HelpSheet open={help} onClose={() => setHelp(false)} />
     </div>
-    <div className="flex-1 flex items-center justify-center px-4 pb-10">
-      <Card className="w-full max-w-md p-6 sm:p-8">{children}</Card>
-    </div>
-  </div>
-);
+  );
+};
 
 export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
   <EntryFrame>
