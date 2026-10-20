@@ -118,9 +118,9 @@ export const App = ({ store }) => {
   useEffect(() => {
     document.title =
       inRoom && roomId
-        ? `${view === 'board' ? '大画面 ' : ''}#${roomId} ${ruleLabel(state.rule)} | Quiz Score Pro`
+        ? `${view === 'board' ? '大画面 ' : ''}#${roomId}${state.exists ? ` ${ruleLabel(state.rule)}` : ''} | Quiz Score Pro` // 読み込み前は仮のルール名を出さない
         : 'Quiz Score Pro — クイズの得点表';
-  }, [inRoom, roomId, view, state.rule]);
+  }, [inRoom, roomId, view, state.rule, state.exists]);
 
   // 結果発表が新しく出たら、閉じた状態を戻す
   useEffect(() => {
