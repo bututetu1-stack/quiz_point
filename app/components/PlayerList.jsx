@@ -4,7 +4,7 @@
 import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { RoomContext } from '../context.js';
 import { rankPlayers, scoreText } from '../lib/ranking.js';
-import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
+import { isReach, isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
 import { parseScoreToNumber } from '../lib/score.js';
 import { Crown, Edit2, Eye, Trash2, UserPlus, Users } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
@@ -28,11 +28,17 @@ export const useChangeKey = (value) => {
   return n;
 };
 
-// ルール時の状態チップ（勝ち抜け n 位 / 脱落 / 休み あと k）
-export const StateChip = ({ st, winRank }) => {
+// ルール時の状態チップ（勝ち抜け n 位 / 脱落 / 休み あと k / リーチ）
+export const StateChip = ({ st, winRank, reach }) => {
   if (st.kind === 'win') return <Chip tone="okSolid">勝ち抜け {winRank}位</Chip>;
   if (st.kind === 'lose') return <Chip tone="muted">脱落</Chip>;
   if (st.kind === 'rest') return <Chip tone="info">休み あと{st.restLeft}問</Chip>;
+  if (reach)
+    return (
+      <Chip tone="ok" data-reach>
+        リーチ
+      </Chip>
+    );
   return null;
 };
 
@@ -56,6 +62,7 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
   const medal = rank <= 3 && scored && st.kind !== 'lose' ? MEDAL[rank - 1] : 'bg-sunken text-ink-2';
   const tone = isMe ? 'bg-brand-soft border-brand/60' : st.kind === 'win' ? 'bg-ok-soft border-ok/40' : 'bg-card border-line';
   const hint = rule && st.kind !== 'win' && st.kind !== 'lose' ? progressHint(state.rule, player) : '';
+  const reach = rule && st.kind === 'play' && isReach(state.rule, player);
   const Tag = onTap ? 'button' : 'div';
   return (
     <Tag
@@ -77,7 +84,7 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
           <OnlineDot online={online} />
           <span className={`font-bold text-[0.9375rem] truncate ${st.kind === 'lose' ? 'text-ink-2' : 'text-ink'}`}>{player.name}</span>
           {isMe && <Chip tone="brandSolid">YOU</Chip>}
-          {rule && <StateChip st={st} winRank={winRank} />}
+          {rule && <StateChip st={st} winRank={winRank} reach={reach} />}
           {up > 0 && (
             <Chip tone="ok" className="motion-safe:animate-pop" data-rank-up>
               ▲{up}

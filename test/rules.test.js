@@ -5,6 +5,7 @@ import {
   applyAnswer,
   applyDeclare,
   initialScore,
+  isReach,
   normalizeRule,
   playerState,
   progressHint,
@@ -246,4 +247,15 @@ test('ruleDetails：0 で「なし」になる設定は「なし」と表示', (
   );
   assert.equal(ruleDetails({ type: 'nomx', win: 7, lose: 3, rest: 1 })[0].value, '7');
   assert.equal(ruleDetails({ type: 'divide', mode: 'fixed' }).find((x) => x.label === '誤答したとき').value, '毎回 ÷D');
+});
+
+test('リーチ：あと 1 問正答で勝ち抜けのときだけ（休み中も、休み明けの 1 問で）', () => {
+  const rule = { type: 'nomx', win: 3, lose: 2, rest: 1 };
+  assert.equal(isReach(rule, { ...fresh(), maru: 2, score: '2/1' }), true);
+  assert.equal(isReach(rule, { ...fresh(), maru: 1, score: '1/1' }), false);
+  assert.equal(isReach(rule, { ...fresh(), maru: 2, score: '2/1', restUntilQ: 5 }), true, '休み中でもリーチ');
+  assert.equal(isReach(rule, { ...fresh(), maru: 3, score: '3/1', status: 'win' }), false, '勝ち抜け済みは出さない');
+  assert.equal(isReach({ ...rule, win: 0 }, { ...fresh(), maru: 9, score: '9/1' }), false, '勝ち抜けなしのルール');
+  assert.equal(isReach({ type: 'free' }, fresh()), false);
+  assert.equal(isReach({ type: 'freeze' }, { ...fresh(), maru: 9, score: '9/1' }), true, 'フリーズ 10〇');
 });
