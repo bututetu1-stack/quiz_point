@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v60'));
+  assert.ok(h.text().includes('v61'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -195,5 +195,24 @@ test('接続の知らせ：起動直後は出さず、1.5 秒つながらない�
   setConn(false);
   await waitFor(() => h.doc.querySelector('[data-conn]'));
   assert.ok(h.doc.querySelector('[data-conn]').textContent.includes('通信が切れています'));
+  h.close();
+});
+
+test('コピーできない環境では、画面の中に全文を選べる形で見せる（ブラウザの prompt を使わない）', async () => {
+  const db = createMemoryAdapter();
+  const h = await createAsHost(db);
+  let prompted = false;
+  h.w.prompt = () => {
+    prompted = true;
+    return null;
+  };
+  await waitFor(() => h.byText('リンクをコピー', h.doc.querySelector('[data-invite-card]')), { msg: 'invite card' });
+  h.click(h.byText('リンクをコピー', h.doc.querySelector('[data-invite-card]')));
+  await waitFor(() => h.doc.querySelector('[data-ask-copy]'), { msg: 'copy sheet' });
+  const code = Object.keys(db._dump().rooms)[0];
+  assert.ok(h.doc.querySelector('[data-ask-copy]').value.includes(`room=${code}`));
+  assert.equal(prompted, false);
+  h.click(h.doc.querySelector('[data-ask-ok]'));
+  await waitFor(() => !h.doc.querySelector('[data-ask-copy]'), { msg: 'closed' });
   h.close();
 });

@@ -2,6 +2,7 @@
 
 import qrcode from 'qrcode-generator';
 import { useMemo, useRef, useState } from 'react';
+import { useAsk } from '../ui/dialogs.jsx';
 import { Copy, Monitor, X } from '../ui/icons.jsx';
 import { Button, Card, IconButton, useDialog } from '../ui/primitives.jsx';
 
@@ -39,13 +40,14 @@ export const QrSvg = ({ text, size = 200, className = '' }) => {
 // リンクのコピー（できない環境では選択できる形で見せる）
 const useCopy = (url) => {
   const [copied, setCopied] = useState(false);
+  const { showCopy } = useAsk();
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('このリンクをコピーしてください', url);
+      await showCopy('自動でコピーできませんでした。下のリンクを長押し（PC は Ctrl+C）でコピーしてください', url);
     }
   };
   return [copied, copy];
