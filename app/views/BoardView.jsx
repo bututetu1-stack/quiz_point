@@ -8,7 +8,7 @@ import { WinToast } from '../components/WinToast.jsx';
 import { rankPlayers, scoreText } from '../lib/ranking.js';
 import { isReach, isRuleMode, playerState, ruleLabel, winRanks } from '../lib/rules.js';
 import { calcTeamScore, getTeamDisplayScore, parseScoreToNumber } from '../lib/score.js';
-import { Crown, Users } from '../ui/icons.jsx';
+import { Crown, Maximize, Users } from '../ui/icons.jsx';
 import { useFlip, useRankUps } from '../ui/motion.js';
 
 const MEDAL = ['bg-medal-1 text-medal-ink', 'bg-medal-2 text-medal-ink', 'bg-medal-3 text-medal-ink'];
@@ -42,6 +42,26 @@ const useBoardLevel = (n, listRef) => {
     if (rows * rowH + (rows - 1) * gap <= box.h) return name;
   }
   return 'dense';
+};
+
+// 全画面にするボタン（プロジェクタで F11 を知らなくても）。全画面の間・非対応のブラウザでは出さない
+const FullscreenButton = () => {
+  const [full, setFull] = useState(() => typeof document !== 'undefined' && !!document.fullscreenElement);
+  useLayoutEffect(() => {
+    const on = () => setFull(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', on);
+    return () => document.removeEventListener('fullscreenchange', on);
+  }, []);
+  if (full || typeof document === 'undefined' || !document.fullscreenEnabled) return null;
+  return (
+    <button
+      onClick={() => document.documentElement.requestFullscreen().catch(() => {})}
+      className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white px-3 py-2 text-sm font-bold transition-colors"
+      data-fullscreen
+    >
+      <Maximize size={18} /> 全画面
+    </button>
+  );
 };
 
 const StatusTag = ({ st, rank, reach }) => {
@@ -106,7 +126,10 @@ export const BoardView = ({ state, roomId }) => {
       <header className="flex items-center gap-4 flex-wrap">
         <div className="bg-amber-400 text-slate-900 rounded-2xl px-5 py-2 font-black text-3xl tabular-nums"># {roomId}</div>
         <div className="text-2xl lg:text-3xl font-black text-amber-300 min-w-0 truncate">{ruleLabel(state.rule)}</div>
-        <div className="ml-auto text-6xl lg:text-7xl font-black tracking-tight tabular-nums">Q{q}</div>
+        <div className="ml-auto flex items-center gap-4">
+          <FullscreenButton />
+          <div className="text-6xl lg:text-7xl font-black tracking-tight tabular-nums">Q{q}</div>
+        </div>
       </header>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
         <ol ref={listRef} data-size={size} className={`grid ${size === 'dense' ? 'gap-2' : 'gap-2.5'} ${S.grid}`}>
