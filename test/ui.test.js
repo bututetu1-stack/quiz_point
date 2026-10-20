@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v39'));
+  assert.ok(h.text().includes('v40'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -160,6 +160,7 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   h.click(h.byText('次の問題'));
   await waitFor(() => p.doc.querySelector('[data-room-status]').textContent.includes('Q2'), { msg: 'Q2 on participant' });
   // もう1つ正解 → 勝ち抜け1位、ボタンは押せない
+  await new Promise((r) => setTimeout(r, 450)); // 同じボタンの二度押しは 0.4 秒間受け付けないので、実際の間隔をあける
   p.click(p.byText('正答'));
   await waitFor(() => p.text().includes('勝ち抜け 1位'), { msg: 'win badge' });
   await waitFor(() => p.text().includes('勝ち抜けました'), { msg: 'win message' });

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ResultOverlay } from './components/ResultOverlay.jsx';
 import { RoomContext } from './context.js';
 import { ruleLabel } from './lib/rules.js';
+import { useToast } from './ui/toast.jsx';
 import { BoardView } from './views/BoardView.jsx';
 import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
 import { HostView } from './views/HostView.jsx';
@@ -45,7 +46,20 @@ const save = (k, v) => {
   }
 };
 
+// 操作が通らなかったときの知らせ（null は知らせない）
+const OP_ERRORS = {
+  nothing_to_undo: '戻せる操作はもうありません',
+  resting: '休み中です（「問題を進める」で数えます）',
+  finished: 'すでに勝ち抜け／脱落しています（「元に戻す」で取り消せます）',
+  not_resting: null,
+  free_rule: null,
+  player_not_found: 'この部屋のプレイヤーではなくなりました（ホストに削除された可能性があります）',
+  invalid_value: '値を読み取れませんでした（例: 2・0.5・1/2）',
+  invalid_name: '名前を入れてください',
+};
+
 export const App = ({ store }) => {
+  const toast = useToast();
   const [view, setView] = useState('home'); // home, hostcreate, join, host, participant, board
   const [roomId, setRoomId] = useState('');
   const [myPlayerId, setMyPlayerId] = useState(null);
@@ -177,7 +191,11 @@ export const App = ({ store }) => {
   // 操作の送信。ログ用に操作した人の名前も添える
   const executeOp = async (type, payload = {}) => {
     const res = await store.op(roomId, type, { by: myName, ...payload });
-    if (!res.ok) console.error('Op failed:', type, res.error);
+    if (!res.ok) {
+      console.error('Op failed:', type, res.error);
+      const msg = OP_ERRORS[res.error];
+      if (msg !== null) toast(msg || '送れませんでした。通信状態を確かめて、もう一度押してください', msg ? 'neutral' : 'ng');
+    }
     return res;
   };
 
