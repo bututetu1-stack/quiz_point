@@ -33,7 +33,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v32'));
+  assert.ok(h.text().includes('v33'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -51,12 +51,12 @@ test('ホスト：部屋を作るとホストも1プレイヤーになり、自�
   const bar = h.doc.querySelector('.fixed.bottom-0');
   h.click([...bar.querySelectorAll('button')].find((b) => b.className.includes('from-emerald-400')));
   await waitFor(() => playersOf(db)[0].score === '1/1', { msg: 'host +1' });
-  h.click(h.byText('1つ戻す', bar));
+  h.click(h.byText('元に戻す', bar));
   await waitFor(() => playersOf(db)[0].score === '0/1', { msg: 'host undo' });
   // 管理パネル：新しい部屋は〇✕カウント・Q1。採点ロックのトグルは無い。全員1 は自由計算のときだけ
   assert.ok(!h.doc.querySelector('[role="switch"]'));
   assert.ok(h.doc.querySelector('[data-room-status]').textContent.includes('〇✕カウント'));
-  assert.ok(h.text().includes('次の問題') && h.text().includes('0 リセット'));
+  assert.ok(h.text().includes('次の問題') && h.text().includes('全員リセット'));
   assert.ok(!h.text().includes('全員 1'));
   h.close();
 });
@@ -139,8 +139,8 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   await waitFor(() => h.byText('このルールで始める'));
   const field = (label) => [...h.doc.querySelectorAll('label')].find((l) => l.textContent.includes(label)).querySelector('input');
   h.type(field('勝ち抜け（〇の数）'), '2');
-  h.type(field('失格（✕の数）'), '2');
-  await waitFor(() => field('失格（✕の数）').value === '2');
+  h.type(field('脱落（✕の数）'), '2');
+  await waitFor(() => field('脱落（✕の数）').value === '2');
   h.click(h.byText('このルールで始める'));
   await waitFor(() => (room(db).rule || {}).win === 2 && room(db).rule.lose === 2, { msg: 'rule saved' });
   await waitFor(() => h.doc.querySelector('[data-room-status]').textContent.includes('2〇2✕'), { msg: 'status label' });
@@ -150,23 +150,23 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   const codeInput = p.doc.querySelector('input[placeholder="0000"]');
   p.type([...p.doc.querySelectorAll('input')].find((i) => i !== codeInput), 'アリス');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
-  await waitFor(() => p.byText('正解') && p.byText('誤答'), { msg: 'answer buttons' });
+  await waitFor(() => p.byText('正答') && p.byText('誤答'), { msg: 'answer buttons' });
   assert.ok(!p.text().includes('自由計算'), 'ルール時はモード切替を出さない');
 
   // 正解1つ → あと1〇
-  p.click(p.byText('正解'));
+  p.click(p.byText('正答'));
   await waitFor(() => p.text().includes('あと1〇'), { msg: 'hint after 1 correct' });
   // ホストが次の問題へ → 参加者にも Q2
   h.click(h.byText('次の問題'));
   await waitFor(() => p.doc.querySelector('[data-room-status]').textContent.includes('Q2'), { msg: 'Q2 on participant' });
   // もう1つ正解 → 勝ち抜け1位、ボタンは押せない
-  p.click(p.byText('正解'));
+  p.click(p.byText('正答'));
   await waitFor(() => p.text().includes('勝ち抜け 1位'), { msg: 'win badge' });
   await waitFor(() => p.text().includes('勝ち抜けました'), { msg: 'win message' });
-  assert.ok(p.byText('正解').disabled && p.byText('誤答').disabled);
+  assert.ok(p.byText('正答').disabled && p.byText('誤答').disabled);
   // Undo で競技中に戻る
-  p.click(p.byText('1つ戻す'));
-  await waitFor(() => !p.text().includes('勝ち抜け 1位') && !p.byText('正解').disabled, { msg: 'undo win' });
+  p.click(p.byText('元に戻す'));
+  await waitFor(() => !p.text().includes('勝ち抜け 1位') && !p.byText('正答').disabled, { msg: 'undo win' });
 
   // 自由計算に変えると従来の操作に戻る
   h.click(h.byText('変更する'));

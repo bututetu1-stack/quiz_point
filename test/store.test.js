@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore, ROOM_TTL } from '../app/data/store.js';
+import { createStore, ROOM_TTL, roomState } from '../app/data/store.js';
+import { playerState, sortForRule } from '../app/lib/rules.js';
 import { createMemoryAdapter } from './helpers/memoryAdapter.js';
 
 const setup = async () => {
@@ -248,4 +249,94 @@ test('ルール変更は全員の得点・状態・問題番号・Undo 履歴を
   await store.op(roomId, 'resetAll');
   assert.equal(player(db, roomId, a).batsu, 0);
   assert.equal(db._dump().rooms[roomId].q, 1);
+});
+
+test('勝ち抜け・脱落の宣言：通し番号が付き、元に戻すで取り消せる。脱落は後の人が上に並ぶ', async () => {
+  const { db, store, roomId } = await setup();
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  const { playerId: b } = await store.joinRoom(roomId, 'B', null);
+  const { playerId: c } = await store.joinRoom(roomId, 'C', null);
+  assert.deepEqual(await store.op(roomId, 'declare', { playerId: a, status: 'win' }), { ok: true });
+  assert.equal(player(db, roomId, a).status, 'win');
+  assert.ok(player(db, roomId, a).winSeq > 0);
+  assert.equal((await store.op(roomId, 'declare', { playerId: a, status: 'lose' })).error, 'finished');
+  await store.op(roomId, 'declare', { playerId: b, status: 'lose' });
+  await store.op(roomId, 'declare', { playerId: c, status: 'lose' });
+  assert.ok(player(db, roomId, c).loseSeq > player(db, roomId, b).loseSeq);
+  const order = roomState(roomId, db._dump().rooms[roomId]).players;
+  assert.deepEqual(sortForRule(order, db._dump().rooms[roomId].rule).map((p) => p.name), ['A', 'C', 'B']);
+  assert.deepEqual(player(db, roomId, a).rec, { o: 0, x: 0, win: 1, lose: 0 });
+  await store.op(roomId, 'undo', { playerId: a });
+  assert.equal(player(db, roomId, a).status, undefined);
+  assert.equal(player(db, roomId, a).winSeq, undefined);
+  assert.deepEqual(player(db, roomId, a).rec, { o: 0, x: 0, win: 0, lose: 0 }, '累計も戻る');
+  // 自由計算では宣言できない
+  await store.op(roomId, 'setRule', { rule: { type: 'free' } });
+  assert.equal((await store.op(roomId, 'declare', { playerId: a, status: 'win' })).error, 'free_rule');
+});
+
+test('休み：本人の「問題を進める」とホストの「次の問題」を両方押しても二重に減らない', async () => {
+  const { db, store, roomId } = await setup();
+  await store.op(roomId, 'setRule', { rule: { type: 'nomx', win: 0, lose: 0, rest: 2 } });
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  await store.op(roomId, 'answer', { playerId: a, result: 'wrong' }); // Q1 で誤答 → Q2・Q3 は休み
+  assert.deepEqual(await store.op(roomId, 'advanceSelf', { playerId: a }), { ok: true }); // 本人が Q2 へ
+  await store.op(roomId, 'nextQ', {}); // ホストも Q2 へ
+  const st = () => playerState(player(db, roomId, a), db._dump().rooms[roomId].q);
+  assert.deepEqual(st(), { kind: 'rest', restLeft: 2 });
+  await store.op(roomId, 'advanceSelf', { playerId: a }); // Q3
+  await store.op(roomId, 'undo', { playerId: a }); // 押し間違いは元に戻せる
+  assert.deepEqual(st(), { kind: 'rest', restLeft: 2 });
+  await store.op(roomId, 'advanceSelf', { playerId: a }); // Q3
+  await store.op(roomId, 'advanceSelf', { playerId: a }); // Q4
+  assert.deepEqual(st(), { kind: 'play' });
+  assert.equal((await store.op(roomId, 'advanceSelf', { playerId: a })).error, 'not_resting');
+  assert.deepEqual(await store.op(roomId, 'answer', { playerId: a, result: 'correct' }), { ok: true });
+  // リセットで本人の問題番号も消える
+  await store.op(roomId, 'resetAll');
+  assert.equal(player(db, roomId, a).pq, undefined);
+});
+
+test('観戦：players から外れ（spectators に入り）、参加に戻せる', async () => {
+  const { db, store, roomId } = await setup();
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  await store.joinRoom(roomId, 'B', null);
+  await store.op(roomId, 'setSpectator', { playerId: a, on: true });
+  let s = roomState(roomId, db._dump().rooms[roomId]);
+  assert.deepEqual(s.players.map((p) => p.name), ['B']);
+  assert.deepEqual(s.spectators.map((p) => p.name), ['A']);
+  assert.equal(s.allPlayers.length, 2);
+  await store.op(roomId, 'setSpectator', { playerId: a, on: false });
+  s = roomState(roomId, db._dump().rooms[roomId]);
+  assert.equal(s.players.length, 2);
+  assert.equal(player(db, roomId, a).spectator, undefined);
+});
+
+test('記録（rec）はリセット・ルール変更でも消えない。自由計算の〇✕も数える', async () => {
+  const { db, store, roomId } = await setup();
+  await store.op(roomId, 'setRule', { rule: { type: 'nomx', win: 1, lose: 0 } });
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  await store.op(roomId, 'answer', { playerId: a, result: 'wrong' });
+  await store.op(roomId, 'answer', { playerId: a, result: 'correct' }); // 勝ち抜け
+  await store.op(roomId, 'resetAll');
+  await store.op(roomId, 'setRule', { rule: { type: 'free' } });
+  await store.op(roomId, 'maru', { playerId: a });
+  assert.deepEqual(player(db, roomId, a).rec, { o: 2, x: 1, win: 1, lose: 0 });
+  assert.equal(player(db, roomId, a).maru, 1);
+});
+
+test('ディバイド：途中参加・リセット・ルール変更のどれでも初期点から始まる', async () => {
+  const { db, store, roomId } = await setup();
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  await store.op(roomId, 'setRule', { rule: { type: 'divide' } });
+  assert.equal(player(db, roomId, a).score, '10/1');
+  const { playerId: b } = await store.joinRoom(roomId, 'B', null);
+  assert.equal(player(db, roomId, b).score, '10/1');
+  await store.op(roomId, 'answer', { playerId: b, result: 'correct' });
+  await store.op(roomId, 'answer', { playerId: b, result: 'wrong' });
+  await store.op(roomId, 'answer', { playerId: b, result: 'wrong' });
+  assert.equal(player(db, roomId, b).score, '10/1'); // 20 → ÷1 → ÷2
+  await store.op(roomId, 'resetAll');
+  assert.equal(player(db, roomId, b).score, '10/1');
+  assert.equal(player(db, roomId, b).batsu, 0);
 });

@@ -43,7 +43,7 @@ test('オンライン表示：入室中の人には緑の点が付く', async ()
 test('操作ログ：〇✕・問題の進行が新しい順に並ぶ', async () => {
   const db = createMemoryAdapter();
   const { h, p } = await hostAndAlice(db);
-  p.click(p.byText('正解'));
+  p.click(p.byText('正答'));
   await waitFor(() => Object.values(room(db).players).find((x) => x.name === 'アリス').maru === 1);
   h.click(h.byText('次の問題'));
   await waitFor(() => room(db).q === 2);
@@ -59,7 +59,7 @@ test('操作ログ：〇✕・問題の進行が新しい順に並ぶ', async ()
 test('結果発表：ホストが出すと参加者にも表彰台が出て、ホストが閉じると消える', async () => {
   const db = createMemoryAdapter();
   const { h, p } = await hostAndAlice(db);
-  p.click(p.byText('正解'));
+  p.click(p.byText('正答'));
   await waitFor(() => Object.values(room(db).players).find((x) => x.name === 'アリス').maru === 1);
   h.click(h.byText('結果発表（全員の画面に表示）'));
   await waitFor(() => p.doc.querySelector('[data-result]'), { msg: 'result on participant' });
@@ -82,7 +82,7 @@ test('勝ち抜け通知：誰かが勝ち抜けると他の人の画面にバ�
   h.click(h.byText('このルールで始める'));
   await waitFor(() => (room(db).rule || {}).win === 1);
   await waitFor(() => p.text().includes('1〇'), { msg: 'participant sees new rule' });
-  p.click(p.byText('正解'));
+  p.click(p.byText('正答'));
   await waitFor(() => h.doc.querySelector('[data-win-toast]'), { msg: 'toast on host' });
   assert.ok(h.doc.querySelector('[data-win-toast]').textContent.includes('アリス 勝ち抜け'));
   h.close();
@@ -96,7 +96,7 @@ test('大画面モード：入室せずにランキングと参加用 QR を表�
   await waitFor(() => b.doc.querySelector('[data-board]'), { msg: 'board view' });
   await waitFor(() => b.doc.querySelector('[data-board]').textContent.includes('アリス'), { msg: 'players on board' });
   assert.ok(b.doc.querySelector('[data-board] [data-qr]'), 'QR コード');
-  assert.ok(!b.byText('正解'), '操作ボタンは無い');
+  assert.ok(!b.byText('正答'), '操作ボタンは無い');
   assert.equal(Object.keys(room(db).players).length, 2, '大画面はプレイヤーとして入らない');
   b.close();
   h.close();
@@ -132,9 +132,93 @@ test('CSV と「1位まであと何点」', () => {
     ],
   };
   const csv = toCsv(state).split('\n');
-  assert.equal(csv[0], '順位,名前,チーム,得点,〇,✕,状態');
-  assert.equal(csv[1], '1,アリス,赤組,3,3,0,勝ち抜け1位');
-  assert.equal(csv[2], '2,"ボブ, Jr.",,2,2,1,');
+  assert.equal(csv[0], '順位,名前,チーム,得点,〇,✕,状態,累計〇,累計✕,勝ち抜け回数,脱落回数');
+  assert.equal(csv[1], '1,アリス,赤組,3,3,0,勝ち抜け1位,0,0,0,0');
+  assert.equal(csv[2], '2,"ボブ, Jr.",,2,2,1,,0,0,0,0');
   assert.deepEqual(myStanding(state, state.players[2]), { rank: 3, gap: 2 }, '競技中のトップ（ボブ）まで 2');
   assert.deepEqual(myStanding(state, state.players[1]), { rank: 2, gap: 0 });
+});
+
+test('v33：休み中は「問題を進める」（ホストの次の問題と二重に減らない）・勝ち抜け宣言と元に戻す', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  // ホストが N〇M✕ のプリセット「誤答2休」を選ぶ
+  h.click(h.byText('変更する'));
+  await waitFor(() => h.byText('このルールで始める'));
+  h.click(h.byText('誤答2休'));
+  const restField = () => [...h.doc.querySelectorAll('label')].find((l) => l.textContent.includes('誤答後の休み')).querySelector('input');
+  await waitFor(() => restField().value === '2', { msg: 'preset applied' });
+  h.click(h.byText('このルールで始める'));
+  await waitFor(() => (room(db).rule || {}).rest === 2, { msg: 'rest rule saved' });
+  await waitFor(() => p.text().includes('誤答2休'), { msg: 'participant sees rule' });
+
+  p.click(p.byText('誤答')); // Q1 で誤答 → Q2・Q3 は休み
+  await waitFor(() => p.doc.querySelector('[data-rest]'), { msg: 'rest bar' });
+  assert.ok(!p.byText('正答'), '休み中は正答/誤答の代わりに「問題を進める」');
+  p.click(p.byText('問題を進める')); // 本人が Q2 へ
+  await waitFor(() => p.doc.querySelector('[data-rest]').textContent.includes('あと2問'), { msg: 'rest 2 after self advance' });
+  h.click(h.byText('次の問題')); // ホストも Q2 へ
+  await waitFor(() => room(db).q === 2);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.ok(p.doc.querySelector('[data-rest]').textContent.includes('あと2問'), '二重に減らない');
+  p.click(p.byText('問題を進める'));
+  await waitFor(() => p.doc.querySelector('[data-rest]').textContent.includes('あと1問'), { msg: 'rest 1' });
+  p.click(p.byText('問題を進める'));
+  await waitFor(() => p.byText('正答') && !p.byText('正答').disabled, { msg: 'back to play' });
+
+  // 勝ち抜けを宣言 → ホストにも「勝ち抜け 1位」→ 元に戻す
+  p.click(p.byText('勝ち抜け', p.doc.querySelector('[data-declare]')));
+  await waitFor(() => h.text().includes('勝ち抜け 1位'), { msg: 'win badge on host' });
+  assert.ok(p.text().includes('勝ち抜けました'));
+  p.click(p.byText('元に戻す'));
+  await waitFor(() => !h.text().includes('勝ち抜け 1位'), { msg: 'undo declare' });
+  h.close();
+  p.close();
+});
+
+test('v33：観戦にするとランキングから外れ、参加に戻せる。記録タブに成績', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  const aliceId = () => Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  p.click(p.byText('正答'));
+  await waitFor(() => Object.values(room(db).players).find((x) => x.name === 'アリス').maru === 1);
+  // 本人が観戦に
+  p.click(p.doc.querySelector('button[aria-label="観戦にする"]'));
+  await waitFor(() => p.doc.querySelector('[data-spectating]'), { msg: 'spectating bar' });
+  await waitFor(() => !h.doc.querySelector(`[data-player-id="${aliceId()}"]`), { msg: 'removed from host ranking' });
+  assert.ok(h.doc.querySelector('[data-spectators]').textContent.includes('アリス'));
+  // ホストが参加に戻す
+  h.click(h.byText('参加に戻す', h.doc.querySelector('[data-spectators]')));
+  await waitFor(() => h.doc.querySelector(`[data-player-id="${aliceId()}"]`), { msg: 'back in ranking' });
+  await waitFor(() => p.byText('正答'), { msg: 'answer buttons again' });
+  // 記録タブ
+  p.click(p.buttons().find((b) => b.textContent.includes('記録')));
+  await waitFor(() => p.doc.querySelector('[data-record]'), { msg: 'record panel' });
+  const row = [...p.doc.querySelectorAll('[data-record] tbody tr')].find((tr) => tr.textContent.includes('アリス'));
+  assert.ok(row, 'アリスの行');
+  assert.deepEqual([...row.querySelectorAll('td')].slice(1).map((td) => td.textContent), ['1', '0', '0', '0']);
+  h.close();
+  p.close();
+});
+
+test('v33：ルール選択は2系統に分かれ、ディバイドの「割る数」は毎回 ÷D のときだけ出る', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  h.click(h.byText('変更する'));
+  await waitFor(() => h.byText('このルールで始める'));
+  assert.ok(h.text().includes('正解数で勝負') && h.text().includes('総得点で勝負'));
+  ['フリーズ', '+M/−N', 'M by N', 'ディバイド'].forEach((l) => assert.ok(h.buttons().some((b) => b.textContent.trim() === l), l));
+  h.click(h.buttons().find((b) => b.textContent.trim() === 'ディバイド'));
+  await waitFor(() => h.text().includes('初期点'));
+  assert.ok(!h.text().includes('割る数（D）'));
+  h.click(h.byText('毎回 ÷D'));
+  await waitFor(() => h.text().includes('割る数（D）'), { msg: 'divisor field' });
+  h.click(h.byText('n 回目は ÷n'));
+  await waitFor(() => !h.text().includes('割る数（D）'), { msg: 'divisor hidden' });
+  h.click(h.byText('このルールで始める'));
+  await waitFor(() => (room(db).rule || {}).type === 'divide', { msg: 'divide saved' });
+  await waitFor(() => p.text().includes('10 ディバイド'), { msg: 'label' });
+  assert.ok(Object.values(room(db).players).every((x) => x.score === '10/1'), '全員 初期 10 点');
+  h.close();
+  p.close();
 });

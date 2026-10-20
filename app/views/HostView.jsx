@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { LogPanel } from '../components/LogPanel.jsx';
 import { MainLayout } from '../components/MainLayout.jsx';
 import { PlayerList } from '../components/PlayerList.jsx';
+import { RecordPanel } from '../components/RecordPanel.jsx';
 import { RoomStatus } from '../components/RoomStatus.jsx';
 import { GraphPanel } from '../components/ScoreGraph.jsx';
 import { SelfScoreBar } from '../components/SelfScoreBar.jsx';
@@ -16,7 +17,7 @@ import { Button, TabBar } from '../ui/primitives.jsx';
 export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
   const [tab, setTab] = useState('ranking');
   const [showPanel, setShowPanel] = useState(false);
-  const myPlayer = (state.players || []).find((p) => p.id === myPlayerId);
+  const myPlayer = (state.allPlayers || state.players || []).find((p) => p.id === myPlayerId);
   return (
     <div style={{ paddingBottom: myPlayer ? 'var(--selfbar-h, 180px)' : 0 }}>
       <WinToast state={state} />
@@ -38,11 +39,13 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
                   myPlayerId={myPlayerId}
                   onRename={(id, name) => onOp('renamePlayer', { playerId: id, name })}
                   onRemove={(id) => onOp('removePlayer', { playerId: id })}
+                  onSpectate={(id, on) => onOp('setSpectator', { playerId: id, on })}
                 />
               </>
             )}
             {tab === 'graph' && <GraphPanel state={state} />}
             {tab === 'log' && <LogPanel />}
+            {tab === 'record' && <RecordPanel state={state} myPlayerId={myPlayerId} />}
           </div>
           <div className="w-80 shrink-0 hidden lg:block">
             <SettingsPanel state={state} roomId={roomId} onOp={onOp} />

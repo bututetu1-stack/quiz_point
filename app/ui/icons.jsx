@@ -226,3 +226,21 @@ export const Clock = (p) => (
     <polyline points="12 6 12 12 16 14" />
   </Svg>
 );
+export const Eye = (p) => (
+  <Svg {...p}>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Svg>
+);
+export const Award = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="8" r="6" />
+    <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+  </Svg>
+);
+export const SkipForward = (p) => (
+  <Svg {...p}>
+    <polygon points="5 4 15 12 5 20 5 4" />
+    <line x1="19" x2="19" y1="5" y2="19" />
+  </Svg>
+);

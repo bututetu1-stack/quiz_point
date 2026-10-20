@@ -13,7 +13,7 @@ const MEDAL = ['bg-amber-400', 'bg-slate-400', 'bg-orange-400'];
 const StatusTag = ({ p, q, rank }) => {
   const st = playerState(p, q);
   if (st.kind === 'win') return <span className="text-base font-black bg-emerald-500 rounded-full px-3 py-0.5">勝ち抜け {rank}位</span>;
-  if (st.kind === 'lose') return <span className="text-base font-black bg-slate-600 rounded-full px-3 py-0.5">失格</span>;
+  if (st.kind === 'lose') return <span className="text-base font-black bg-slate-600 rounded-full px-3 py-0.5">脱落</span>;
   if (st.kind === 'rest') return <span className="text-base font-black bg-sky-600 rounded-full px-3 py-0.5">休み {st.restLeft}</span>;
   return null;
 };
