@@ -450,3 +450,21 @@ test('v43：結果発表では自分の順位を大きく出し、チームが�
   h.close();
   p.close();
 });
+
+test('v44：ホストは行のメニューから、ほかの人のチームを変えられる', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  h.type(h.doc.querySelector('input[placeholder="新チーム名"]'), '青組');
+  h.click(h.doc.querySelector('input[placeholder="新チーム名"]').parentElement.querySelector('button'));
+  await waitFor(() => Object.keys(room(db).teams || {}).length === 1, { msg: 'team' });
+  const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  const tid = Object.keys(room(db).teams)[0];
+  h.click(h.doc.querySelector(`[data-player-id="${aliceId}"]`));
+  await waitFor(() => h.doc.querySelector('[data-sheet]'));
+  h.click(h.byText('チームを変える', h.doc.querySelector('[data-sheet]')));
+  await waitFor(() => h.doc.querySelector('[data-sheet] [data-team-choices]'), { msg: 'team choices for alice' });
+  h.click([...h.doc.querySelectorAll('[data-team-choices] button')].find((b) => b.textContent.trim() === '青組'));
+  await waitFor(() => room(db).players[aliceId].teamId === tid, { msg: 'alice assigned by host' });
+  h.close();
+  p.close();
+});

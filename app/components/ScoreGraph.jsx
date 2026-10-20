@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { RoomContext } from '../context.js';
+import { rankPlayers } from '../lib/ranking.js';
 import { parseScoreToNumber } from '../lib/score.js';
 import { eventsToSnapshots, groupByQuestion } from '../lib/timeline.js';
 import { Card, Unavailable } from '../ui/primitives.jsx';
@@ -47,7 +48,7 @@ const useWidth = (ref, fallback = 720) => {
   return w;
 };
 
-const Plot = ({ tl, players, width }) => {
+const Plot = ({ tl, players, width, myPlayerId }) => {
   const W = Math.max(260, Math.round(width));
   const H = Math.round(Math.min(320, Math.max(200, W * 0.55)));
   const pad = { t: 12, r: 12, b: 24, l: 36 };
@@ -100,44 +101,49 @@ const Plot = ({ tl, players, width }) => {
           </text>
         ) : null,
       )}
-      {players.map((p, pi) => {
-        const c = GRAPH_COLORS[pi % GRAPH_COLORS.length];
-        const pts = tl.map((tick, i) => [x(i), y(parseScoreToNumber(tick.scores[p.id]))]);
-        return (
-          <g key={p.id}>
-            <polyline
-              points={pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ')}
-              fill="none"
-              stroke={c}
-              strokeWidth="3"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-            {pts.map((pt, i) => (
-              <circle
-                key={i}
-                cx={pt[0]}
-                cy={pt[1]}
-                r={i === pts.length - 1 ? 5 : 3}
-                style={{ fill: 'rgb(var(--c-card))' }}
+      {/* 自分の線は最後に描いて一番上に */}
+      {[...players.map((p, pi) => [p, pi])]
+        .sort(([a], [b]) => (a.id === myPlayerId ? 1 : 0) - (b.id === myPlayerId ? 1 : 0))
+        .map(([p, pi]) => {
+          const c = GRAPH_COLORS[pi % GRAPH_COLORS.length];
+          const me = p.id === myPlayerId;
+          const pts = tl.map((tick, i) => [x(i), y(parseScoreToNumber(tick.scores[p.id]))]);
+          return (
+            <g key={p.id}>
+              <polyline
+                points={pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ')}
+                fill="none"
                 stroke={c}
-                strokeWidth="2.5"
+                strokeWidth={me ? 5 : 3}
+                strokeLinejoin="round"
+                strokeLinecap="round"
               />
-            ))}
-          </g>
-        );
-      })}
+              {pts.map((pt, i) => (
+                <circle
+                  key={i}
+                  cx={pt[0]}
+                  cy={pt[1]}
+                  r={i === pts.length - 1 ? 5 : 3}
+                  style={{ fill: 'rgb(var(--c-card))' }}
+                  stroke={c}
+                  strokeWidth="2.5"
+                />
+              ))}
+            </g>
+          );
+        })}
     </svg>
   );
 };
 
-export const ScoreGraph = ({ state }) => {
+export const ScoreGraph = ({ state, myPlayerId }) => {
   const box = useRef(null);
   const width = useWidth(box);
   const tl = state.timeline || [];
   // 最終時点にスコアがあるプレイヤーのみ描画
   const last = tl.length ? tl[tl.length - 1].scores || {} : {};
-  const players = state.players.filter((p) => last[p.id] !== undefined);
+  // 凡例はいまの順位の順
+  const players = rankPlayers(state).filter((p) => last[p.id] !== undefined);
   return (
     <Card className="p-4 w-full">
       <div ref={box} className="w-full">
@@ -149,11 +155,14 @@ export const ScoreGraph = ({ state }) => {
               {players.map((p, i) => (
                 <span key={p.id} className="inline-flex items-center gap-1.5 text-xs font-bold text-ink-2 max-w-[48%]">
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ background: GRAPH_COLORS[i % GRAPH_COLORS.length] }} />
-                  <span className="truncate">{p.name}</span>
+                  <span className={`truncate ${p.id === myPlayerId ? 'text-brand-ink font-black' : ''}`}>
+                    {p.name}
+                    {p.id === myPlayerId ? '（あなた）' : ''}
+                  </span>
                 </span>
               ))}
             </div>
-            <Plot tl={tl} players={players} width={width} />
+            <Plot tl={tl} players={players} width={width} myPlayerId={myPlayerId} />
           </>
         )}
       </div>
@@ -162,7 +171,7 @@ export const ScoreGraph = ({ state }) => {
 };
 
 // グラフタブを開いている間だけ得点推移を購読し、グラフ用のスナップショットに展開する
-export const GraphPanel = ({ state }) => {
+export const GraphPanel = ({ state, myPlayerId }) => {
   const { store, roomId } = useContext(RoomContext);
   const [events, setEvents] = useState([]);
   const [denied, setDenied] = useState(false);
@@ -179,5 +188,5 @@ export const GraphPanel = ({ state }) => {
     [events, state.players, simple],
   );
   if (denied) return <Unavailable what="グラフ（得点の推移）" />;
-  return <ScoreGraph state={{ ...state, timeline }} />;
+  return <ScoreGraph state={{ ...state, timeline }} myPlayerId={myPlayerId} />;
 };

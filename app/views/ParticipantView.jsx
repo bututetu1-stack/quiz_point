@@ -30,7 +30,7 @@ export const ParticipantView = ({ state, roomId, myPlayerId, onOp, onLeave }) =>
               {(state.allPlayers || state.players).length <= 1 && <InviteCard roomId={roomId} />}
             </>
           )}
-          {tab === 'graph' && <GraphPanel state={state} />}
+          {tab === 'graph' && <GraphPanel state={state} myPlayerId={myPlayerId} />}
           {tab === 'log' && <LogPanel />}
           {tab === 'record' && <RecordPanel state={state} myPlayerId={myPlayerId} />}
         </div>

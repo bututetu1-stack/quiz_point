@@ -6,11 +6,11 @@ import { RoomContext } from '../context.js';
 import { rankPlayers, scoreText } from '../lib/ranking.js';
 import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
 import { parseScoreToNumber } from '../lib/score.js';
-import { Crown, Edit2, Eye, Trash2, UserPlus } from '../ui/icons.jsx';
+import { Crown, Edit2, Eye, Trash2, UserPlus, Users } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
 import { useFlip, useRankUps } from '../ui/motion.js';
 import { Card, Chip, Sheet, SheetItem } from '../ui/primitives.jsx';
-import { teamColor } from './Teams.jsx';
+import { TeamChoices, teamColor } from './Teams.jsx';
 
 const MEDAL = ['bg-medal-1 text-medal-ink', 'bg-medal-2 text-medal-ink', 'bg-medal-3 text-medal-ink'];
 
@@ -140,14 +140,22 @@ const Spectators = ({ state, myPlayerId, online, onTap }) => {
 };
 
 // ホストの他人操作メニュー
-const PlayerMenu = ({ player, onOp, onClose }) => {
+const PlayerMenu = ({ state, player, onOp, onClose }) => {
   const { confirm, prompt } = useAsk();
+  const [teamMode, setTeamMode] = useState(false);
   if (!player) return null;
   const id = player.id;
   const done = (fn) => () => {
     onClose();
     fn();
   };
+  const team = state.teams.find((t) => t.id === player.teamId);
+  if (teamMode)
+    return (
+      <Sheet open={true} onClose={onClose} title={`${player.name} のチーム`}>
+        <TeamChoices state={state} myPlayer={player} onOp={onOp} onDone={onClose} />
+      </Sheet>
+    );
   return (
     <Sheet open={true} onClose={onClose} title={player.name}>
       <SheetItem
@@ -159,6 +167,11 @@ const PlayerMenu = ({ player, onOp, onClose }) => {
       >
         名前を変える
       </SheetItem>
+      {state.teams.length > 0 && !player.spectator && (
+        <SheetItem icon={<Users size={18} />} hint={team ? `いま：${team.name}` : 'まだ選んでいません'} onClick={() => setTeamMode(true)}>
+          チームを変える
+        </SheetItem>
+      )}
       {player.spectator ? (
         <SheetItem icon={<UserPlus size={18} />} onClick={done(() => onOp('setSpectator', { playerId: id, on: false }))}>
           参加に戻す
@@ -216,7 +229,7 @@ export const PlayerList = ({ state, myPlayerId, hostOp }) => {
         ))}
       </div>
       <Spectators state={state} myPlayerId={myPlayerId} online={presenceKnown ? online : null} onTap={tap} />
-      {hostOp && <PlayerMenu player={menu} onOp={hostOp} onClose={() => setMenu(null)} />}
+      {hostOp && <PlayerMenu key={menu ? menu.id : 'none'} state={state} player={menu} onOp={hostOp} onClose={() => setMenu(null)} />}
     </div>
   );
 };
