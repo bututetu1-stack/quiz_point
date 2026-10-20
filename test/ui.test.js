@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v90'));
+  assert.ok(h.text().includes('v91'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -237,5 +237,20 @@ test('部屋にいる間は画面を消さない（Wake Lock）。退出する�
   h.click(h.doc.querySelector('button[aria-label="退出"]'));
   await answerAsk(h);
   await waitFor(() => sentinel.released, { msg: 'released on leave' });
+  h.close();
+});
+
+test('ホームから入力画面へ進んだあと、ブラウザの「戻る」と画面の「←」でホームに戻る', async () => {
+  const db = createMemoryAdapter();
+  const h = boot({ db });
+  await waitFor(() => h.byText('参加者として入室する'), { msg: 'home' });
+  h.click(h.byText('参加者として入室する'));
+  await waitFor(() => h.doc.querySelector('#join-name'), { msg: 'join view' });
+  h.w.history.back();
+  await waitFor(() => h.byText('ホストとして部屋を作る'), { msg: 'back to home by browser back' });
+  h.click(h.byText('ホストとして部屋を作る'));
+  await waitFor(() => h.doc.querySelector('#host-name'), { msg: 'host create view' });
+  h.click(h.buttons().find((b) => b.getAttribute('aria-label') === '戻る'));
+  await waitFor(() => h.byText('参加者として入室する'), { msg: 'back to home by arrow' });
   h.close();
 });
