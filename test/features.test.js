@@ -723,3 +723,18 @@ test('「元に戻す」：戻せたら知らせ、二度押ししても 1 手�
   h.close();
   p.close();
 });
+
+test('大画面：得点が動いたら右の列に上位 5 人の推移グラフ', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  const b = boot({ db, url: `/?room=${code}&view=board` });
+  await waitFor(() => b.doc.querySelector('[data-board]') && b.doc.querySelector('[data-board]').textContent.includes('アリス'), {
+    msg: 'board',
+  });
+  assert.ok(!b.doc.querySelector('[data-board-graph]'), 'まだ動いていなければ出さない');
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => b.doc.querySelector('[data-board-graph] [data-graph]'), { msg: 'board graph' });
+  h.close();
+  p.close();
+  b.close();
+});

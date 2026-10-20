@@ -29,7 +29,9 @@
   --c-on-brand: 43 27 2;
   color-scheme: light;
 }
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+/* 大画面のように、いつも暗く見せたい部分も data-theme="dark" で同じ色になる */
+[data-theme='dark'] {
   --c-page: 13 19 34;
   --c-card: 24 32 51;
   --c-sunken: 17 25 43;

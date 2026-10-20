@@ -3,6 +3,7 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { inviteUrl, QrSvg } from '../components/InviteDialog.jsx';
+import { BoardGraph } from '../components/ScoreGraph.jsx';
 import { teamColor } from '../components/Teams.jsx';
 import { WinToast } from '../components/WinToast.jsx';
 import { rankPlayers, scoreText } from '../lib/ranking.js';
@@ -120,6 +121,7 @@ export const BoardView = ({ state, roomId }) => {
     <div
       className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-5 lg:p-8 flex flex-col gap-5"
       data-board
+      data-theme="dark"
     >
       <WinToast state={state} />
       <h1 className="sr-only">大画面 部屋 {roomId}</h1>
@@ -205,6 +207,7 @@ export const BoardView = ({ state, roomId }) => {
             <div className="mt-2 font-black">読み取って参加</div>
             <div className="text-sm text-slate-600">部屋コード {roomId}</div>
           </div>
+          <BoardGraph state={state} />
         </aside>
       </div>
     </div>

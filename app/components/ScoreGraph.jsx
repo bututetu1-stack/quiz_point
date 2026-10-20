@@ -49,10 +49,10 @@ const useWidth = (ref, fallback = 720) => {
   return w;
 };
 
-const Plot = ({ tl, players, width, myPlayerId }) => {
+const Plot = ({ tl, players, width, myPlayerId, height }) => {
   const W = Math.max(260, Math.round(width));
   // スマホの縦長では背を高めに（幅 350 で約 300px）、PC では 340px まで
-  const H = Math.round(Math.min(340, Math.max(220, W * 0.5 + 130)));
+  const H = height || Math.round(Math.min(340, Math.max(220, W * 0.5 + 130)));
   const pad = { t: 12, r: 12, b: 24, l: 36 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
@@ -138,17 +138,21 @@ const Plot = ({ tl, players, width, myPlayerId }) => {
   );
 };
 
-export const ScoreGraph = ({ state, myPlayerId }) => {
+// limit：上位何人まで描くか（大画面用）・plotHeight：グラフの高さ・title：見出し
+export const ScoreGraph = ({ state, myPlayerId, limit, plotHeight, title }) => {
   const box = useRef(null);
   const width = useWidth(box);
   const tl = state.timeline || [];
   // 最終時点にスコアがあるプレイヤーのみ描画
   const last = tl.length ? tl[tl.length - 1].scores || {} : {};
   // 凡例はいまの順位の順
-  const players = rankPlayers(state).filter((p) => last[p.id] !== undefined);
+  const players = rankPlayers(state)
+    .filter((p) => last[p.id] !== undefined)
+    .slice(0, limit || Infinity);
   return (
     <Card className="p-4 w-full">
       <div ref={box} className="w-full">
+        {title && <div className="text-xs font-bold text-ink-3 mb-2">{title}</div>}
         {tl.length < 2 ? (
           <div className="h-56 flex items-center justify-center text-ink-3 font-bold text-center">得点が動くとここにグラフが出ます</div>
         ) : (
@@ -164,7 +168,7 @@ export const ScoreGraph = ({ state, myPlayerId }) => {
                 </span>
               ))}
             </div>
-            <Plot tl={tl} players={players} width={width} myPlayerId={myPlayerId} />
+            <Plot tl={tl} players={players} width={width} myPlayerId={myPlayerId} height={plotHeight} />
           </>
         )}
       </div>
@@ -172,8 +176,8 @@ export const ScoreGraph = ({ state, myPlayerId }) => {
   );
 };
 
-// グラフタブを開いている間だけ得点推移を購読し、グラフ用のスナップショットに展開する
-export const GraphPanel = ({ state, myPlayerId }) => {
+// 得点推移を購読し、グラフ用のスナップショットに展開する（使っている画面が開いている間だけ）
+const useTimeline = (state) => {
   const { store, roomId } = useContext(RoomContext);
   const [events, setEvents] = useState([]);
   const [denied, setDenied] = useState(false);
@@ -192,6 +196,24 @@ export const GraphPanel = ({ state, myPlayerId }) => {
       ),
     [events, state.players, simple, state.rule],
   );
+  return { timeline, denied };
+};
+
+// グラフタブ
+export const GraphPanel = ({ state, myPlayerId }) => {
+  const { timeline, denied } = useTimeline(state);
   if (denied) return <Unavailable what="グラフ（得点の推移）" />;
   return <ScoreGraph state={{ ...state, timeline }} myPlayerId={myPlayerId} />;
+};
+
+// 大画面の右の列：上位 5 人の推移を小さく（読めない・まだ動いていないときは出さない）
+export const BoardGraph = ({ state }) => {
+  const { timeline, denied } = useTimeline(state);
+  if (denied || timeline.length < 2) return null;
+  return (
+    // 画面の高さが足りないとき（プロジェクタの 1024×768 など）は、途中で切れるので出さない
+    <div className="hidden [@media(min-height:850px)]:block" data-board-graph>
+      <ScoreGraph state={{ ...state, timeline }} limit={5} plotHeight={180} title="得点の推移（上位 5 人）" />
+    </div>
+  );
 };
