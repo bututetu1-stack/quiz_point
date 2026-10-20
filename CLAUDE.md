@@ -16,7 +16,7 @@ npm run audit                      # UI の自動チェック（はみ出し・�
 ## 守ること
 
 - **ソースは `app/`。`docs/index.html` はビルド成果物**。手で編集しない。変更したら必ず `npm run build` して `docs/index.html` も一緒にコミットする（Pages はこれを配信する）。
-- 変更のたびに `app/version.js` の `BUILD` を上げる（v71 の次は v72）。ユーザーは Home 画面の下のこの表記で反映を確かめる。`test/ui.test.js` のバージョン確認も合わせて直す。
+- 変更のたびに `app/version.js` の `BUILD` を上げる（v72 の次は v73）。ユーザーは Home 画面の下のこの表記で反映を確かめる。`test/ui.test.js` のバージョン確認も合わせて直す。
 - 外部 CDN を読み込まない（過去に CDN が落ちて表示が壊れた）。ライブラリは npm で入れてバンドルする。
 - Tailwind のクラス名は**文字列の形で書く**（`bg-${color}` のように組み立てると CSS に含まれない）。
 - **色は意味の名前のクラスだけを使う**（`bg-card`・`text-ink`・`text-ink-2/3`・`border-line`・`bg-brand`・`text-on-brand`・`bg-ok`・`bg-ng`・`bg-info` と `*-soft`・`*-ink`。定義は `tailwind.config.cjs`、値は `app/styles.css` の CSS 変数）。`slate-500` のような生の色や `dark:` は使わない（大画面モードだけは常に暗いので例外）。明るい／暗いは `<html data-theme>` で変数が切り替わる。

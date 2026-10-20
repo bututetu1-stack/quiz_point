@@ -634,3 +634,21 @@ test('通信が遅いときは押したボタンに「送信中…」（届い�
   h.close();
   p.close();
 });
+
+test('ホストは自分の行のメニューから自分を削除できない（ほかの人はできる）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  const hostId = Object.values(room(db).players).find((x) => x.name === '司会').id;
+  h.click(h.doc.querySelector(`[data-player-id="${hostId}"]`));
+  await waitFor(() => h.doc.querySelector('[data-sheet]'), { msg: 'self menu' });
+  assert.ok(h.byText('名前を変える', h.doc.querySelector('[data-sheet]')));
+  assert.ok(!h.byText('削除する', h.doc.querySelector('[data-sheet]')), '自分は削除できない');
+  h.doc.dispatchEvent(new h.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await waitFor(() => !h.doc.querySelector('[data-sheet]'));
+  const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  h.click(h.doc.querySelector(`[data-player-id="${aliceId}"]`));
+  await waitFor(() => h.doc.querySelector('[data-sheet]'));
+  assert.ok(h.byText('削除する', h.doc.querySelector('[data-sheet]')));
+  h.close();
+  p.close();
+});
