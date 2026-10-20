@@ -268,3 +268,13 @@ test('いまのルールを具体的な文で', () => {
   assert.ok(ruleSummary({ type: 'divide', init: 10, pt: 10, mode: 'fixed', div: 3, win: 100 }).includes('毎回 ÷3'));
   assert.ok(ruleSummary({ type: 'by' }).includes('100点で勝ち抜け'));
 });
+
+test('休み：ホストが誤答した問題より前に戻しても、休みの数は増えない', () => {
+  const rule = { type: 'nomx', win: 0, lose: 0, rest: 2 };
+  const a = applyAnswer(rule, fresh(), 'wrong', { q: 5 }).player; // Q5 で誤答 → Q6・Q7 は休み
+  assert.deepEqual(playerState(a, 5), { kind: 'rest', restLeft: 2, upcoming: true });
+  assert.deepEqual(playerState(a, 4), { kind: 'rest', restLeft: 2, upcoming: true }, 'Q4 に戻しても「次の2問」');
+  assert.deepEqual(playerState(a, 6), { kind: 'rest', restLeft: 2 });
+  assert.deepEqual(playerState(a, 7), { kind: 'rest', restLeft: 1 });
+  assert.deepEqual(playerState(a, 8), { kind: 'play' });
+});
