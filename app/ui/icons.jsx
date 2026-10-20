@@ -277,6 +277,13 @@ export const Maximize = (p) => (
     <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
   </Svg>
 );
+export const ExternalLink = (p) => (
+  <Svg {...p}>
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </Svg>
+);
 export const Moon = (p) => (
   <Svg {...p}>
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
