@@ -84,7 +84,7 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
         </div>
       </Section>
       <Section icon={<Users size={18} />} title="チーム">
-        <p className="text-xs text-ink-3 mb-3">所属は各自が自分のパネルで選びます。ここでは作成・改名・削除・「外す」ができます。</p>
+        <p className="text-xs text-ink-3 mb-3">所属は各自が選びます（ホストはランキングの行を押して変えることもできます）。ここでは作成・改名・削除・「外す」ができます。</p>
         <div className="flex gap-2 mb-3">
           <input
             value={newTeam}
