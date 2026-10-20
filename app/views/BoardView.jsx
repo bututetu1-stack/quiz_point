@@ -32,7 +32,34 @@ export const BoardView = ({ state, roomId }) => {
   const rule = isRuleMode(state.rule);
   const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
   const q = state.q || 1;
-  const many = sorted.length > 8;
+  // 人数に合わせて 3 段階に詰める（プロジェクタでスクロールしなくても全員が入るように）
+  const size = sorted.length > 18 ? 'dense' : sorted.length > 8 ? 'many' : 'few';
+  const S = {
+    few: {
+      grid: 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]',
+      row: 'px-4 py-3',
+      rank: 'w-14 h-14 text-3xl',
+      name: 'text-3xl',
+      sub: 'text-base',
+      score: 'text-5xl',
+    },
+    many: {
+      grid: 'grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]',
+      row: 'px-3 py-2',
+      rank: 'w-11 h-11 text-2xl',
+      name: 'text-2xl',
+      sub: 'text-base',
+      score: 'text-4xl',
+    },
+    dense: {
+      grid: 'grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))]',
+      row: 'px-3 py-1.5',
+      rank: 'w-9 h-9 text-xl',
+      name: 'text-xl',
+      sub: 'text-sm',
+      score: 'text-3xl',
+    },
+  }[size];
   const listRef = useRef(null);
   useFlip(listRef);
   const ups = useRankUps(sorted.map((p) => p.id));
@@ -48,10 +75,7 @@ export const BoardView = ({ state, roomId }) => {
         <div className="ml-auto text-6xl lg:text-7xl font-black tracking-tight tabular-nums">Q{q}</div>
       </header>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
-        <ol
-          ref={listRef}
-          className={`grid gap-2.5 ${many ? 'grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]'}`}
-        >
+        <ol ref={listRef} className={`grid ${size === 'dense' ? 'gap-2' : 'gap-2.5'} ${S.grid}`}>
           {sorted.map((p, i) => {
             const st = playerState(p, q);
             const scored = st.kind === 'win' || parseScoreToNumber(p.score) > 0 || (p.maru || 0) > 0;
@@ -61,20 +85,18 @@ export const BoardView = ({ state, roomId }) => {
               <li
                 key={p.id}
                 data-flip-id={p.id}
-                className={`flex items-center gap-3 rounded-2xl ${many ? 'px-3 py-2' : 'px-4 py-3'} ${
+                className={`flex items-center gap-3 rounded-2xl ${S.row} ${
                   st.kind === 'win' ? 'bg-emerald-500/20 ring-2 ring-emerald-400' : st.kind === 'lose' ? 'bg-white/5' : 'bg-white/10'
                 }`}
               >
                 <span
-                  className={`${many ? 'w-11 h-11 text-2xl' : 'w-14 h-14 text-3xl'} shrink-0 rounded-xl flex items-center justify-center font-black relative tabular-nums ${medal ? MEDAL[i] : 'bg-white/15'}`}
+                  className={`${S.rank} shrink-0 rounded-xl flex items-center justify-center font-black relative tabular-nums ${medal ? MEDAL[i] : 'bg-white/15'}`}
                 >
                   {i === 0 && medal && <Crown className="absolute -top-4 -left-3 w-8 h-8 text-amber-300 -rotate-12" fill="currentColor" />}
                   {i + 1}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span
-                    className={`flex items-center gap-2 ${many ? 'text-2xl' : 'text-3xl'} font-black min-w-0 ${st.kind === 'lose' ? 'text-white/60' : ''}`}
-                  >
+                  <span className={`flex items-center gap-2 ${S.name} font-black min-w-0 ${st.kind === 'lose' ? 'text-white/60' : ''}`}>
                     {color && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />}
                     <span className="truncate">{p.name}</span>
                     {ups[p.id] && (
@@ -84,7 +106,7 @@ export const BoardView = ({ state, roomId }) => {
                     )}
                   </span>
                   {rule && (
-                    <span className="flex items-center gap-2 text-base font-bold text-white/80 mt-0.5">
+                    <span className={`flex items-center gap-2 ${S.sub} font-bold text-white/80 mt-0.5`}>
                       <span className="tabular-nums">
                         〇{p.maru || 0} ✕{p.batsu || 0}
                       </span>
@@ -92,7 +114,7 @@ export const BoardView = ({ state, roomId }) => {
                     </span>
                   )}
                 </span>
-                <span className={`${many ? 'text-4xl' : 'text-5xl'} font-black tabular-nums ${st.kind === 'lose' ? 'text-white/60' : ''}`}>
+                <span className={`${S.score} font-black tabular-nums ${st.kind === 'lose' ? 'text-white/60' : ''}`}>
                   {scoreText(state, p)}
                 </span>
               </li>

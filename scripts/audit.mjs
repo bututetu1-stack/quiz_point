@@ -42,26 +42,28 @@ const NAMES = [
   'ヘンリー',
   'アイビー',
 ];
-const scenario = (free, phase, alone) => {
+const scenario = (free, phase, alone, crowd) => {
   const players = {};
-  (alone ? NAMES.slice(0, 1) : NAMES).forEach((name, i) => {
-    const id = i === 0 ? 'p_host' : `p_${i}`;
-    const maru = (i * 7) % 8;
-    const batsu = i % 3;
-    players[id] = {
-      id,
-      name,
-      score: free ? `${(i * 13) % 40}/${i % 4 === 3 ? 2 : 1}` : `${maru}/1`,
-      maru,
-      batsu,
-      teamId: i % 3 === 0 ? 't_red' : i % 3 === 1 ? 't_blue' : null,
-      rec: { o: maru + 3, x: batsu + 1, win: i % 5 === 1 ? 1 : 0, lose: i % 7 === 3 ? 1 : 0 },
-      ...(i === 0 ? { restUntilQ: 14 } : {}),
-      ...(i === 1 && !free ? { status: 'win', winSeq: 1, score: '7/1', maru: 7 } : {}),
-      ...(i === 3 && !free ? { status: 'lose', loseSeq: 2, batsu: 3 } : {}),
-      ...(i === 11 ? { spectator: true } : {}),
-    };
-  });
+  (alone ? NAMES.slice(0, 1) : crowd ? [...NAMES, ...Array.from({ length: 18 }, (_, k) => `参加者${k + 13}`)] : NAMES).forEach(
+    (name, i) => {
+      const id = i === 0 ? 'p_host' : `p_${i}`;
+      const maru = (i * 7) % 8;
+      const batsu = i % 3;
+      players[id] = {
+        id,
+        name,
+        score: free ? `${(i * 13) % 40}/${i % 4 === 3 ? 2 : 1}` : `${maru}/1`,
+        maru,
+        batsu,
+        teamId: i % 3 === 0 ? 't_red' : i % 3 === 1 ? 't_blue' : null,
+        rec: { o: maru + 3, x: batsu + 1, win: i % 5 === 1 ? 1 : 0, lose: i % 7 === 3 ? 1 : 0 },
+        ...(i === 0 ? { restUntilQ: 14 } : {}),
+        ...(i === 1 && !free ? { status: 'win', winSeq: 1, score: '7/1', maru: 7 } : {}),
+        ...(i === 3 && !free ? { status: 'lose', loseSeq: 2, batsu: 3 } : {}),
+        ...(i === 11 ? { spectator: true } : {}),
+      };
+    },
+  );
   return {
     rooms: {
       '0427': {
@@ -118,6 +120,8 @@ const VIEWS = {
   board: { url: '?room=0427&view=board', board: true },
   result: { url: '?room=0427', storage: alice, phase: true },
   boardResult: { url: '?room=0427&view=board', board: true, phase: true },
+  crowd: { url: '?room=0427', storage: alice, crowd: true },
+  crowdBoard: { url: '?room=0427&view=board', board: true, crowd: true },
   ruleEditor: {
     url: '?room=0427',
     storage: host,
@@ -290,7 +294,7 @@ for (const [view, opt] of Object.entries(VIEWS)) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
       await page.addInitScript(
-        `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase, !!opt.alone))});\n` +
+        `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase, !!opt.alone, !!opt.crowd))});\n` +
           Object.entries(opt.storage || {})
             .map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`)
             .join('\n') +
