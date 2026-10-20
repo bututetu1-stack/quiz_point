@@ -119,7 +119,7 @@ test('フリーズ：k 回目の誤答で k 問休み、10〇で勝ち抜け', (
   assert.equal(b.restUntilQ, 6); // 2回目 → 2問休み（Q4・Q5）
   assert.equal(b.status, undefined, '脱落は 0 でなし');
   assert.equal(run(rule, 'oooooooooo').p.status, 'win');
-  assert.equal(progressHint(rule, b), 'あと10〇・次の✕は3休');
+  assert.equal(progressHint(rule, b), '〇あと10・次の✕は3休');
 });
 
 test('アップダウン：誤答で0点、2✕で脱落、10点で勝ち抜け（0 なら勝ち抜けなし）', () => {
@@ -161,7 +161,7 @@ test('スウェーディッシュ：✕＝ceil((√(8c+9)−1)/2)（0→1, 1〜2
   assert.equal(run(rule, 'oooooooxxx').p.status, 'lose'); // 12 ≥ 10
   assert.equal(run(rule, 'oooooooooo').p.status, 'win');
   assert.equal(run({ type: 'swedish', n: 20 }, 'oooooooooox').p.batsu, 5, '10問正解後の誤答は 5✕');
-  assert.equal(progressHint(rule, { maru: 3, batsu: 2 }), 'あと7〇・✕あと8・次の✕+3');
+  assert.equal(progressHint(rule, { maru: 3, batsu: 2 }), '〇あと7・✕あと8・次の✕+3');
 });
 
 test('ディバイド（Tokuten）：初期10・正解+10・n 回目の誤答で ÷n（切り捨て）', () => {
@@ -233,7 +233,7 @@ test('並び順：勝ち抜け（抜けた順）→ 競技中（得点・〇・�
 });
 
 test('あと何問の表示', () => {
-  assert.equal(progressHint({ type: 'nomx', win: 7, lose: 3 }, { maru: 5, batsu: 1 }), 'あと2〇・✕あと2');
+  assert.equal(progressHint({ type: 'nomx', win: 7, lose: 3 }, { maru: 5, batsu: 1 }), '〇あと2・✕あと2');
   assert.equal(progressHint({ type: 'by', n: 10 }, { maru: 5, batsu: 1, score: '45/1' }), 'あと55点・✕あと9');
   assert.equal(progressHint({ type: 'divide' }, { batsu: 1, score: '20/1' }), 'あと80点・次の✕は÷2');
 });
