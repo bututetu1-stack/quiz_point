@@ -3,9 +3,9 @@
 //   s = 得点（有理数文字列）, m = 〇数, b = ✕数（省略されたものは変化なし）
 // グラフ用に「各時点の全員の値」のスナップショット列へ展開する。
 
-const ZERO = () => ({ s: '0/1', m: 0, b: 0 });
-
-export const eventsToSnapshots = (events, players, scoreMode) => {
+// initial：記録がまだ無い人の得点（ルールの初期点。ディバイドなら 10。途中参加の人のグラフが 0 から始まらないように）
+export const eventsToSnapshots = (events, players, scoreMode, initial = '0/1') => {
+  const ZERO = () => ({ s: initial, m: 0, b: 0 });
   const st = {};
   (players || []).forEach((p) => {
     st[p.id] = ZERO();

@@ -3,6 +3,7 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { RoomContext } from '../context.js';
 import { rankPlayers } from '../lib/ranking.js';
+import { initialScore, isRuleMode } from '../lib/rules.js';
 import { parseScoreToNumber } from '../lib/score.js';
 import { eventsToSnapshots, groupByQuestion } from '../lib/timeline.js';
 import { Card, Unavailable } from '../ui/primitives.jsx';
@@ -185,8 +186,11 @@ export const GraphPanel = ({ state, myPlayerId }) => {
   }, [store, roomId]);
   const simple = state.scoreMode === 'simple' && (!state.rule || state.rule.type === 'free');
   const timeline = useMemo(
-    () => groupByQuestion(eventsToSnapshots(events, state.players, simple ? 'simple' : 'addsub')),
-    [events, state.players, simple],
+    () =>
+      groupByQuestion(
+        eventsToSnapshots(events, state.players, simple ? 'simple' : 'addsub', isRuleMode(state.rule) ? initialScore(state.rule) : '0/1'),
+      ),
+    [events, state.players, simple, state.rule],
   );
   if (denied) return <Unavailable what="グラフ（得点の推移）" />;
   return <ScoreGraph state={{ ...state, timeline }} myPlayerId={myPlayerId} />;
