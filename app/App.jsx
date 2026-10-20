@@ -258,6 +258,7 @@ export const App = ({ store }) => {
           <ResultOverlay
             state={state}
             isHost={isHost}
+            myPlayerId={myPlayerId}
             onClose={() => (isHost ? executeOp('setPhase', { phase: null }) : setResultClosed(true))}
           />
         )}

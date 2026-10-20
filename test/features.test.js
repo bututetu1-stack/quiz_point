@@ -432,3 +432,21 @@ test('v41：データベースの設定が足りないと、ホストの管理�
   assert.ok(!h2.doc.querySelector('[data-access-warning]'));
   h2.close();
 });
+
+test('v43：結果発表では自分の順位を大きく出し、チームがあればチームの結果も出す', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  h.type(h.doc.querySelector('input[placeholder="新チーム名"]'), '赤組');
+  h.click(h.doc.querySelector('input[placeholder="新チーム名"]').parentElement.querySelector('button'));
+  await waitFor(() => Object.keys(room(db).teams || {}).length === 1, { msg: 'team' });
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => Object.values(room(db).players).find((x) => x.name === 'アリス').maru === 1);
+  h.click(h.byText('結果発表（全員の画面に表示）'));
+  await waitFor(() => p.doc.querySelector('[data-result] [data-my-result]'), { msg: 'my result' });
+  assert.ok(p.doc.querySelector('[data-my-result]').textContent.includes('1'));
+  assert.ok(p.doc.querySelector('[data-result] [data-team-result]').textContent.includes('赤組'));
+  await waitFor(() => h.doc.querySelector('[data-result] [data-my-result]'));
+  assert.ok(h.doc.querySelector('[data-my-result]').textContent.includes('2'));
+  h.close();
+  p.close();
+});
