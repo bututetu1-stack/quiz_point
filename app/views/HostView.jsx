@@ -60,7 +60,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
             {tab === 'log' && <LogPanel />}
             {tab === 'record' && <RecordPanel state={state} myPlayerId={myPlayerId} />}
           </div>
-          <aside className="w-80 shrink-0 hidden lg:block sticky top-[4.5rem] max-h-[calc(100vh_-_5.5rem_-_var(--selfbar-h,0px))] overflow-y-auto">
+          <aside className="w-80 shrink-0 hidden lg:block sticky top-[4.5rem] max-h-[calc(100vh_-_5.5rem)] overflow-y-auto">
             <SettingsPanel state={state} roomId={roomId} onOp={onOp} />
           </aside>
         </div>
