@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v61'));
+  assert.ok(h.text().includes('v62'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -214,5 +214,28 @@ test('コピーできない環境では、画面の中に全文を選べる形�
   assert.equal(prompted, false);
   h.click(h.doc.querySelector('[data-ask-ok]'));
   await waitFor(() => !h.doc.querySelector('[data-ask-copy]'), { msg: 'closed' });
+  h.close();
+});
+
+test('部屋にいる間は画面を消さない（Wake Lock）。退出すると外す', async () => {
+  const db = createMemoryAdapter();
+  const h = boot({ db });
+  const calls = [];
+  const sentinel = { released: false, release: async () => (sentinel.released = true) };
+  Object.defineProperty(h.w.navigator, 'wakeLock', {
+    configurable: true,
+    value: { request: async (type) => (calls.push(type), sentinel) },
+  });
+  await waitFor(() => h.byText('ホストとして部屋を作る'), { msg: 'home' });
+  assert.equal(calls.length, 0, 'ホームでは取らない');
+  h.click(h.byText('ホストとして部屋を作る'));
+  await waitFor(() => h.doc.querySelector('input[placeholder="司会"]'));
+  h.type(h.doc.querySelector('input[placeholder="司会"]'), '司会');
+  h.click(h.buttons().find((b) => b.textContent.trim() === '部屋を作る'));
+  await waitFor(() => calls.length === 1, { msg: 'wake lock requested in room' });
+  assert.equal(calls[0], 'screen');
+  h.click(h.doc.querySelector('button[aria-label="退出"]'));
+  await answerAsk(h);
+  await waitFor(() => sentinel.released, { msg: 'released on leave' });
   h.close();
 });
