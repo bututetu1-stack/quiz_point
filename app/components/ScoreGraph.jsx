@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { RoomContext } from '../context.js';
 import { parseScoreToNumber } from '../lib/score.js';
-import { eventsToSnapshots } from '../lib/timeline.js';
+import { eventsToSnapshots, groupByQuestion } from '../lib/timeline.js';
 import { Card } from '../ui/primitives.jsx';
 
 export const GRAPH_COLORS = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316'];
@@ -40,6 +40,7 @@ export const ScoreGraph = ({ state }) => {
   const x = (i) => pad.l + (tl.length === 1 ? iw / 2 : (i / (tl.length - 1)) * iw);
   const y = (v) => pad.t + ih - ((v - mn) / (mx - mn)) * ih;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((r) => mn + (mx - mn) * r);
+  const labelStep = Math.max(1, Math.ceil(tl.length / 10));
   return (
     <Card className="p-4 w-full">
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 px-1">
@@ -75,6 +76,13 @@ export const ScoreGraph = ({ state }) => {
             </g>
           );
         })}
+        {tl.map((tick, i) =>
+          tick.label && (i % labelStep === 0 || i === tl.length - 1) ? (
+            <text key={'x' + i} x={x(i)} y={H - 4} fontSize="12" fill="#94a3b8" textAnchor="middle">
+              {tick.label}
+            </text>
+          ) : null,
+        )}
         {players.map((p, pi) => {
           const c = GRAPH_COLORS[pi % GRAPH_COLORS.length];
           const pts = tl.map((tick, i) => [x(i), y(parseScoreToNumber(tick.scores[p.id]))]);
@@ -101,6 +109,10 @@ export const GraphPanel = ({ state }) => {
     if (!store || !roomId) return undefined;
     return store.subscribeTimeline(roomId, setEvents);
   }, [store, roomId]);
-  const timeline = useMemo(() => eventsToSnapshots(events, state.players, state.scoreMode), [events, state.players, state.scoreMode]);
+  const simple = state.scoreMode === 'simple' && (!state.rule || state.rule.type === 'free');
+  const timeline = useMemo(
+    () => groupByQuestion(eventsToSnapshots(events, state.players, simple ? 'simple' : 'addsub')),
+    [events, state.players, simple],
+  );
   return <ScoreGraph state={{ ...state, timeline }} />;
 };

@@ -11,12 +11,13 @@ export const eventsToSnapshots = (events, players, scoreMode) => {
     st[p.id] = ZERO();
   });
   const val = (x) => (scoreMode === 'simple' ? String((x.m || 0) - (x.b || 0)) : x.s);
+  let q = 0;
   const snap = (t) => {
     const scores = {};
     Object.keys(st).forEach((id) => {
       scores[id] = val(st[id]);
     });
-    return { t, scores };
+    return { t, q, scores };
   };
   const list = [...(events || [])].sort((a, b) => a.t - b.t);
   const out = [snap(list.length ? list[0].t - 1 : 0)];
@@ -29,7 +30,20 @@ export const eventsToSnapshots = (events, players, scoreMode) => {
     };
     if (e.p) apply(e.p);
     else Object.keys(st).forEach(apply);
+    if (e.q) q = e.q;
     out.push(snap(e.t));
   }
+  return out;
+};
+
+// 問題番号ごとにまとめる（各問題の終わりの時点だけ残す）。問題番号が無い記録しか無ければ時系列のまま
+export const groupByQuestion = (snaps) => {
+  if (!snaps.some((s) => s.q > 1)) return snaps;
+  const out = [{ ...snaps[0], label: '開始' }];
+  snaps.slice(1).forEach((s) => {
+    const last = out[out.length - 1];
+    if (last.q === s.q && last.label !== '開始') out[out.length - 1] = { ...s, label: `Q${s.q}` };
+    else out.push({ ...s, label: `Q${s.q}` });
+  });
   return out;
 };

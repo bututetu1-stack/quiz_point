@@ -187,3 +187,65 @@ test('timeline / roomIndex への読み書きが拒否されても、部屋作�
     console.warn = warn;
   }
 });
+
+test('ルール：新しい部屋は〇✕カウント・Q1。answer で〇✕が反映され、勝ち抜け順が付く', async () => {
+  const { db, store, roomId } = await setup();
+  const r0 = db._dump().rooms[roomId];
+  assert.equal(r0.rule.type, 'nomx');
+  assert.equal(r0.q, 1);
+  await store.op(roomId, 'setRule', { rule: { type: 'nomx', win: 2, lose: 2 } });
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  const { playerId: b } = await store.joinRoom(roomId, 'B', null);
+  await store.op(roomId, 'answer', { playerId: b, result: 'correct' });
+  await store.op(roomId, 'answer', { playerId: a, result: 'correct' });
+  await store.op(roomId, 'answer', { playerId: b, result: 'correct' });
+  await store.op(roomId, 'answer', { playerId: a, result: 'correct' });
+  assert.equal(player(db, roomId, b).status, 'win');
+  assert.equal(player(db, roomId, a).status, 'win');
+  assert.ok(player(db, roomId, b).winSeq < player(db, roomId, a).winSeq, 'B が先に勝ち抜け');
+  assert.equal((await store.op(roomId, 'answer', { playerId: a, result: 'correct' })).error, 'finished');
+  // 勝ち抜けを Undo すると競技中に戻る
+  await store.op(roomId, 'undo', { playerId: a });
+  assert.equal(player(db, roomId, a).status, undefined);
+  assert.equal(player(db, roomId, a).winSeq, undefined);
+  assert.equal(player(db, roomId, a).maru, 1);
+});
+
+test('ルール：休みは問題番号で数え、nextQ で進む。答えられないときは履歴を積まない', async () => {
+  const { db, store, roomId } = await setup();
+  await store.op(roomId, 'setRule', { rule: { type: 'nomx', win: 0, lose: 0, rest: 1 } });
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  await store.op(roomId, 'answer', { playerId: a, result: 'wrong' }); // Q1 で誤答 → Q2 は休み
+  await store.op(roomId, 'nextQ', {});
+  assert.equal(db._dump().rooms[roomId].q, 2);
+  assert.equal((await store.op(roomId, 'answer', { playerId: a, result: 'correct' })).error, 'resting');
+  assert.equal(Object.keys(db._dump().history[roomId][a]).length, 1, '休み中の操作は履歴に残らない');
+  await store.op(roomId, 'nextQ', {});
+  assert.deepEqual(await store.op(roomId, 'answer', { playerId: a, result: 'correct' }), { ok: true });
+  await store.op(roomId, 'nextQ', { delta: -1 });
+  await store.op(roomId, 'nextQ', { delta: -1 });
+  await store.op(roomId, 'nextQ', { delta: -1 });
+  assert.equal(db._dump().rooms[roomId].q, 1, '1 未満にはならない');
+});
+
+test('ルール変更は全員の得点・状態・問題番号・Undo 履歴をリセットする', async () => {
+  const { db, store, roomId } = await setup();
+  await store.op(roomId, 'setRule', { rule: { type: 'updown', win: 1, lose: 2 } });
+  const { playerId: a } = await store.joinRoom(roomId, 'A', null);
+  await store.op(roomId, 'answer', { playerId: a, result: 'correct' });
+  await store.op(roomId, 'nextQ', {});
+  assert.equal(player(db, roomId, a).status, 'win');
+  await store.op(roomId, 'setRule', { rule: { type: 'by', n: 5 } });
+  const p = player(db, roomId, a);
+  assert.equal(p.status, undefined);
+  assert.equal(p.score, '0/1');
+  assert.equal(db._dump().rooms[roomId].q, 1);
+  assert.equal(db._dump().rooms[roomId].rule.type, 'by');
+  assert.equal((await store.op(roomId, 'undo', { playerId: a })).error, 'nothing_to_undo');
+  // 全員リセットも状態と問題番号を戻す
+  await store.op(roomId, 'answer', { playerId: a, result: 'wrong' });
+  await store.op(roomId, 'nextQ', {});
+  await store.op(roomId, 'resetAll');
+  assert.equal(player(db, roomId, a).batsu, 0);
+  assert.equal(db._dump().rooms[roomId].q, 1);
+});

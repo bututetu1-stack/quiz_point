@@ -1,91 +1,53 @@
 // ホストの管理パネル（ゲーム設定・一括操作・チーム）
 
 import { useState } from 'react';
+import { isRuleMode } from '../lib/rules.js';
 import { getTeamDisplayScore } from '../lib/score.js';
-import { Calculator, Edit2, Plus, RefreshCw, Settings, Trash2, Users, X, Zap } from '../ui/icons.jsx';
-import { Button, Card, Seg } from '../ui/primitives.jsx';
+import { ProgressCard, RuleCard } from './RuleSettings.jsx';
+import { Calculator, Edit2, Plus, RefreshCw, Trash2, Users, X } from '../ui/icons.jsx';
+import { Button, Card } from '../ui/primitives.jsx';
 
 export const SettingsPanel = ({ state, onOp, onClose }) => {
   const [newTeam, setNewTeam] = useState('');
-  const simple = state.scoreMode === 'simple';
+  const rule = isRuleMode(state.rule);
   const unassigned = state.players.filter((p) => !p.teamId);
   return (
     <div className="flex flex-col gap-4">
       {onClose && (
         <div className="flex justify-between items-center md:hidden">
-          <h3 className="font-black text-slate-700">設定・チーム</h3>
+          <h3 className="font-black text-slate-700">ホストの管理</h3>
           <button onClick={onClose} className="p-2 text-slate-400">
             <X />
           </button>
         </div>
       )}
-      <Card className="p-5 flex flex-col gap-4">
-        <h3 className="font-black text-slate-700 flex items-center gap-2">
-          <Settings size={18} />
-          {' ゲーム設定'}
-        </h3>
-        <div>
-          <label className="text-xs font-bold text-slate-400 block mb-1">得点モード</label>
-          <Seg
-            value={state.scoreMode || 'addsub'}
-            onChange={(k) =>
-              onOp('setScoreMode', {
-                mode: k,
-              })
-            }
-            options={[
-              ['addsub', '＋/− 数値'],
-              ['simple', '〇/✖ Simple', 'text-emerald-600'],
-            ]}
-          />
-        </div>
-        {!simple && (
-          <div>
-            <label className="text-xs font-bold text-slate-400 block mb-1">チーム得点計算</label>
-            <Seg
-              value={state.teamMode || 'product'}
-              onChange={(k) =>
-                onOp('setTeamMode', {
-                  mode: k,
-                })
-              }
-              options={[
-                ['sum', '和 (＋)', 'text-blue-600'],
-                ['product', '積 (×)', 'text-rose-600'],
-              ]}
-            />
-          </div>
-        )}
-        <p className="text-xs text-slate-400">全プレイヤーが各自の得点を操作します（ホストも1参加者）。</p>
-      </Card>
+      <RuleCard state={state} onOp={onOp} />
+      <ProgressCard state={state} onOp={onOp} />
       <Card className="p-5">
-        <h3 className="font-black text-slate-700 mb-4 flex items-center gap-2">
-          <Zap size={18} />
-          {' 一括操作'}
+        <h3 className="font-black text-slate-700 mb-1 flex items-center gap-2">
+          <RefreshCw size={18} /> 一括操作
         </h3>
+        <p className="text-xs text-slate-400 mb-3">全プレイヤーが各自の得点を操作します（ホストも1参加者）。</p>
         <div className="grid grid-cols-2 gap-2">
+          {!rule && (
+            <Button
+              variant="ghost"
+              className="bg-slate-50 py-3 text-sm text-slate-600"
+              onClick={() => {
+                if (window.confirm('全員を1にしますか？')) onOp('setAll', { valueStr: '1' });
+              }}
+            >
+              <Calculator size={16} /> 全員 1
+            </Button>
+          )}
           <Button
             variant="ghost"
-            className="bg-slate-50 py-3 text-sm text-slate-600"
+            className={`bg-rose-50 text-rose-600 py-3 text-sm ${rule ? 'col-span-2' : ''}`}
             onClick={() => {
-              if (window.confirm('全員を1にしますか？'))
-                onOp('setAll', {
-                  valueStr: '1',
-                });
+              if (window.confirm(rule ? '全員の得点・状態をリセットして Q1 に戻しますか？' : '全員を0にリセットしますか？')) onOp('resetAll');
             }}
           >
-            <Calculator size={16} />
-            {' 全員 1'}
-          </Button>
-          <Button
-            variant="ghost"
-            className="bg-rose-50 text-rose-600 py-3 text-sm"
-            onClick={() => {
-              if (window.confirm('全員を0にリセットしますか？')) onOp('resetAll');
-            }}
-          >
-            <RefreshCw size={16} />
-            {' 全員 0 リセット'}
+            <RefreshCw size={16} /> 全員 0 リセット
           </Button>
         </div>
       </Card>

@@ -17,13 +17,23 @@
 
 import { applyOp, parseValue } from '../lib/rational.js';
 import { genId, genRoomCode, genToken } from '../lib/ids.js';
+import { applyAnswer, DEFAULT_RULE, freshRuleFields, normalizeRule } from '../lib/rules.js';
 
 export const ROOM_TTL = 24 * 60 * 60 * 1000; // 24h 経過した部屋は掃除対象
 
 const OK = { ok: true };
 const err = (error) => ({ ok: false, error });
 const cleanName = (name) => (name || '').trim().slice(0, 30);
-const snapOf = (p) => ({ score: p.score || '0/1', maru: p.maru || 0, batsu: p.batsu || 0 });
+// Undo 用に残す「得点まわり」の値（ルール系の状態も含む）
+const snapOf = (p) => ({
+  score: p.score || '0/1',
+  maru: p.maru || 0,
+  batsu: p.batsu || 0,
+  status: p.status || null,
+  winSeq: p.winSeq ?? null,
+  restUntilQ: p.restUntilQ ?? null,
+  streak: p.streak || 0,
+});
 // 得点推移・部屋索引などの付随データは、書けなくても本体の操作を止めない
 const soft = (promise, fallback = null) =>
   Promise.resolve(promise).catch((e) => {
@@ -40,6 +50,8 @@ export const roomState = (roomId, v) => {
     teams: Object.values(v.teams || {}),
     teamMode: v.teamMode || 'product',
     scoreMode: v.scoreMode || 'addsub',
+    rule: normalizeRule(v.rule),
+    q: v.q || 1,
   };
 };
 
@@ -68,15 +80,35 @@ export const createStore = (db) => {
     return { ok: true, prior, player: res.value };
   };
 
+  const eventOf = (pid, p, q) => ({ p: pid, s: p.score || '0/1', m: p.maru || 0, b: p.batsu || 0, ...(q ? { q } : {}) });
+
   // 得点が変わる1人分の操作：変更前を履歴へ、変更後を推移へ
   const scoreOp = async (room, pid, mutate) => {
     const res = await updatePlayer(room, pid, mutate);
     if (!res.ok) return res;
-    const p = res.player;
-    await Promise.all([
-      db.push(H(room, pid), res.prior),
-      pushTimeline(room, { p: pid, s: p.score || '0/1', m: p.maru || 0, b: p.batsu || 0 }),
-    ]);
+    const q = await soft(db.get(`${R(room)}/q`));
+    await Promise.all([db.push(H(room, pid), res.prior), pushTimeline(room, eventOf(pid, res.player, q || 1))]);
+    return res;
+  };
+
+  // 〇✕：部屋のルールで次の状態を計算。答えられない状態（勝ち抜け済み・休み中など）なら何も記録しない。
+  // 勝ち抜けたら通し番号（勝ち抜け順）を振る
+  const answer = async (room, pid, result) => {
+    const [rule, q] = await Promise.all([db.get(`${R(room)}/rule`), db.get(`${R(room)}/q`)]);
+    const qq = q || 1;
+    let error = null;
+    const res = await updatePlayer(room, pid, (p) => {
+      const a = applyAnswer(rule, p, result, { q: qq });
+      error = a.ok ? null : a.error;
+      return a.ok ? a.player : p;
+    });
+    if (!res.ok) return res;
+    if (error) return err(error);
+    await Promise.all([db.push(H(room, pid), res.prior), pushTimeline(room, eventOf(pid, res.player, qq))]);
+    if (res.player.status === 'win' && res.player.winSeq == null) {
+      const seq = await db.transaction(`${R(room)}/seq`, (n) => (n || 0) + 1);
+      await updatePlayer(room, pid, (p) => (p.status === 'win' && p.winSeq == null ? { ...p, winSeq: seq.value } : p));
+    }
     return OK;
   };
 
@@ -105,15 +137,15 @@ export const createStore = (db) => {
     if (!keys.length) return err('nothing_to_undo');
     const key = keys[keys.length - 1];
     const snap = h[key] || {};
-    const res = await updatePlayer(room, pid, (p) => {
-      p.score = snap.score != null ? snap.score : '0/1';
-      p.maru = snap.maru || 0;
-      p.batsu = snap.batsu || 0;
-      return p;
-    });
+    const res = await updatePlayer(room, pid, (p) => ({
+      ...p,
+      ...freshRuleFields(),
+      ...snap,
+      score: snap.score != null ? snap.score : '0/1',
+    }));
     if (!res.ok) return res;
-    const p = res.player;
-    await Promise.all([db.remove(`${H(room, pid)}/${key}`), pushTimeline(room, { p: pid, s: p.score, m: p.maru || 0, b: p.batsu || 0 })]);
+    const q = await soft(db.get(`${R(room)}/q`));
+    await Promise.all([db.remove(`${H(room, pid)}/${key}`), pushTimeline(room, eventOf(pid, res.player, q || 1))]);
     return OK;
   };
 
@@ -141,7 +173,7 @@ export const createStore = (db) => {
         if (used.has(code)) continue;
         const res = await db.transaction(R(code), (cur) => {
           if (cur && t - (cur.createdAt || 0) <= ROOM_TTL) return undefined; // 使用中
-          return { hostToken, createdAt: t, scoreMode: 'addsub', teamMode: 'product' };
+          return { hostToken, createdAt: t, scoreMode: 'addsub', teamMode: 'product', rule: DEFAULT_RULE, q: 1 };
         });
         if (res.committed) {
           await Promise.all([soft(db.set(`roomIndex/${code}`, t)), soft(db.remove(`history/${code}`)), soft(db.remove(T(code)))]);
@@ -183,20 +215,25 @@ export const createStore = (db) => {
       try {
         const pid = payload.playerId;
         switch (type) {
+          case 'answer':
+            return await answer(room, pid, payload.result === 'correct' ? 'correct' : 'wrong');
           case 'maru':
-          case 'batsu':
-            return await scoreOp(room, pid, (p) => {
+          case 'batsu': {
+            const res = await scoreOp(room, pid, (p) => {
               p[type] = (p[type] || 0) + 1;
               return p;
             });
+            return res.ok ? OK : res;
+          }
           case 'score':
           case 'setScore': {
             const val = parseValue(payload.valueStr);
             if (val === null) return err('invalid_value');
-            return await scoreOp(room, pid, (p) => {
+            const res = await scoreOp(room, pid, (p) => {
               p.score = type === 'score' ? applyOp(p.score || '0/1', payload.operator, val) : val;
               return p;
             });
+            return res.ok ? OK : res;
           }
           case 'setAll': {
             const val = parseValue(payload.valueStr);
@@ -210,17 +247,33 @@ export const createStore = (db) => {
               { s: val },
             );
           }
-          case 'resetAll':
-            return await bulkOp(
-              room,
-              (p) => {
-                p.score = '0/1';
-                p.maru = 0;
-                p.batsu = 0;
-                return p;
-              },
-              { s: '0/1', m: 0, b: 0 },
-            );
+          case 'resetAll': {
+            const res = await bulkOp(room, (p) => ({ ...p, ...freshRuleFields(), score: '0/1', maru: 0, batsu: 0 }), { s: '0/1', m: 0, b: 0, q: 1 });
+            if (res.ok) await Promise.all([db.set(`${R(room)}/q`, 1), db.remove(`${R(room)}/seq`)]);
+            return res;
+          }
+          // ルール変更：全員の得点・状態と問題番号をリセットし、別ルールの Undo 履歴は消す
+          case 'setRule': {
+            const rule = normalizeRule(payload.rule);
+            await db.set(`${R(room)}/rule`, rule);
+            await db.transaction(`${R(room)}/players`, (cur) => {
+              if (!cur) return null;
+              const next = {};
+              Object.entries(cur).forEach(([id, p]) => {
+                next[id] = { ...p, ...freshRuleFields(), score: '0/1', maru: 0, batsu: 0 };
+              });
+              return next;
+            });
+            await Promise.all([db.set(`${R(room)}/q`, 1), db.remove(`${R(room)}/seq`), db.remove(`history/${room}`)]);
+            await pushTimeline(room, { s: '0/1', m: 0, b: 0, q: 1 });
+            return OK;
+          }
+          // 問題番号を進める / 戻す（1 未満にはしない）
+          case 'nextQ': {
+            const d = payload.delta === -1 ? -1 : 1;
+            await db.transaction(`${R(room)}/q`, (q) => Math.max(1, (q || 1) + d));
+            return OK;
+          }
           case 'undo':
             return await undo(room, pid);
           case 'removePlayer':
