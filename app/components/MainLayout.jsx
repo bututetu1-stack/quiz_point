@@ -18,7 +18,7 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
   return (
     <div className="min-h-screen bg-page flex flex-col">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur border-b border-line">
-        <div className="max-w-5xl mx-auto px-2 sm:px-4 h-14 flex items-center gap-1.5 sm:gap-3">
+        <div className="max-w-5xl mx-auto px-2 sm:px-4 h-14 short:h-11 flex items-center gap-1.5 sm:gap-3">
           <button
             onClick={() => setInvite(true)}
             className="shrink-0 flex items-center gap-1.5 bg-brand-soft text-brand-ink pl-2.5 pr-3 py-1.5 rounded-full font-black tabular-nums tracking-wide hover:brightness-95 transition"
@@ -62,7 +62,7 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 short:py-2 flex flex-col gap-3 short:gap-2">
         <h1 className="sr-only">
           部屋 {roomId}
           {state ? `（${ruleLabel(state.rule)}・Q${state.q || 1}）` : ''}

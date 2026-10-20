@@ -21,15 +21,17 @@ export const TeamBoard = ({ state }) => {
         return (
           <div
             key={team.id}
-            className="shrink-0 min-w-[7.5rem] flex-1 bg-card border border-line rounded-2xl pl-2 pr-3 py-1.5 flex items-stretch gap-2.5 shadow-sm"
+            className="shrink-0 min-w-[7.5rem] flex-1 bg-card border border-line rounded-2xl pl-2 pr-3 py-1.5 short:py-1 flex items-stretch gap-2.5 shadow-sm"
           >
             <span className="w-1.5 rounded-full shrink-0" style={{ background: teamColor(state, team.id) }} />
-            <span className="min-w-0">
+            <span className="min-w-0 short:flex short:items-center short:gap-2">
               <span className="flex items-center gap-1 text-xs font-bold text-ink-2 truncate">
                 {lead && <Crown size={13} className="text-medal-1 shrink-0" fill="currentColor" />}
                 <span className="truncate">{team.name}</span>
               </span>
-              <span className="block text-xl font-black tabular-nums text-ink leading-tight">{getTeamDisplayScore(team.id, state)}</span>
+              <span className="block text-xl short:text-lg font-black tabular-nums text-ink leading-tight">
+                {getTeamDisplayScore(team.id, state)}
+              </span>
             </span>
           </div>
         );

@@ -136,7 +136,7 @@ export const TabBar = ({ tab, setTab }) => (
         role="tab"
         aria-selected={tab === key}
         onClick={() => setTab(key)}
-        className={`flex-1 min-w-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 sm:gap-1.5 py-1.5 rounded-xl text-[0.6875rem] min-[360px]:text-xs sm:text-sm font-bold transition-colors ${
+        className={`flex-1 min-w-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 sm:gap-1.5 py-1.5 short:py-1 rounded-xl text-[0.6875rem] min-[360px]:text-xs sm:text-sm font-bold transition-colors ${
           tab === key ? 'bg-card text-brand-ink shadow-sm' : 'text-ink-3 hover:text-ink-2'
         }`}
       >
