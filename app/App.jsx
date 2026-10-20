@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BoardResult, ResultOverlay } from './components/ResultOverlay.jsx';
 import { RoomContext } from './context.js';
 import { ruleLabel } from './lib/rules.js';
+import { WifiOff } from './ui/icons.jsx';
 import { useToast } from './ui/toast.jsx';
 import { BoardView } from './views/BoardView.jsx';
 import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
@@ -77,6 +78,18 @@ export const App = ({ store }) => {
   };
 
   useEffect(() => store.onConnected(setConnected), [store]);
+  // 接続の知らせ：起動直後の一瞬は出さない（1.5 秒つながらないときだけ）。一度つながった後に切れたら「切れています」
+  const everConnected = useRef(false);
+  const [showConn, setShowConn] = useState(false);
+  useEffect(() => {
+    if (connected) {
+      everConnected.current = true;
+      setShowConn(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setShowConn(true), 1500);
+    return () => clearTimeout(t);
+  }, [connected]);
 
   // 部屋の画面にいる間だけ部屋データと接続状況を購読
   const inRoom = view === 'host' || view === 'participant' || view === 'board';
@@ -235,9 +248,16 @@ export const App = ({ store }) => {
   return (
     <RoomContext.Provider value={ctx}>
       <div className="text-ink bg-page min-h-screen">
-        {!connected && (
-          <div className="bg-ng text-white text-center text-xs sm:text-sm py-2 px-3 font-bold sticky top-0 z-40">
-            接続中… つながらない場合は再読み込みしてください
+        {!connected && showConn && (
+          <div
+            role="status"
+            data-conn
+            className={`fixed top-[3.75rem] short:top-12 left-1/2 -translate-x-1/2 z-40 w-max max-w-[calc(100%-1.5rem)] flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-bold shadow-lg animate-fade-in ${
+              everConnected.current ? 'bg-ng text-white' : 'bg-card text-ink border border-line'
+            }`}
+          >
+            <WifiOff size={16} className="shrink-0" />
+            {everConnected.current ? '通信が切れています。つながると自動で送ります' : '接続中… つながらないときは再読み込みしてください'}
           </div>
         )}
         {view === 'home' && (

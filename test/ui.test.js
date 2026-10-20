@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v53'));
+  assert.ok(h.text().includes('v54'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -180,4 +180,20 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   await waitFor(() => h.text().includes('全員 1'), { msg: 'set-all shown in free' });
   h.close();
   p.close();
+});
+
+test('接続の知らせ：起動直後は出さず、1.5 秒つながらないときと、切れたときだけ出す', async () => {
+  let setConn = () => {};
+  const db = { ...createMemoryAdapter(), onConnected: (cb) => ((setConn = cb), () => {}) };
+  const h = boot({ db });
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(h.doc.querySelector('[data-conn]'), null);
+  await waitFor(() => h.doc.querySelector('[data-conn]'));
+  assert.ok(h.doc.querySelector('[data-conn]').textContent.includes('接続中'));
+  setConn(true);
+  await waitFor(() => !h.doc.querySelector('[data-conn]'));
+  setConn(false);
+  await waitFor(() => h.doc.querySelector('[data-conn]'));
+  assert.ok(h.doc.querySelector('[data-conn]').textContent.includes('通信が切れています'));
+  h.close();
 });
