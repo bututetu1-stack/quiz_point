@@ -514,3 +514,19 @@ test('v46：ホームと部屋のメニューから「使い方」。ホスト�
   h.close();
   p.close();
 });
+
+test('v48：退出してホームに戻っても「前の部屋に戻る」で名前の入力なしに戻れる', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  // アリスが退出
+  p.click(p.doc.querySelector('button[aria-label="退出"]'));
+  await answerAsk(p);
+  await waitFor(() => p.doc.querySelector('[data-last-room]'), { msg: 'resume button on home' });
+  assert.ok(p.doc.querySelector('[data-last-room]').textContent.includes(code));
+  p.click(p.doc.querySelector('[data-last-room]'));
+  await waitFor(() => p.text().includes('あなた（アリス）'), { msg: 'back in room' });
+  assert.equal(Object.keys(room(db).players).length, 2, 'プレイヤーは増えない');
+  assert.ok(p.w.location.search.includes(`room=${code}`));
+  h.close();
+  p.close();
+});
