@@ -760,3 +760,20 @@ test('シートが開いているときの「戻る」はシートを閉じる�
   h.close();
   p.close();
 });
+
+test('順位アップの「▲」は追い越したときだけ（前の人が観戦に回っただけでは出さない）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  const hostId = Object.values(room(db).players).find((x) => x.name === '司会').id;
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]'))); // アリスが 1 位、司会は 2 位
+  await waitFor(() => Object.values(room(db).players).find((x) => x.name === 'アリス').maru === 1);
+  await new Promise((r) => setTimeout(r, 100));
+  p.click(p.doc.querySelector('[data-selfbar] button[aria-label="メニュー"]'));
+  await waitFor(() => p.byText('観戦にする', p.doc.querySelector('[data-sheet]')));
+  p.click(p.byText('観戦にする', p.doc.querySelector('[data-sheet]')));
+  await waitFor(() => h.doc.querySelector('[data-spectators]'), { msg: 'alice spectating on host' });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(!h.doc.querySelector(`[data-player-id="${hostId}"] [data-rank-up]`), '司会に ▲ は出ない');
+  h.close();
+  p.close();
+});
