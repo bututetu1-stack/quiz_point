@@ -69,7 +69,7 @@ const describe = (state, me, rule, st) => {
   let head = '';
   if (st.kind === 'win') head = `勝ち抜け ${winRanks(state.players)[me.id] || ''}位`;
   else if (st.kind === 'lose') head = '脱落';
-  else if (s && s.rank) head = s.rank === 1 && !s.gap ? 'いまトップ！' : `いま${s.rank}位`;
+  else if (s && s.rank) head = !s.gap && s.tie ? 'いまトップタイ' : s.rank === 1 ? 'いまトップ！' : `いま${s.rank}位`;
   const parts = [];
   if (rule) parts.push(`〇${me.maru || 0} ✕${me.batsu || 0}`);
   if (rule && !me.status) {
@@ -80,7 +80,8 @@ const describe = (state, me, rule, st) => {
   return { head, detail: parts.join('・') };
 };
 
-export const SelfScoreBar = ({ state, myPlayer, onOp }) => {
+// withAside：PC で右に管理パネルがある画面（ホスト）。パネルの中身を左の列にそろえる
+export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
   const { soundOn } = useContext(RoomContext);
   const [sheet, setSheet] = useState(null); // 'menu' | 'team'
   const rule = isRuleMode(state.rule);
@@ -125,7 +126,9 @@ export const SelfScoreBar = ({ state, myPlayer, onOp }) => {
   return (
     <>
       <div ref={barRef} data-selfbar className="fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur border-t border-line shadow-up">
-        <div className="max-w-3xl mx-auto px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5">
+        <div
+          className={`max-w-3xl mx-auto px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5 ${withAside ? 'lg:max-w-5xl lg:pl-4 lg:pr-[22.5rem]' : ''}`}
+        >
           {myPlayer.spectator ? (
             <div className="flex items-center justify-between gap-3" data-spectating>
               <div className="min-w-0 leading-tight">

@@ -15,7 +15,7 @@ const OPS = { '×': '*', '÷': '/', '+': '+', '-': '-' };
 
 const SmallInput = ({ label, value, onChange, className = '' }) => (
   <label className={`shrink-0 flex flex-col items-center justify-center bg-sunken rounded-xl px-2 ${className}`}>
-    <span className="text-[10px] font-bold text-ink-3 leading-3">{label}</span>
+    <span className="text-[11px] font-bold text-ink-3 leading-3">{label}</span>
     <input
       type="text"
       inputMode="decimal"

@@ -69,7 +69,7 @@ export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
       <li className="bg-sunken rounded-xl px-1 py-2">QR で招待</li>
       <li className="bg-sunken rounded-xl px-1 py-2">大画面・結果発表</li>
     </ul>
-    <p className="text-ink-3 text-[10px] mt-6 text-center">{BUILD}</p>
+    <p className="text-ink-3 text-[11px] mt-6 text-center">{BUILD}</p>
   </EntryFrame>
 );
 

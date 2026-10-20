@@ -23,7 +23,7 @@ const adapterJs = (
 
 // 12 人（長い名前・勝ち抜け・脱落・休み・チーム・観戦あり）
 const NAMES = ['司会', 'アリス', 'ボブ', 'チャーリー', 'デイジー', 'とても長い名前のプレイヤーさん', 'Alexander the Great', 'エマ', 'フランク', 'グレース', 'ヘンリー', 'アイビー'];
-const scenario = (free) => {
+const scenario = (free, phase) => {
   const players = {};
   NAMES.forEach((name, i) => {
     const id = i === 0 ? 'p_host' : `p_${i}`;
@@ -52,15 +52,35 @@ const scenario = (free) => {
         teamMode: 'sum',
         rule: free ? { type: 'free' } : { type: 'nomx', win: 7, lose: 3, rest: 1, combo: false },
         q: 12,
+        ...(phase ? { phase: 'result' } : {}),
         players,
         teams: { t_red: { id: 't_red', name: '赤組' }, t_blue: { id: 't_blue', name: '青組' } },
       },
+    },
+    // グラフ用の得点推移と操作ログ
+    timeline: {
+      '0427': Object.fromEntries(
+        Array.from({ length: 24 }, (_, i) => [
+          '-k' + String(i).padStart(10, '0'),
+          { t: Date.now() - 600000 + i * 20000, p: i % 2 ? 'p_2' : 'p_1', s: `${Math.floor(i / 2) + 1}/1`, q: Math.floor(i / 2) + 1 },
+        ]),
+      ),
+    },
+    log: {
+      '0427': Object.fromEntries(
+        Array.from({ length: 8 }, (_, i) => [
+          '-l' + String(i).padStart(10, '0'),
+          { t: Date.now() - 100000 + i * 1000, text: `Q${i + 1} アリス ${i % 3 ? '〇' : '✕'}`, kind: i % 3 ? 'correct' : 'wrong' },
+        ]),
+      ),
     },
   };
 };
 
 const host = { hostToken_0427: 'tok', playerId_0427: 'p_host', playerName: '司会' };
 const alice = { playerId_0427: 'p_2', playerName: 'ボブ' };
+const clickText = (text) => (p) =>
+  p.evaluate((t) => [...document.querySelectorAll('button')].find((b) => b.textContent.includes(t) && b.offsetParent)?.click(), text);
 const VIEWS = {
   home: { url: '' },
   join: { url: '?room=0427' },
@@ -75,6 +95,19 @@ const VIEWS = {
     act: (p) => p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '管理' && b.offsetParent)?.click()),
   },
   board: { url: '?room=0427&view=board', board: true },
+  result: { url: '?room=0427', storage: alice, phase: true },
+  ruleEditor: {
+    url: '?room=0427',
+    storage: host,
+    act: async (p) => {
+      await clickText('管理')(p);
+      await p.waitForTimeout(200);
+      await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '変更する' && b.offsetParent)?.click());
+    },
+  },
+  graph: { url: '?room=0427', storage: alice, act: clickText('グラフ') },
+  log: { url: '?room=0427', storage: alice, act: clickText('ログ') },
+  record: { url: '?room=0427', storage: alice, act: clickText('記録') },
 };
 const SIZES = [
   [320, 640],
@@ -132,7 +165,12 @@ const measure = () => {
     for (let i = layers.length - 1; i >= 0; i--) bg = over(layers[i], bg);
     return { bg, op };
   };
-  const out = { overflowX: Math.max(0, document.documentElement.scrollWidth - vw), offscreen: [], lowContrast: [], smallTargets: [], unnamed: [], rows: 0 };
+  const out = { overflowX: Math.max(0, document.documentElement.scrollWidth - vw), offscreen: [], lowContrast: [], smallTargets: [], unnamed: [], tinyText: [], rows: 0 };
+  // SVG の文字は描画後の高さで測る（縮小表示で読めなくなっていないか）
+  for (const t of document.querySelectorAll('svg text')) {
+    const h = t.getBoundingClientRect().height;
+    if (h > 0 && h < 9) out.tinyText.push(`svg:${t.textContent.trim().slice(0, 12)}`);
+  }
   const scrollParent = (el) => {
     for (let e = el.parentElement; e; e = e.parentElement) {
       const s = getComputedStyle(e);
@@ -157,6 +195,7 @@ const measure = () => {
       const need = large ? 3 : 4.5;
       const disabled = el.closest('button:disabled');
       if (cr < need && !disabled) out.lowContrast.push(`${label(el)} (${cr.toFixed(2)})`);
+      if (size < 11) out.tinyText.push(`${label(el)} ${size}px`);
     }
     if (el.matches('button, a, input, select, [role="button"]')) {
       if (Math.min(r.width, r.height) < 24) out.smallTargets.push(`${label(el)} ${Math.round(r.width)}x${Math.round(r.height)}`);
@@ -186,13 +225,13 @@ for (const [view, opt] of Object.entries(VIEWS)) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
       await page.addInitScript(
-        `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free))});\n` +
+        `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase))});\n` +
           Object.entries(opt.storage || {})
             .map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`)
             .join('\n'),
       );
       await page.goto(PAGE + (opt.url || ''));
-      await page.waitForTimeout(350);
+      await page.waitForTimeout(opt.phase ? 2600 : 350); // 結果発表は表彰台のアニメが終わるまで待つ
       if (opt.act) {
         await opt.act(page);
         await page.waitForTimeout(350);
@@ -213,12 +252,13 @@ const offscreen = uniq('offscreen').size;
 const lowContrast = uniq('lowContrast').size;
 const small = uniq('smallTargets').size;
 const unnamed = uniq('unnamed').size;
+const tiny = uniq('tinyText').size;
 const rows390 = results.find((r) => r.view === 'participant' && r.w === 390 && r.theme === 'light').rows;
 const hostRows390 = results.find((r) => r.view === 'host' && r.w === 390 && r.theme === 'light').rows;
 const errors = results.reduce((a, r) => a + r.errors.length, 0);
 const density = (n) => (n >= 8 ? 10 : n >= 7 ? 8 : n >= 6 ? 6 : n >= 5 ? 4 : 2);
 const score = {
-  responsive: Math.max(0, 15 - 5 * overflowPages - offscreen),
+  responsive: Math.max(0, 15 - 5 * overflowPages - offscreen - 0.5 * tiny),
   contrast: Math.max(0, 15 - 0.5 * lowContrast),
   targets: Math.max(0, 10 - 0.5 * small),
   names: Math.max(0, 5 - unnamed),
@@ -228,7 +268,7 @@ const score = {
 score.total = Object.values(score).reduce((a, b) => a + b, 0);
 
 const pad = (s, n) => String(s).padEnd(n);
-console.log(pad('view', 12), pad('size', 10), pad('theme', 6), 'ovfX offscr lowC small unnamed rows bar errors');
+console.log(pad('view', 12), pad('size', 10), pad('theme', 6), 'ovfX offscr lowC small unnamed tiny rows bar errors');
 for (const r of results)
   console.log(
     pad(r.view, 12),
@@ -239,6 +279,7 @@ for (const r of results)
     pad(r.lowContrast.length, 4),
     pad(r.smallTargets.length, 5),
     pad(r.unnamed.length, 7),
+    pad(r.tinyText.length, 4),
     pad(r.rows, 4),
     pad(r.barHeight, 3),
     r.errors.length,
@@ -248,6 +289,7 @@ console.log('\nはみ出し:', detail('offscreen'));
 console.log('低コントラスト:', detail('lowContrast'));
 console.log('小さい押し先:', detail('smallTargets'));
 console.log('名前のないボタン:', detail('unnamed'));
+console.log('小さすぎる文字:', detail('tinyText'));
 console.log('エラー:', [...new Set(results.flatMap((r) => r.errors))]);
 console.log(`\n参加者 390px で見える人数: ${rows390} / ホスト: ${hostRows390}`);
 console.log('自動の点数（55点満点）:', JSON.stringify(score));

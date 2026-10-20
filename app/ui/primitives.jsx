@@ -1,13 +1,52 @@
 // 共通部品（カード・ボタン・チップ・切替・タブ・下から出るシート・見出し付きセクション）
 // 色は tailwind.config.cjs の意味の名前（card・ink・brand・ok・ng など）だけを使う
 
+import { forwardRef, useEffect, useRef } from 'react';
 import { Award, BarChart2, Clock, List, X } from './icons.jsx';
 
-export const Card = ({ children, className = '', ...props }) => (
-  <div className={`bg-card rounded-2xl border border-line shadow-soft ${className}`} {...props}>
+// ダイアログの共通の振る舞い：Esc で閉じる・開いたら中の最初の操作に焦点・Tab は中で回す・閉じたら元の場所に焦点を戻す
+export const useDialog = (open, onClose, ref) => {
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.activeElement;
+    const focusables = () => [...(ref.current ? ref.current.querySelectorAll('button, input, select, textarea, a[href]') : [])].filter((e) => !e.disabled);
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close.current && close.current();
+      } else if (e.key === 'Tab') {
+        const f = focusables();
+        if (!f.length) return;
+        const first = f[0];
+        const last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    const t = setTimeout(() => {
+      if (ref.current) ref.current.focus({ preventScroll: true });
+    }, 0);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      clearTimeout(t);
+      if (prev && prev.focus && document.contains(prev)) prev.focus({ preventScroll: true });
+    };
+  }, [open]);
+};
+
+export const Card = forwardRef(({ children, className = '', ...props }, ref) => (
+  <div ref={ref} className={`bg-card rounded-2xl border border-line shadow-soft ${className}`} {...props}>
     {children}
   </div>
-);
+));
 
 const BUTTON = {
   primary: 'bg-brand text-on-brand shadow-btn hover:bg-brand-strong',
@@ -101,14 +140,19 @@ export const TabBar = ({ tab, setTab }) => (
 
 // 下から出るシート（PC では中央のダイアログ）。外側を押すと閉じる
 export const Sheet = ({ open, onClose, title, children, wide = false }) => {
+  const ref = useRef(null);
+  useDialog(open, onClose, ref);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4 animate-fade-in" onClick={onClose} data-sheet>
       <div
+        ref={ref}
+        tabIndex={-1}
         role="dialog"
+        aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${wide ? 'sm:max-w-lg' : 'sm:max-w-sm'} bg-card rounded-t-3xl sm:rounded-3xl shadow-soft border border-line max-h-[88vh] overflow-y-auto animate-sheet-up p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}
+        className={`outline-none w-full ${wide ? 'sm:max-w-lg' : 'sm:max-w-sm'} bg-card rounded-t-3xl sm:rounded-3xl shadow-soft border border-line max-h-[88vh] overflow-y-auto animate-sheet-up p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line sm:hidden" />
         {title && (

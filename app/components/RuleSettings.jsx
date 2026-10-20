@@ -81,7 +81,7 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
           p.bool ? (
             <label key={p.key} className="flex items-center justify-between gap-3 text-sm font-bold text-ink-2">
               <span>{p.label}</span>
-              <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-5 h-5 accent-amber-500 shrink-0" />
+              <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-6 h-6 accent-amber-500 shrink-0" />
             </label>
           ) : p.options ? (
             <div key={p.key}>
