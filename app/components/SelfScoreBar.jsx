@@ -97,7 +97,9 @@ const describe = (state, me, rule, st) => {
   let head = '';
   if (st.kind === 'win') head = `勝ち抜け ${winRanks(state.players)[me.id] || ''}位`;
   else if (st.kind === 'lose') head = '脱落';
-  else if (s && s.rank) head = !s.gap && s.tie ? 'いまトップタイ' : s.rank === 1 ? 'いまトップ！' : `いま${s.rank}位`;
+  // ひとりだけのときは順位を言わない（「いまトップ！」がおかしいので）。全員同点なら「いまトップタイ」
+  if (!head && state.players.length > 1 && s && s.rank)
+    head = !s.gap && s.tie ? 'いまトップタイ' : s.rank === 1 ? 'いまトップ！' : `いま${s.rank}位`;
   const parts = [];
   if (rule) parts.push(`〇${me.maru || 0} ✕${me.batsu || 0}`);
   if (rule && !me.status) {
