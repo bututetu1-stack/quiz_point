@@ -89,10 +89,14 @@ const describe = (state, me, rule, st) => {
   if (rule) parts.push(`〇${me.maru || 0} ✕${me.batsu || 0}`);
   if (rule && !me.status) {
     const h = progressHint(state.rule, me);
-    if (h) parts.push(h);
+    if (h) parts.push(...h.split('・'));
   }
-  if (s && s.gap > 0) parts.push(`1位まで${s.gap}`);
-  return { head, detail: parts.join('・') };
+  // 1位との差は見出しの方へ（「いま4位・1位まで2」）
+  if (s && s.gap > 0) {
+    if (head && st.kind !== 'win' && st.kind !== 'lose') head += `・1位まで${s.gap}`;
+    else if (!head) parts.push(`1位まで${s.gap}`);
+  }
+  return { head, detail: parts };
 };
 
 // withAside：PC で右に管理パネルがある画面（ホスト）。パネルの中身を左の列にそろえる
@@ -189,8 +193,15 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
                     <div className="text-sm font-black text-brand-ink truncate" aria-hidden={!head}>
                       {head || myPlayer.name}
                     </div>
-                    <div className="text-xs text-ink-3 truncate mt-0.5" data-standing>
-                      {detail || ' '}
+                    {/* 狭い画面では「〇6 ✕2」「〇あと1・✕あと2」を 2 行に分けて、途中で切れないように */}
+                    <div className="text-xs text-ink-3 mt-0.5 flex flex-wrap gap-x-2 max-h-8 overflow-hidden" data-standing>
+                      {detail.length
+                        ? detail.map((d) => (
+                            <span key={d} className="whitespace-nowrap">
+                              {d}
+                            </span>
+                          ))
+                        : ' '}
                     </div>
                   </div>
                 </div>

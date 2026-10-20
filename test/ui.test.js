@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v54'));
+  assert.ok(h.text().includes('v55'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -153,9 +153,9 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   await waitFor(() => p.byText('正答') && p.byText('誤答'), { msg: 'answer buttons' });
   assert.ok(!p.text().includes('自由計算'), 'ルール時はモード切替を出さない');
 
-  // 正解1つ → あと1〇
+  // 正解1つ → 〇あと1
   p.click(p.byText('正答'));
-  await waitFor(() => p.text().includes('あと1〇'), { msg: 'hint after 1 correct' });
+  await waitFor(() => p.text().includes('〇あと1'), { msg: 'hint after 1 correct' });
   // ホストが次の問題へ → 参加者にも Q2
   h.click(h.byText('次の問題'));
   await waitFor(() => p.doc.querySelector('[data-room-status]').textContent.includes('Q2'), { msg: 'Q2 on participant' });

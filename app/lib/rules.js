@@ -341,16 +341,16 @@ export const progressHint = (rule, p) => {
   const parts = [];
   switch (r.type) {
     case 'nomx':
-      if (r.win) parts.push(`あと${Math.max(0, r.win - (r.combo ? score : maru))}${r.combo ? '点' : '〇'}`);
+      if (r.win) parts.push(r.combo ? `あと${Math.max(0, r.win - score)}点` : `〇あと${Math.max(0, r.win - maru)}`);
       if (r.lose) parts.push(`✕あと${Math.max(0, r.lose - batsu)}`);
       break;
     case 'freeze':
-      if (r.win) parts.push(`あと${Math.max(0, r.win - maru)}〇`);
+      if (r.win) parts.push(`〇あと${Math.max(0, r.win - maru)}`);
       if (r.lose) parts.push(`✕あと${Math.max(0, r.lose - batsu)}`);
       parts.push(`次の✕は${batsu + 1}休`);
       break;
     case 'swedish':
-      parts.push(`あと${Math.max(0, r.n - maru)}〇`);
+      parts.push(`〇あと${Math.max(0, r.n - maru)}`);
       parts.push(`✕あと${Math.max(0, r.n - batsu)}`);
       parts.push(`次の✕+${swedishPenalty(maru)}`);
       break;
