@@ -6,6 +6,7 @@ import { RoomContext } from './context.js';
 import { ruleLabel } from './lib/rules.js';
 import { useWakeLock } from './lib/wakeLock.js';
 import { WifiOff } from './ui/icons.jsx';
+import { useAsk } from './ui/dialogs.jsx';
 import { useToast } from './ui/toast.jsx';
 import { BoardView } from './views/BoardView.jsx';
 import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
@@ -62,6 +63,7 @@ const OP_ERRORS = {
 
 export const App = ({ store }) => {
   const toast = useToast();
+  const { confirm } = useAsk();
   const [view, setView] = useState('home'); // home, hostcreate, join, host, participant, board
   const [roomId, setRoomId] = useState('');
   const [myPlayerId, setMyPlayerId] = useState(null);
@@ -200,7 +202,20 @@ export const App = ({ store }) => {
 
   const handleJoin = async (rId, name) => {
     setEntryError('');
-    const res = await enterAsPlayer(rId, name, load(`playerId_${rId}`));
+    const savedId = load(`playerId_${rId}`);
+    // 初めて入る部屋に同じ名前の人がいたら確かめる（ランキングで見分けにくくなるので）
+    if (!savedId) {
+      const names = await store.playerNames(rId);
+      if (
+        names.includes(name.trim()) &&
+        !(await confirm(`この部屋には「${name.trim()}」がもういます。同じ名前で入りますか？`, {
+          ok: 'このまま入る',
+          note: '同じ名前だとランキングで見分けにくくなります。「やめる」で名前を変えられます。',
+        }))
+      )
+        return;
+    }
+    const res = await enterAsPlayer(rId, name, savedId);
     if (!res.ok) {
       setEntryError(
         res.error === 'room_not_found'
