@@ -244,3 +244,56 @@ export const SkipForward = (p) => (
     <line x1="19" x2="19" y1="5" y2="19" />
   </Svg>
 );
+export const Sun = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2" />
+    <path d="M12 20v2" />
+    <path d="m4.93 4.93 1.41 1.41" />
+    <path d="m17.66 17.66 1.41 1.41" />
+    <path d="M2 12h2" />
+    <path d="M20 12h2" />
+    <path d="m6.34 17.66-1.41 1.41" />
+    <path d="m19.07 4.93-1.41 1.41" />
+  </Svg>
+);
+export const Moon = (p) => (
+  <Svg {...p}>
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+  </Svg>
+);
+export const SunMoon = (p) => (
+  <Svg {...p}>
+    <path d="M12 8a2.83 2.83 0 0 0 4 4 4 4 0 1 1-4-4" />
+    <path d="M12 2v2" />
+    <path d="M12 20v2" />
+    <path d="m4.9 4.9 1.4 1.4" />
+    <path d="m17.7 17.7 1.4 1.4" />
+    <path d="M2 12h2" />
+    <path d="M20 12h2" />
+    <path d="m6.3 17.7-1.4 1.4" />
+    <path d="m19.1 4.9-1.4 1.4" />
+  </Svg>
+);
+export const MoreHorizontal = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
+  </Svg>
+);
+export const ChevronRight = (p) => (
+  <Svg {...p}>
+    <path d="m9 18 6-6-6-6" />
+  </Svg>
+);
+export const ChevronLeft = (p) => (
+  <Svg {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Svg>
+);
+export const Check = (p) => (
+  <Svg {...p}>
+    <path d="M20 6 9 17l-5-5" />
+  </Svg>
+);

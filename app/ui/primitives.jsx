@@ -1,47 +1,79 @@
-// 共通部品（カード・ボタン・バッジ・切替・タブ）
+// 共通部品（カード・ボタン・チップ・切替・タブ・下から出るシート・見出し付きセクション）
+// 色は tailwind.config.cjs の意味の名前（card・ink・brand・ok・ng など）だけを使う
 
-import { Award, BarChart2, Clock, List } from './icons.jsx';
+import { Award, BarChart2, Clock, List, X } from './icons.jsx';
 
 export const Card = ({ children, className = '', ...props }) => (
-  <div className={`bg-white rounded-3xl shadow-xl shadow-amber-100/50 border-4 border-white ${className}`} {...props}>
+  <div className={`bg-card rounded-2xl border border-line shadow-soft ${className}`} {...props}>
     {children}
   </div>
 );
-export const Button = ({ children, onClick, variant = 'primary', className = '', disabled, ...props }) => {
-  const base =
-    'font-bold rounded-2xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 disabled:active:scale-100';
-  const variants = {
-    primary:
-      'bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-200 hover:from-amber-300 hover:to-orange-400',
-    secondary: 'bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-50',
-    danger: 'bg-gradient-to-b from-rose-400 to-red-500 text-white shadow-lg shadow-red-200 hover:from-rose-300 hover:to-red-400',
-    ghost: 'text-slate-500 hover:bg-slate-100',
-    blue: 'bg-gradient-to-b from-sky-400 to-blue-500 text-white shadow-lg shadow-blue-200 hover:from-sky-300 hover:to-blue-400',
-    green: 'bg-gradient-to-b from-emerald-400 to-green-500 text-white shadow-lg shadow-green-200 hover:from-emerald-300 hover:to-green-400',
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`} {...props}>
-      {children}
-    </button>
-  );
+
+const BUTTON = {
+  primary: 'bg-brand text-on-brand shadow-btn hover:bg-brand-strong',
+  secondary: 'bg-card text-ink border border-line hover:bg-sunken',
+  ghost: 'text-ink-2 hover:bg-sunken',
+  soft: 'bg-sunken text-ink-2 hover:text-ink',
+  ok: 'bg-ok text-white shadow-btn hover:brightness-105',
+  ng: 'bg-ng text-white shadow-btn hover:brightness-105',
+  info: 'bg-info text-white shadow-btn hover:brightness-105',
 };
-export const Badge = ({ children, color = 'bg-amber-100 text-amber-700' }) => (
-  <span className={`px-3 py-1 rounded-full text-sm font-bold ${color}`}>{children}</span>
+// 旧名（green / danger / blue）も受け付ける
+const ALIAS = { green: 'ok', danger: 'ng', blue: 'info' };
+
+export const Button = ({ children, onClick, variant = 'primary', className = '', disabled, ...props }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`font-bold rounded-xl transition duration-150 active:scale-[.97] inline-flex items-center justify-center gap-2 select-none disabled:opacity-40 disabled:active:scale-100 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${BUTTON[ALIAS[variant] || variant] || BUTTON.primary} ${className}`}
+    {...props}
+  >
+    {children}
+  </button>
 );
 
-export const Seg = ({ value, options, onChange }) => (
-  <div className="flex bg-slate-100 rounded-xl p-1">
+// アイコンだけのボタン（label は読み上げとツールチップ）
+export const IconButton = ({ label, children, className = '', ...props }) => (
+  <button
+    aria-label={label}
+    title={label}
+    className={`p-2 rounded-full text-ink-2 hover:bg-sunken hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${className}`}
+    {...props}
+  >
+    {children}
+  </button>
+);
+
+const CHIP = {
+  neutral: 'bg-sunken text-ink-2',
+  brand: 'bg-brand-soft text-brand-ink',
+  brandSolid: 'bg-brand text-on-brand',
+  ok: 'bg-ok-soft text-ok-ink',
+  okSolid: 'bg-ok-ink text-card',
+  ng: 'bg-ng-soft text-ng-ink',
+  info: 'bg-info-soft text-info-ink',
+  muted: 'bg-ink-3 text-card',
+};
+export const Chip = ({ children, tone = 'neutral', className = '' }) => (
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`}>{children}</span>
+);
+
+// 切替（[key, label, activeTextClass?] の配列）
+export const Seg = ({ value, options, onChange, className = '', small = false }) => (
+  <div className={`flex bg-sunken rounded-xl p-1 ${className}`}>
     {options.map(([k, l, c]) => (
       <button
         key={k}
         onClick={() => onChange(k)}
-        className={`flex-1 text-sm font-bold py-1.5 rounded-lg transition-colors ${value === k ? `bg-white shadow-sm ${c || 'text-amber-600'}` : 'text-slate-500'}`}
+        aria-pressed={value === k}
+        className={`flex-1 min-w-0 font-bold rounded-lg transition-colors whitespace-nowrap ${small ? 'text-xs py-1 px-1' : 'text-sm py-1.5 px-2'} ${value === k ? `bg-card shadow-sm ${c || 'text-brand-ink'}` : 'text-ink-3 hover:text-ink-2'}`}
       >
         {l}
       </button>
     ))}
   </div>
 );
+
 const TABS = [
   ['ranking', List, 'ランキング'],
   ['graph', BarChart2, 'グラフ'],
@@ -49,17 +81,82 @@ const TABS = [
   ['record', Award, '記録'],
 ];
 export const TabBar = ({ tab, setTab }) => (
-  <div className="flex gap-1 sm:gap-2">
+  <div className="flex flex-1 bg-sunken rounded-2xl p-1 gap-1" role="tablist">
     {TABS.map(([key, Icon, label]) => (
-      <Button
+      <button
         key={key}
-        variant={tab === key ? 'primary' : 'ghost'}
-        className="py-2 px-3 sm:px-5 rounded-xl"
+        role="tab"
+        aria-selected={tab === key}
         onClick={() => setTab(key)}
-        aria-label={label}
+        className={`flex-1 min-w-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 sm:gap-1.5 py-1.5 rounded-xl text-[11px] min-[360px]:text-xs sm:text-sm font-bold transition-colors ${
+          tab === key ? 'bg-card text-brand-ink shadow-sm' : 'text-ink-3 hover:text-ink-2'
+        }`}
       >
-        <Icon size={20} /> <span className="hidden sm:inline">{label}</span>
-      </Button>
+        <Icon size={17} className="shrink-0" />
+        <span className="truncate">{label}</span>
+      </button>
     ))}
   </div>
+);
+
+// 下から出るシート（PC では中央のダイアログ）。外側を押すと閉じる
+export const Sheet = ({ open, onClose, title, children, wide = false }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4 animate-fade-in" onClick={onClose} data-sheet>
+      <div
+        role="dialog"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        className={`w-full ${wide ? 'sm:max-w-lg' : 'sm:max-w-sm'} bg-card rounded-t-3xl sm:rounded-3xl shadow-soft border border-line max-h-[88vh] overflow-y-auto animate-sheet-up p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}
+      >
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line sm:hidden" />
+        {title && (
+          <div className="flex items-center justify-between gap-2 mb-2 px-1">
+            <h3 className="font-black text-ink truncate">{title}</h3>
+            <IconButton label="閉じる" onClick={onClose} className="-mr-1">
+              <X size={20} />
+            </IconButton>
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// シートの中の1行の操作
+export const SheetItem = ({ icon, children, onClick, tone = 'ink', hint }) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left font-bold hover:bg-sunken transition-colors ${tone === 'ng' ? 'text-ng-ink' : 'text-ink'}`}
+  >
+    {icon && <span className={`shrink-0 ${tone === 'ng' ? 'text-ng-ink' : 'text-ink-3'}`}>{icon}</span>}
+    <span className="flex-1 min-w-0">
+      {children}
+      {hint && <span className="block text-xs font-medium text-ink-3">{hint}</span>}
+    </span>
+  </button>
+);
+
+// 見出し付きのまとまり（管理パネルなど）
+export const Section = ({ icon, title, action, children, className = '' }) => (
+  <Card className={`p-4 ${className}`}>
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <h3 className="font-black text-ink flex items-center gap-2 text-[15px]">
+        {icon && <span className="text-brand">{icon}</span>}
+        {title}
+      </h3>
+      {action}
+    </div>
+    {children}
+  </Card>
+);
+
+// 文字入力（大きめ）
+export const TextField = ({ className = '', ...props }) => (
+  <input
+    className={`w-full bg-sunken border border-transparent rounded-2xl px-4 py-3.5 text-lg font-bold text-ink placeholder:text-ink-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 transition ${className}`}
+    {...props}
+  />
 );

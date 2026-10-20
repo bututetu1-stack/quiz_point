@@ -10,6 +10,7 @@ npm install
 npm run build                      # app/ → docs/index.html（JS・CSS を埋め込んだ1ファイル）
 npm test                           # ビルドしてから node --test（データ層・ルール・画面 jsdom）
 npm run screenshot                 # screenshots/ に画面のスクリーンショット（メモリ DB。CHROME_PATH でブラウザ指定）
+npm run audit                      # UI の自動チェック（はみ出し・コントラスト・押せる大きさ・名前のないボタン・一画面の人数）と点数。--shots <dir> で全画面を撮る
 ```
 
 ## 守ること
@@ -18,6 +19,8 @@ npm run screenshot                 # screenshots/ に画面のスクリーンシ
 - 変更のたびに `app/version.js` の `BUILD` を上げる（v33 の次は v34）。ユーザーは Home 画面の下のこの表記で反映を確かめる。`test/ui.test.js` のバージョン確認も合わせて直す。
 - 外部 CDN を読み込まない（過去に CDN が落ちて表示が壊れた）。ライブラリは npm で入れてバンドルする。
 - Tailwind のクラス名は**文字列の形で書く**（`bg-${color}` のように組み立てると CSS に含まれない）。
+- **色は意味の名前のクラスだけを使う**（`bg-card`・`text-ink`・`text-ink-2/3`・`border-line`・`bg-brand`・`text-on-brand`・`bg-ok`・`bg-ng`・`bg-info` と `*-soft`・`*-ink`。定義は `tailwind.config.cjs`、値は `app/styles.css` の CSS 変数）。`slate-500` のような生の色や `dark:` は使わない（大画面モードだけは常に暗いので例外）。明るい／暗いは `<html data-theme>` で変数が切り替わる。
+- 見た目を変えたら `npm run audit` を回し、はみ出し・低コントラスト・小さい押し先・名前のないボタンが 0 のままか確かめる。
 - データの書き込みは `app/data/store.js` に集める。プレイヤー1人分は `players/{id}` の transaction、全員分は `players` の transaction。**手元のキャッシュで丸ごと `set` しない**（同時操作で更新が消える不具合の原因だった）。
 - transaction の関数は、手元に値が無いと最初に `null` で呼ばれる。`null` のときは `null` を返してサーバの値で呼び直させる（`undefined` で中止すると、実在するのに「見つからない」扱いになる）。
 - `timeline`・`roomIndex`・`log`・`presence` への読み書きは `soft()` で包み、失敗しても得点操作を止めない（Firebase のルールで拒否される可能性がある）。

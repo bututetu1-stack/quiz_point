@@ -6,6 +6,10 @@ import { App } from './App.jsx';
 import { firebaseConfig } from './data/config.js';
 import { createFirebaseAdapter } from './data/firebaseAdapter.js';
 import { createStore } from './data/store.js';
+import { applyTheme, loadTheme, watchSystemTheme } from './lib/theme.js';
+
+applyTheme(loadTheme());
+watchSystemTheme();
 
 const adapter = window.__QP_ADAPTER__ || createFirebaseAdapter(firebaseConfig);
 createRoot(document.getElementById('root')).render(<App store={createStore(adapter)} />);

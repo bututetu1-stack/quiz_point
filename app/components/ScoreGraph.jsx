@@ -9,7 +9,7 @@ import { Card } from '../ui/primitives.jsx';
 export const GRAPH_COLORS = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316'];
 export const ScoreGraph = ({ state }) => {
   if (!state.timeline || state.timeline.length < 2) {
-    return <Card className="p-8 h-80 flex items-center justify-center text-slate-400 font-bold">得点が動くとここにグラフが出ます</Card>;
+    return <Card className="p-8 h-64 flex items-center justify-center text-ink-3 font-bold text-center">得点が動くとここにグラフが出ます</Card>;
   }
   const tl = state.timeline;
   // 最終時点にスコアがあるプレイヤーのみ描画
@@ -45,7 +45,7 @@ export const ScoreGraph = ({ state }) => {
     <Card className="p-4 w-full">
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 px-1">
         {players.map((p, i) => (
-          <span key={p.id} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 max-w-[48%]">
+          <span key={p.id} className="inline-flex items-center gap-1.5 text-xs font-bold text-ink-2 max-w-[48%]">
             <span
               className="w-3 h-3 rounded-full shrink-0"
               style={{
@@ -69,8 +69,8 @@ export const ScoreGraph = ({ state }) => {
           const gy = y(tv);
           return (
             <g key={i}>
-              <line x1={pad.l} y1={gy} x2={W - pad.r} y2={gy} stroke="#f1f5f9" strokeWidth="2" />
-              <text x={pad.l - 8} y={gy + 4} fontSize="12" fill="#94a3b8" textAnchor="end">
+              <line x1={pad.l} y1={gy} x2={W - pad.r} y2={gy} style={{ stroke: 'rgb(var(--c-line))' }} strokeWidth="2" />
+              <text x={pad.l - 8} y={gy + 4} fontSize="12" style={{ fill: 'rgb(var(--c-ink-3))' }} textAnchor="end">
                 {Number.isInteger(tv) ? tv : tv.toFixed(1)}
               </text>
             </g>
@@ -78,7 +78,7 @@ export const ScoreGraph = ({ state }) => {
         })}
         {tl.map((tick, i) =>
           tick.label && (i % labelStep === 0 || i === tl.length - 1) ? (
-            <text key={'x' + i} x={x(i)} y={H - 4} fontSize="12" fill="#94a3b8" textAnchor="middle">
+            <text key={'x' + i} x={x(i)} y={H - 4} fontSize="12" style={{ fill: 'rgb(var(--c-ink-3))' }} textAnchor="middle">
               {tick.label}
             </text>
           ) : null,
@@ -91,7 +91,7 @@ export const ScoreGraph = ({ state }) => {
             <g key={p.id}>
               <polyline points={line} fill="none" stroke={c} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
               {pts.map((pt, i) => (
-                <circle key={i} cx={pt[0]} cy={pt[1]} r={i === pts.length - 1 ? 6 : 4} fill="#fff" stroke={c} strokeWidth="3" />
+                <circle key={i} cx={pt[0]} cy={pt[1]} r={i === pts.length - 1 ? 6 : 4} style={{ fill: 'rgb(var(--c-card))' }} stroke={c} strokeWidth="3" />
               ))}
             </g>
           );
