@@ -1,2 +1,2 @@
 // 反映確認用バージョン（更新のたびに番号を上げる。Home 画面の下に表示）
-export const BUILD = 'v68 ・ 名前の入力欄を整える';
+export const BUILD = 'v69 ・ 通信が遅いときは「送信中…」';
