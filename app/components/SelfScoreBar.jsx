@@ -24,14 +24,14 @@ const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
   return (
     <div className="flex flex-col gap-2">
       {st.kind === 'rest' ? (
-        <>
-          <div className="text-center text-sm font-bold text-info-ink bg-info-soft rounded-xl py-1.5" data-rest>
-            休み中（あと{st.restLeft}問）・問題が進んだら押す
-          </div>
-          <Button variant="info" className="w-full py-3.5 text-xl" onClick={onAdvance}>
+        <Button variant="info" className="w-full py-2.5 flex-col !gap-0" onClick={onAdvance}>
+          <span className="flex items-center gap-2 text-xl">
             <SkipForward size={24} /> 問題を進める
-          </Button>
-        </>
+          </span>
+          <span className="text-xs font-bold text-white" data-rest>
+            休み中（あと{st.restLeft}問）・次の問題に移ったら押す
+          </span>
+        </Button>
       ) : (
         <div className="flex gap-3">
           <Button variant="ok" className="flex-1 py-3.5 text-xl" disabled={done} onClick={() => onAnswer('correct')}>
