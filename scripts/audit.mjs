@@ -150,6 +150,12 @@ const VIEWS = {
     },
   },
   toast: { url: '?room=0427', storage: alice, act: clickText('元に戻す') },
+  // 招待（ヘッダーの部屋コードを押すと出る QR とリンク）
+  invite: {
+    url: '?room=0427',
+    storage: alice,
+    act: (p) => p.evaluate(() => document.querySelector('header button[aria-label^="部屋"]').click()),
+  },
   askConfirm: {
     url: '?room=0427',
     storage: host,
@@ -259,6 +265,13 @@ const measure = () => {
     return null;
   };
   const label = (el) => (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+  // ダイアログ（招待・結果発表・シートなど）が画面の縦に収まっているか（閉じるボタンが画面外に出ないように）
+  for (const d of document.querySelectorAll('[role="dialog"]')) {
+    if (!visible(d)) continue;
+    const r = d.getBoundingClientRect();
+    if (r.top < -1 || r.bottom > window.innerHeight + 1)
+      out.offscreen.push(`ダイアログが縦にはみ出す: ${d.getAttribute('aria-label') || ''}`);
+  }
   for (const el of document.querySelectorAll('body *')) {
     if (!visible(el) || el.closest('svg')) continue;
     const r = el.getBoundingClientRect();

@@ -1,2 +1,2 @@
 // 反映確認用バージョン（更新のたびに番号を上げる。Home 画面の下に表示）
-export const BUILD = 'v93 ・ 退出後の「戻る」で URL だけ部屋に戻らない';
+export const BUILD = 'v94 ・ 横向きでも招待の画面が収まる';
