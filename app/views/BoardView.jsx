@@ -1,7 +1,7 @@
 // 画面：大画面モード（?room=XXXX&view=board）。プロジェクタ用で操作 UI は無い。いつも暗い配色。
 // 人数が多くても1画面に収まるよう、幅に合わせて列を増やす
 
-import { useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { inviteUrl, QrSvg } from '../components/InviteDialog.jsx';
 import { teamColor } from '../components/Teams.jsx';
 import { WinToast } from '../components/WinToast.jsx';
@@ -12,6 +12,37 @@ import { Crown, Users } from '../ui/icons.jsx';
 import { useFlip, useRankUps } from '../ui/motion.js';
 
 const MEDAL = ['bg-medal-1 text-medal-ink', 'bg-medal-2 text-medal-ink', 'bg-medal-3 text-medal-ink'];
+
+// 3 段階の大きさ：1 行の高さ（px のめやす）・列の最小幅（px）・行の間（px）
+const LEVELS = [
+  ['few', 88, 416, 10],
+  ['many', 76, 320, 10],
+  ['dense', 64, 240, 8],
+];
+
+// 画面の高さに収まるいちばん大きい段階を選ぶ（人数だけで決めると、少なめの人数で下が空く・多めの人数ではみ出す）
+const useBoardLevel = (n, listRef) => {
+  const [box, setBox] = useState(null);
+  useLayoutEffect(() => {
+    const update = () => {
+      const el = listRef.current;
+      if (!el || !el.clientWidth) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setBox({ w: el.clientWidth, h: window.innerHeight - top - 24 });
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  // 測れないとき（テストなど）は人数だけで決める
+  if (!box) return n > 18 ? 'dense' : n > 8 ? 'many' : 'few';
+  for (const [name, rowH, minW, gap] of LEVELS) {
+    const cols = Math.max(1, Math.floor((box.w + gap) / (minW + gap)));
+    const rows = Math.ceil(n / cols);
+    if (rows * rowH + (rows - 1) * gap <= box.h) return name;
+  }
+  return 'dense';
+};
 
 const StatusTag = ({ st, rank }) => {
   if (st.kind === 'win')
@@ -32,8 +63,9 @@ export const BoardView = ({ state, roomId }) => {
   const rule = isRuleMode(state.rule);
   const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
   const q = state.q || 1;
-  // 人数に合わせて 3 段階に詰める（プロジェクタでスクロールしなくても全員が入るように）
-  const size = sorted.length > 18 ? 'dense' : sorted.length > 8 ? 'many' : 'few';
+  // 画面に合わせて 3 段階に詰める（プロジェクタでスクロールしなくても全員が入るように）
+  const listRef = useRef(null);
+  const size = useBoardLevel(sorted.length, listRef);
   const S = {
     few: {
       grid: 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]',
@@ -60,7 +92,6 @@ export const BoardView = ({ state, roomId }) => {
       score: 'text-3xl',
     },
   }[size];
-  const listRef = useRef(null);
   useFlip(listRef);
   const ups = useRankUps(sorted.map((p) => p.id));
   return (
@@ -76,7 +107,7 @@ export const BoardView = ({ state, roomId }) => {
         <div className="ml-auto text-6xl lg:text-7xl font-black tracking-tight tabular-nums">Q{q}</div>
       </header>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
-        <ol ref={listRef} className={`grid ${size === 'dense' ? 'gap-2' : 'gap-2.5'} ${S.grid}`}>
+        <ol ref={listRef} data-size={size} className={`grid ${size === 'dense' ? 'gap-2' : 'gap-2.5'} ${S.grid}`}>
           {sorted.map((p, i) => {
             const st = playerState(p, q);
             const scored = st.kind === 'win' || parseScoreToNumber(p.score) > 0 || (p.maru || 0) > 0;
