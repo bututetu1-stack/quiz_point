@@ -90,7 +90,7 @@ test('N〇M✕：誤答後の休み（問題番号で数える）', () => {
 test('休みは本人の「問題を進める」でも減り、ホストの Q と二重には数えない', () => {
   const rule = { type: 'nomx', win: 0, lose: 0, rest: 2 };
   let a = applyAnswer(rule, fresh(), 'wrong', { q: 1 }).player; // Q1 で誤答 → Q2・Q3 は休み、Q4 から
-  assert.deepEqual(playerState(a, 1), { kind: 'rest', restLeft: 3 });
+  assert.deepEqual(playerState(a, 1), { kind: 'rest', restLeft: 2, upcoming: true }, '誤答したその問題では「次の 2 問は休み」');
   a = applyAdvance(a, 1).player; // 本人が Q2 へ
   assert.equal(a.pq, 2);
   assert.deepEqual(playerState(a, 2), { kind: 'rest', restLeft: 2 }, 'ホストも Q2 に進めても同じ');

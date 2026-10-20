@@ -29,7 +29,7 @@ const AnswerButtons = ({ st, onAnswer, onDeclare, onAdvance }) => {
             <SkipForward size={24} /> 問題を進める
           </span>
           <span className="text-xs font-bold text-white" data-rest>
-            休み中（あと{st.restLeft}問）・次の問題に移ったら押す
+            {st.upcoming ? `次の${st.restLeft}問は休み` : `休み中（あと${st.restLeft}問）`}・次の問題に移ったら押す
           </span>
         </Button>
       ) : (

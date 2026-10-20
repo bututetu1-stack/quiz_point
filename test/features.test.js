@@ -159,6 +159,7 @@ test('v33：休み中は「問題を進める」（ホストの次の問題と�
   p.click(p.byText('誤答', p.doc.querySelector('[data-selfbar]'))); // Q1 で誤答 → Q2・Q3 は休み
   await waitFor(() => p.doc.querySelector('[data-rest]'), { msg: 'rest bar' });
   assert.ok(!p.byText('正答'), '休み中は正答/誤答の代わりに「問題を進める」');
+  assert.ok(p.doc.querySelector('[data-rest]').textContent.includes('次の2問は休み'), '誤答2休なら、誤答した問題では「次の2問は休み」');
   p.click(p.byText('問題を進める')); // 本人が Q2 へ
   await waitFor(() => p.doc.querySelector('[data-rest]').textContent.includes('あと2問'), { msg: 'rest 2 after self advance' });
   h.click(h.byText('次の問題')); // ホストも Q2 へ
