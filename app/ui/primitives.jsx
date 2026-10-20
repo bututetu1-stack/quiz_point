@@ -1,6 +1,6 @@
 // 共通部品（カード・ボタン・バッジ・切替・タブ）
 
-import { BarChart2, Clock, List } from './icons.jsx';
+import { Award, BarChart2, Clock, List } from './icons.jsx';
 
 export const Card = ({ children, className = '', ...props }) => (
   <div className={`bg-white rounded-3xl shadow-xl shadow-amber-100/50 border-4 border-white ${className}`} {...props}>
@@ -42,16 +42,24 @@ export const Seg = ({ value, options, onChange }) => (
     ))}
   </div>
 );
+const TABS = [
+  ['ranking', List, 'ランキング'],
+  ['graph', BarChart2, 'グラフ'],
+  ['log', Clock, 'ログ'],
+  ['record', Award, '記録'],
+];
 export const TabBar = ({ tab, setTab }) => (
-  <div className="flex gap-2">
-    <Button variant={tab === 'ranking' ? 'primary' : 'ghost'} className="py-2 px-4 sm:px-6 rounded-xl" onClick={() => setTab('ranking')}>
-      <List size={20} /> <span className="hidden sm:inline">ランキング</span>
-    </Button>
-    <Button variant={tab === 'graph' ? 'primary' : 'ghost'} className="py-2 px-4 sm:px-6 rounded-xl" onClick={() => setTab('graph')}>
-      <BarChart2 size={20} /> <span className="hidden sm:inline">グラフ</span>
-    </Button>
-    <Button variant={tab === 'log' ? 'primary' : 'ghost'} className="py-2 px-4 sm:px-6 rounded-xl" onClick={() => setTab('log')}>
-      <Clock size={20} /> <span className="hidden sm:inline">ログ</span>
-    </Button>
+  <div className="flex gap-1 sm:gap-2">
+    {TABS.map(([key, Icon, label]) => (
+      <Button
+        key={key}
+        variant={tab === key ? 'primary' : 'ghost'}
+        className="py-2 px-3 sm:px-5 rounded-xl"
+        onClick={() => setTab(key)}
+        aria-label={label}
+      >
+        <Icon size={20} /> <span className="hidden sm:inline">{label}</span>
+      </Button>
+    ))}
   </div>
 );

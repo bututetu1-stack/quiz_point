@@ -8,7 +8,7 @@ import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
 import { HostView } from './views/HostView.jsx';
 import { ParticipantView } from './views/ParticipantView.jsx';
 
-const EMPTY = { players: [], teams: [], scoreMode: 'addsub', teamMode: 'product', rule: { type: 'free' }, q: 1, phase: null };
+const EMPTY = { players: [], spectators: [], allPlayers: [], teams: [], scoreMode: 'addsub', teamMode: 'product', rule: { type: 'free' }, q: 1, phase: null };
 
 const setRoomInUrl = (roomId) => {
   const url = new URL(window.location);

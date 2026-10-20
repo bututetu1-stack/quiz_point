@@ -1,6 +1,6 @@
 // 結果発表：表彰台（上位3人）と最終順位。ホストが出すと全員の画面に表示される
 
-import { rankPlayers, scoreText } from '../lib/ranking.js';
+import { rankPlayers, scoreText, statusText } from '../lib/ranking.js';
 import { winRanks } from '../lib/rules.js';
 import { Crown, Trophy, X } from '../ui/icons.jsx';
 import { Button, Card } from '../ui/primitives.jsx';
@@ -14,7 +14,7 @@ const PODIUM = [
 export const ResultOverlay = ({ state, isHost, onClose }) => {
   const sorted = rankPlayers(state);
   const ranks = winRanks(state.players);
-  const status = (p) => (p.status === 'win' ? `勝ち抜け${ranks[p.id]}位` : p.status === 'lose' ? '失格' : '');
+  const status = (p) => statusText(p, ranks);
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4 animate-fade-in" data-result>
       <Card className="w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 relative">

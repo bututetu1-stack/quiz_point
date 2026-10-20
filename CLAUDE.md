@@ -15,7 +15,7 @@ npm run screenshot                 # screenshots/ に画面のスクリーンシ
 ## 守ること
 
 - **ソースは `app/`。`docs/index.html` はビルド成果物**。手で編集しない。変更したら必ず `npm run build` して `docs/index.html` も一緒にコミットする（Pages はこれを配信する）。
-- 変更のたびに `app/version.js` の `BUILD` を上げる（v32 の次は v33）。ユーザーは Home 画面の下のこの表記で反映を確かめる。`test/ui.test.js` のバージョン確認も合わせて直す。
+- 変更のたびに `app/version.js` の `BUILD` を上げる（v33 の次は v34）。ユーザーは Home 画面の下のこの表記で反映を確かめる。`test/ui.test.js` のバージョン確認も合わせて直す。
 - 外部 CDN を読み込まない（過去に CDN が落ちて表示が壊れた）。ライブラリは npm で入れてバンドルする。
 - Tailwind のクラス名は**文字列の形で書く**（`bg-${color}` のように組み立てると CSS に含まれない）。
 - データの書き込みは `app/data/store.js` に集める。プレイヤー1人分は `players/{id}` の transaction、全員分は `players` の transaction。**手元のキャッシュで丸ごと `set` しない**（同時操作で更新が消える不具合の原因だった）。

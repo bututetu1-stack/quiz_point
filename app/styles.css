@@ -35,6 +35,10 @@ body {
   .text-slate-300 { color: #64748b; }
   .border-slate-200,
   .border-slate-100 { border-color: #2c3a55; }
+  .text-emerald-700 { color: #6ee7b7; }
+  .text-sky-700 { color: #7dd3fc; }
+  .border-emerald-200 { border-color: rgba(16, 185, 129, 0.4); }
+  .border-sky-200 { border-color: rgba(14, 165, 233, 0.4); }
   .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2c3a55; }
   .hover\:bg-slate-50:hover,
   .hover\:bg-slate-100:hover { background-color: #22304a; }

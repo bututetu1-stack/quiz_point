@@ -1,16 +1,17 @@
 // ホスト用：ルールの選択・パラメータ設定と、問題番号の進行
 
 import { useState } from 'react';
-import { normalizeRule, RULE_TYPES, ruleLabel } from '../lib/rules.js';
+import { normalizeRule, RULE_GROUPS, RULE_TYPES, ruleLabel } from '../lib/rules.js';
 import { Zap } from '../ui/icons.jsx';
 import { Button, Card, Seg } from '../ui/primitives.jsx';
 
-// N〇M✕ のよく使う設定
+// N〇M✕ のよく使う設定（「誤答2休」は Tokuten の M〇N休）
 const NOMX_PRESETS = [
-  ['〇✕カウント', { win: 0, lose: 0 }],
-  ['7〇3✕', { win: 7, lose: 3 }],
-  ['5〇3✕', { win: 5, lose: 3 }],
-  ['10〇5✕', { win: 10, lose: 5 }],
+  ['〇✕カウント', { win: 0, lose: 0, rest: 0 }],
+  ['誤答2休', { win: 0, lose: 0, rest: 2 }],
+  ['7〇3✕', { win: 7, lose: 3, rest: 0 }],
+  ['5〇3✕', { win: 5, lose: 3, rest: 0 }],
+  ['10〇5✕', { win: 10, lose: 5, rest: 0 }],
 ];
 
 const NumberField = ({ label, value, min, max, onChange }) => (
@@ -37,21 +38,27 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
     const rule = normalizeRule(draft);
     if (window.confirm(`ルールを「${ruleLabel(rule)}」にします。\n全員の得点・状態と問題番号はリセットされます。よろしいですか？`)) onApply(rule);
   };
+  const presetOn = (patch) => Object.entries(patch).every(([k, v]) => Number(draft[k]) === v);
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2">
-        {RULE_TYPES.map((d) => (
-          <button
-            key={d.type}
-            onClick={() => pick(d.type)}
-            className={`rounded-2xl px-3 py-2.5 text-sm font-black border-2 transition-colors ${
-              draft.type === d.type ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:border-amber-200'
-            }`}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
+      {RULE_GROUPS.map((g) => (
+        <div key={g.key}>
+          <div className="text-xs font-bold text-slate-400 mb-1">{g.label}</div>
+          <div className="grid grid-cols-2 gap-2">
+            {RULE_TYPES.filter((d) => d.group === g.key).map((d) => (
+              <button
+                key={d.type}
+                onClick={() => pick(d.type)}
+                className={`rounded-2xl px-3 py-2.5 text-sm font-black border-2 transition-colors ${
+                  draft.type === d.type ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:border-amber-200'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
       <p className="text-xs text-slate-500 leading-relaxed">{def.desc}</p>
       {draft.type === 'nomx' && (
         <div className="flex flex-wrap gap-1.5">
@@ -60,7 +67,7 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
               key={label}
               onClick={() => set(patch)}
               className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                draft.win === patch.win && draft.lose === patch.lose ? 'bg-amber-400 text-white border-amber-400' : 'bg-white text-slate-500 border-slate-200'
+                presetOn(patch) ? 'bg-amber-400 text-white border-amber-400' : 'bg-white text-slate-500 border-slate-200'
               }`}
             >
               {label}
@@ -68,16 +75,23 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
           ))}
         </div>
       )}
-      {def.params.map((p) =>
-        p.bool ? (
-          <label key={p.key} className="flex items-center justify-between gap-3 text-sm font-bold text-slate-600">
-            <span>{p.label}</span>
-            <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-5 h-5 accent-amber-500" />
-          </label>
-        ) : (
-          <NumberField key={p.key} label={p.label} value={draft[p.key]} min={p.min} max={p.max} onChange={(v) => set({ [p.key]: v })} />
-        ),
-      )}
+      {def.params
+        .filter((p) => !p.when || p.when(draft))
+        .map((p) =>
+          p.bool ? (
+            <label key={p.key} className="flex items-center justify-between gap-3 text-sm font-bold text-slate-600">
+              <span>{p.label}</span>
+              <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-5 h-5 accent-amber-500" />
+            </label>
+          ) : p.options ? (
+            <div key={p.key}>
+              <div className="text-sm font-bold text-slate-600 mb-1">{p.label}</div>
+              <Seg value={draft[p.key]} onChange={(k) => set({ [p.key]: k })} options={p.options} />
+            </div>
+          ) : (
+            <NumberField key={p.key} label={p.label} value={draft[p.key]} min={p.min} max={p.max} onChange={(v) => set({ [p.key]: v })} />
+          ),
+        )}
       <div className="flex gap-2">
         <Button variant="secondary" className="flex-1 py-2.5 text-sm" onClick={onCancel}>
           やめる
@@ -153,7 +167,7 @@ export const RuleCard = ({ state, onOp }) => {
   );
 };
 
-// 問題番号の進行（休みのカウントとグラフの横軸に使う）
+// 問題番号の進行（休みのカウントとグラフの横軸に使う。休み中の人は自分の「問題を進める」でも数えられる）
 export const ProgressCard = ({ state, onOp }) => (
   <Card className="p-5 flex items-center gap-3">
     <div className="flex-1 min-w-0">

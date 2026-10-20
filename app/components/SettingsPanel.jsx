@@ -74,10 +74,10 @@ export const SettingsPanel = ({ state, roomId, onOp, onClose }) => {
             variant="ghost"
             className={`bg-rose-50 text-rose-600 py-3 text-sm ${rule ? 'col-span-2' : ''}`}
             onClick={() => {
-              if (window.confirm(rule ? '全員の得点・状態をリセットして Q1 に戻しますか？' : '全員を0にリセットしますか？')) onOp('resetAll');
+              if (window.confirm(rule ? '全員の得点・状態をリセットして Q1 に戻しますか？（記録タブの成績は残ります）' : '全員を0にリセットしますか？')) onOp('resetAll');
             }}
           >
-            <RefreshCw size={16} /> 全員 0 リセット
+            <RefreshCw size={16} /> {rule ? '全員リセット' : '全員 0 リセット'}
           </Button>
         </div>
       </Card>
@@ -166,7 +166,7 @@ export const SettingsPanel = ({ state, roomId, onOp, onClose }) => {
                       </div>
                     ))
                   ) : (
-                    <div className="text-xs text-slate-300 py-1">メンバーなし（ランキングからドラッグ）</div>
+                    <div className="text-xs text-slate-300 py-1">メンバーなし</div>
                   )}
                 </div>
               </div>
