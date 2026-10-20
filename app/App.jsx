@@ -319,7 +319,14 @@ export const App = ({ store }) => {
         )}
         {view === 'host' && <HostView state={state} roomId={roomId} myPlayerId={myPlayerId} onOp={executeOp} onLeave={leaveRoom} />}
         {view === 'participant' && (
-          <ParticipantView state={state} roomId={roomId} myPlayerId={myPlayerId} onOp={executeOp} onLeave={leaveRoom} />
+          <ParticipantView
+            state={state}
+            roomId={roomId}
+            myPlayerId={myPlayerId}
+            onOp={executeOp}
+            onLeave={leaveRoom}
+            onRejoin={() => enterAsPlayer(roomId, myName || load('playerName') || 'ゲスト', myPlayerId)}
+          />
         )}
         {view === 'board' && <BoardView state={state} roomId={roomId} />}
         {showResult && view === 'board' && <BoardResult state={state} />}

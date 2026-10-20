@@ -301,6 +301,11 @@ test('v34：ホストは行を押すとメニューから改名・観戦・削�
   h.click(h.byText('削除する', h.doc.querySelector('[data-sheet]')));
   await answerAsk(h);
   await waitFor(() => !room(db).players[aliceId], { msg: 'removed' });
+  // 削除された本人には案内と「もう一度入る」
+  await waitFor(() => p.doc.querySelector('[data-removed]'), { msg: 'alice sees removed bar', timeout: 4000 });
+  p.click(p.byText('もう一度入る', p.doc.querySelector('[data-removed]')));
+  await waitFor(() => room(db).players[aliceId] && p.doc.querySelector('[data-selfbar]'), { msg: 'rejoined' });
+  assert.ok(!p.doc.querySelector('[data-removed]'));
   h.close();
   p.close();
 });
