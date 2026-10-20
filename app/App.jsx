@@ -117,6 +117,7 @@ export const App = ({ store }) => {
       setMyName(name);
       save(`playerId_${rId}`, res.playerId);
       save('playerName', name);
+      save('qp_last_room', rId);
     }
     return res;
   };
@@ -125,37 +126,47 @@ export const App = ({ store }) => {
   //  - view=board: 大画面モード（入室しない）
   //  - ホスト：保存済みトークンで復帰
   //  - 参加者：この部屋に入ったことがあれば名前入力を省いて再入室、無ければ名前入力へ
+  // 保存してある情報で部屋に戻る（ホストはトークン、参加者は前の playerId と名前）。戻れなければ入室画面へ
+  const resumeRoom = async (room) => {
+    setRoomId(room);
+    const savedName = (load('playerName') || '').trim();
+    const savedPlayerId = load(`playerId_${room}`);
+    const savedHostToken = load(`hostToken_${room}`);
+    if (savedHostToken) {
+      const res = await store.hostJoin(room, savedHostToken);
+      if (res.ok) {
+        await enterAsPlayer(room, savedName || 'ホスト', savedPlayerId);
+        setView('host');
+        return;
+      }
+    }
+    if (savedPlayerId && savedName) {
+      const res = await enterAsPlayer(room, savedName, savedPlayerId);
+      if (res.ok) {
+        setView('participant');
+        return;
+      }
+    }
+    setView('join');
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomFromUrl = (params.get('room') || '').trim().toUpperCase();
     if (!roomFromUrl) return;
-    setRoomId(roomFromUrl);
     if (params.get('view') === 'board') {
+      setRoomId(roomFromUrl);
       setView('board');
       return;
     }
-    const savedName = (load('playerName') || '').trim();
-    const savedPlayerId = load(`playerId_${roomFromUrl}`);
-    const savedHostToken = load(`hostToken_${roomFromUrl}`);
-    (async () => {
-      if (savedHostToken) {
-        const res = await store.hostJoin(roomFromUrl, savedHostToken);
-        if (res.ok) {
-          await enterAsPlayer(roomFromUrl, savedName || 'ホスト', savedPlayerId);
-          setView('host');
-          return;
-        }
-      }
-      if (savedPlayerId && savedName) {
-        const res = await enterAsPlayer(roomFromUrl, savedName, savedPlayerId);
-        if (res.ok) {
-          setView('participant');
-          return;
-        }
-      }
-      setView('join');
-    })();
+    resumeRoom(roomFromUrl);
   }, [store]);
+
+  // ホームの「前の部屋に戻る」：最後に入った部屋（保存した入室情報があるときだけ）
+  const lastRoom = (() => {
+    const r = load('qp_last_room');
+    return r && (load(`hostToken_${r}`) || load(`playerId_${r}`)) ? r : null;
+  })();
 
   const handleCreateRoom = async (name) => {
     const hostName = (name || '').trim() || 'ホスト';
@@ -223,6 +234,12 @@ export const App = ({ store }) => {
         )}
         {view === 'home' && (
           <HomeView
+            lastRoom={lastRoom}
+            onResume={(r) => {
+              setEntryError('');
+              setRoomInUrl(r);
+              resumeRoom(r);
+            }}
             onGoHostCreate={() => {
               setEntryError('');
               setView('hostcreate');

@@ -105,6 +105,7 @@ const clickText = (text) => (p) =>
 const VIEWS = {
   home: { url: '' },
   join: { url: '?room=0427' },
+  homeResume: { url: '', storage: { ...alice, qp_last_room: '0427' } },
   help: { url: '', act: (p) => p.evaluate(() => document.querySelector('button[aria-label="使い方"]').click()) },
   host: { url: '?room=0427', storage: host },
   participant: { url: '?room=0427', storage: alice },

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { HelpSheet } from '../components/HelpSheet.jsx';
 import { ThemeButton } from '../components/ThemeButton.jsx';
-import { ChevronLeft, Crown, HelpCircle, UserPlus, Zap } from '../ui/icons.jsx';
+import { ChevronLeft, ChevronRight, Crown, HelpCircle, RotateCcw, UserPlus, Zap } from '../ui/icons.jsx';
 import { Button, Card, IconButton, TextField } from '../ui/primitives.jsx';
 import { BUILD } from '../version.js';
 
@@ -60,7 +60,7 @@ const EntryFrame = ({ children, onBack }) => {
   );
 };
 
-export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
+export const HomeView = ({ onGoHostCreate, onGoJoin, lastRoom, onResume }) => (
   <EntryFrame>
     <div className="text-center">
       <Logo />
@@ -68,6 +68,22 @@ export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
       <p className="text-ink-2 font-bold mt-1 mb-7">みんなで盛り上がるリアルタイム得点表</p>
     </div>
     <div className="flex flex-col gap-3">
+      {lastRoom && (
+        <button
+          onClick={() => onResume(lastRoom)}
+          className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-brand/50 bg-brand-soft px-4 py-3 text-left hover:border-brand transition-colors"
+          data-last-room
+        >
+          <RotateCcw size={20} className="text-brand-ink shrink-0" />
+          <span className="flex-1 min-w-0">
+            <span className="block font-black text-ink">前の部屋に戻る</span>
+            <span className="block text-xs text-ink-2">
+              部屋 <b className="text-brand-ink tabular-nums">{lastRoom}</b>（名前の入力なしで戻れます）
+            </span>
+          </span>
+          <ChevronRight size={20} className="text-brand-ink shrink-0" />
+        </button>
+      )}
       <Button onClick={onGoJoin} className="w-full py-4 text-lg">
         <UserPlus size={22} />
         {' 参加者として入室する'}
