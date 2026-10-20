@@ -283,6 +283,32 @@ export const App = ({ store }) => {
     return () => window.removeEventListener('popstate', onPop);
   }, [inRoom, roomId, view, confirm]);
 
+  // ホームから入力画面（参加・部屋を作る）へは履歴を 1 つ積む。スマホの「戻る」でサイトを閉じずにホームへ戻れるように
+  const goEntry = (v) => {
+    setEntryError('');
+    window.history.pushState({ qpEntry: v }, '', window.location.href);
+    setView(v);
+  };
+  const backToHome = () => {
+    if ((window.history.state || {}).qpEntry) {
+      window.history.back(); // 下の popstate でホームへ
+      return;
+    }
+    setRoomId('');
+    setRoomInUrl('');
+    setView('home');
+  };
+  useEffect(() => {
+    if (view !== 'join' && view !== 'hostcreate') return undefined;
+    const onPop = () => {
+      setEntryError('');
+      setRoomId('');
+      setView('home');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [view]);
+
   const ctx = useMemo(() => ({ store, roomId, soundOn, setSoundOn, online }), [store, roomId, soundOn, online]);
   const isHost = view === 'host';
   const showResult = inRoom && state.phase === 'result' && !resultClosed;
@@ -316,32 +342,14 @@ export const App = ({ store }) => {
               setRoomInUrl(r);
               resumeRoom(r);
             }}
-            onGoHostCreate={() => {
-              setEntryError('');
-              setView('hostcreate');
-            }}
-            onGoJoin={() => {
-              setEntryError('');
-              setView('join');
-            }}
+            onGoHostCreate={() => goEntry('hostcreate')}
+            onGoJoin={() => goEntry('join')}
           />
         )}
         {view === 'hostcreate' && (
-          <HostCreateView defaultName={myName} error={entryError} onCreate={handleCreateRoom} onBack={() => setView('home')} />
+          <HostCreateView defaultName={myName} error={entryError} onCreate={handleCreateRoom} onBack={backToHome} />
         )}
-        {view === 'join' && (
-          <JoinView
-            roomId={roomId}
-            defaultName={myName}
-            error={entryError}
-            onJoin={handleJoin}
-            onBack={() => {
-              setRoomId('');
-              setRoomInUrl('');
-              setView('home');
-            }}
-          />
-        )}
+        {view === 'join' && <JoinView roomId={roomId} defaultName={myName} error={entryError} onJoin={handleJoin} onBack={backToHome} />}
         {view === 'host' && <HostView state={state} roomId={roomId} myPlayerId={myPlayerId} onOp={executeOp} onLeave={leaveRoom} />}
         {view === 'participant' && (
           <ParticipantView
