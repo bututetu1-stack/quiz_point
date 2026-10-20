@@ -118,3 +118,92 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
     </div>
   );
 };
+
+// 大画面（プロジェクタ）用の結果発表：画面いっぱいに、遠くからでも読める大きさで。いつも暗い配色
+const BIG_PODIUM = [
+  { place: 2, h: 'h-40', color: 'bg-medal-2', delay: '0.4s' },
+  { place: 1, h: 'h-56', color: 'bg-medal-1', delay: '1s' },
+  { place: 3, h: 'h-28', color: 'bg-medal-3', delay: '0s' },
+];
+
+export const BoardResult = ({ state }) => {
+  const sorted = rankPlayers(state);
+  const ranks = winRanks(state.players);
+  const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
+  const rest = sorted.slice(3);
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white p-6 lg:p-10 flex flex-col gap-6 overflow-y-auto"
+      data-result
+      data-board-result
+    >
+      <Confetti count={140} />
+      <h2 className="text-center text-5xl lg:text-6xl font-black text-amber-300 flex items-center justify-center gap-4">
+        <Trophy size={56} /> 結果発表
+      </h2>
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-8 items-end">
+        <div className="flex items-end justify-center gap-4">
+          {BIG_PODIUM.map(({ place, h, color, delay }) => {
+            const p = sorted[place - 1];
+            return (
+              <div
+                key={place}
+                className="flex flex-col items-center w-44 lg:w-52 motion-safe:animate-rise"
+                style={{ animationDelay: delay }}
+              >
+                {p ? (
+                  <>
+                    {place === 1 && <Crown className="w-16 h-16 text-amber-300" fill="currentColor" />}
+                    <div className="text-3xl lg:text-4xl font-black text-center leading-tight break-all">{p.name}</div>
+                    <div className="text-2xl font-black text-white/80 mb-2 tabular-nums">{scoreText(state, p)}</div>
+                  </>
+                ) : (
+                  <div className="text-white/60 text-2xl mb-2">—</div>
+                )}
+                <div
+                  className={`w-full ${h} rounded-t-3xl ${color} flex items-start justify-center pt-3 text-7xl font-black text-medal-ink`}
+                >
+                  {place}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex flex-col gap-5 self-stretch justify-end">
+          {teams.length > 0 && (
+            <div className="bg-white/10 rounded-3xl p-5">
+              <div className="text-white/70 font-bold mb-2 flex items-center gap-2 text-lg">
+                <Users size={20} /> チームの結果
+              </div>
+              <ol className="flex flex-col gap-2">
+                {teams.map((t, i) => (
+                  <li key={t.id} className="flex items-center gap-3">
+                    <span className="w-8 text-2xl font-black text-white/70 tabular-nums">{i + 1}</span>
+                    <span className="w-2.5 self-stretch rounded-full shrink-0" style={{ background: teamColor(state, t.id) }} />
+                    <span className="flex-1 min-w-0 truncate text-3xl font-black flex items-center gap-2">
+                      {i === 0 && <Crown size={26} className="text-amber-300 shrink-0" fill="currentColor" />}
+                      {t.name}
+                    </span>
+                    <span className="text-4xl font-black text-sky-300 tabular-nums">{getTeamDisplayScore(t.id, state)}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {rest.length > 0 && (
+            <ol className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]" start={4}>
+              {rest.map((p, i) => (
+                <li key={p.id} className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-2">
+                  <span className="w-8 text-xl font-black text-white/70 tabular-nums">{i + 4}</span>
+                  <span className="flex-1 min-w-0 truncate text-2xl font-black">{p.name}</span>
+                  {statusText(p, ranks) && <span className="text-sm font-bold text-white/70 shrink-0">{statusText(p, ranks)}</span>}
+                  <span className="text-2xl font-black tabular-nums">{scoreText(state, p)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

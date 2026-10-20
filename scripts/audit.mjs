@@ -116,6 +116,7 @@ const VIEWS = {
   },
   board: { url: '?room=0427&view=board', board: true },
   result: { url: '?room=0427', storage: alice, phase: true },
+  boardResult: { url: '?room=0427&view=board', board: true, phase: true },
   ruleEditor: {
     url: '?room=0427',
     storage: host,

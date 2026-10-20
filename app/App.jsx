@@ -1,7 +1,7 @@
 // App：画面の切り替え・入室/部屋作成・データ層（store）とのやりとり
 
 import { useEffect, useMemo, useState } from 'react';
-import { ResultOverlay } from './components/ResultOverlay.jsx';
+import { BoardResult, ResultOverlay } from './components/ResultOverlay.jsx';
 import { RoomContext } from './context.js';
 import { ruleLabel } from './lib/rules.js';
 import { useToast } from './ui/toast.jsx';
@@ -254,7 +254,8 @@ export const App = ({ store }) => {
           <ParticipantView state={state} roomId={roomId} myPlayerId={myPlayerId} onOp={executeOp} onLeave={leaveRoom} />
         )}
         {view === 'board' && <BoardView state={state} roomId={roomId} />}
-        {showResult && (
+        {showResult && view === 'board' && <BoardResult state={state} />}
+        {showResult && view !== 'board' && (
           <ResultOverlay
             state={state}
             isHost={isHost}
