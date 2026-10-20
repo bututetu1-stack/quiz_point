@@ -50,7 +50,8 @@ const useWidth = (ref, fallback = 720) => {
 
 const Plot = ({ tl, players, width, myPlayerId }) => {
   const W = Math.max(260, Math.round(width));
-  const H = Math.round(Math.min(320, Math.max(200, W * 0.55)));
+  // スマホの縦長では背を高めに（幅 350 で約 300px）、PC では 340px まで
+  const H = Math.round(Math.min(340, Math.max(220, W * 0.5 + 130)));
   const pad = { t: 12, r: 12, b: 24, l: 36 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
