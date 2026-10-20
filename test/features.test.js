@@ -468,3 +468,19 @@ test('v44：ホストは行のメニューから、ほかの人のチームを�
   h.close();
   p.close();
 });
+
+test('v45：大画面の結果発表は画面いっぱいの専用表示（閉じるボタンなし）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  const b = boot({ db, url: `/?room=${code}&view=board` });
+  await waitFor(() => b.doc.querySelector('[data-board]'), { msg: 'board' });
+  h.click(h.byText('結果発表（全員の画面に表示）'));
+  await waitFor(() => b.doc.querySelector('[data-board-result]'), { msg: 'board result' });
+  assert.ok(!b.doc.querySelector('[data-board-result] button'), '大画面には操作ボタンを出さない');
+  assert.ok(b.doc.querySelector('[data-board-result]').textContent.includes('アリス'));
+  h.click(h.byText('結果発表を終える'));
+  await waitFor(() => !b.doc.querySelector('[data-board-result]'), { msg: 'closed on board' });
+  b.close();
+  h.close();
+  p.close();
+});
