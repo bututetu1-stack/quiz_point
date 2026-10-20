@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { MainLayout } from '../components/MainLayout.jsx';
+import { RoomStatus } from '../components/RoomStatus.jsx';
 import { PlayerList } from '../components/PlayerList.jsx';
 import { GraphPanel } from '../components/ScoreGraph.jsx';
 import { SelfScoreBar } from '../components/SelfScoreBar.jsx';
@@ -19,11 +20,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
   };
   const myPlayer = (state.players || []).find((p) => p.id === myPlayerId);
   return (
-    <div
-      style={{
-        paddingBottom: myPlayer ? 180 : 0,
-      }}
-    >
+    <div style={{ paddingBottom: myPlayer ? 'var(--selfbar-h, 180px)' : 0 }}>
       <MainLayout roomId={roomId} isHost={true} onLeave={onLeave} onCopy={copyUrl}>
         <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm">
           <TabBar tab={tab} setTab={setTab} />
@@ -31,6 +28,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
             <Menu size={20} /> <span className="hidden sm:inline">管理</span>
           </Button>
         </div>
+        <RoomStatus state={state} />
         <div className="flex gap-6 items-start">
           <div className="flex-1 w-full min-w-0">
             {tab === 'ranking' ? (

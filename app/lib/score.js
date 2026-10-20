@@ -29,9 +29,13 @@ export const calcTeamMaruBatsu = (members) =>
       batsu: 0,
     },
   );
+// ルール（自由計算以外）ではメンバーの得点の合計
+const ruleMode = (state) => !!state.rule && state.rule.type !== 'free';
+
 export const calcTeamScore = (teamId, state) => {
   const members = state.players.filter((p) => p.teamId === teamId);
   if (!members.length) return 0;
+  if (ruleMode(state)) return members.reduce((a, p) => a + parseScoreToNumber(p.score), 0);
   if (state.scoreMode === 'simple') {
     const mb = calcTeamMaruBatsu(members);
     return mb.maru - mb.batsu;
@@ -40,7 +44,7 @@ export const calcTeamScore = (teamId, state) => {
   return state.teamMode === 'product' ? scores.reduce((a, v) => a * v, 1) : scores.reduce((a, v) => a + v, 0);
 };
 export const getTeamDisplayScore = (teamId, state) => {
-  if (state.scoreMode === 'simple') {
+  if (!ruleMode(state) && state.scoreMode === 'simple') {
     const mb = calcTeamMaruBatsu(state.players.filter((p) => p.teamId === teamId));
     return `${mb.maru} － ${mb.batsu}`;
   }
