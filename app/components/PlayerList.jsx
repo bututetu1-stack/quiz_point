@@ -62,16 +62,18 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
       data-player-id={player.id}
       data-flip-id={player.id}
       onClick={onTap}
-      className={`w-full text-left flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 rounded-2xl border transition-colors ${tone} ${st.kind === 'lose' ? 'bg-sunken shadow-none' : 'shadow-sm'} ${onTap ? 'hover:border-brand/60 cursor-pointer' : ''}`}
+      className={`w-full text-left flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 short:py-1 rounded-2xl border transition-colors ${tone} ${st.kind === 'lose' ? 'bg-sunken shadow-none' : 'shadow-sm'} ${onTap ? 'hover:border-brand/60 cursor-pointer' : ''}`}
     >
-      <span className={`relative w-9 h-9 shrink-0 flex items-center justify-center rounded-xl text-base font-black tabular-nums ${medal}`}>
+      <span
+        className={`relative w-9 h-9 short:w-8 short:h-8 shrink-0 flex items-center justify-center rounded-xl text-base font-black tabular-nums ${medal}`}
+      >
         {rank === 1 && scored && st.kind !== 'lose' && (
           <Crown className="absolute -top-3 -left-2 w-5 h-5 text-medal-1 -rotate-12" fill="currentColor" />
         )}
         {rank}
       </span>
-      <span className="flex-1 min-w-0">
-        <span className="flex items-center gap-1.5 min-w-0">
+      <span className="flex-1 min-w-0 short:flex short:items-center short:gap-3">
+        <span className="flex items-center gap-1.5 min-w-0 short:shrink-0 short:max-w-[55%]">
           <OnlineDot online={online} />
           <span className={`font-bold text-[0.9375rem] truncate ${st.kind === 'lose' ? 'text-ink-2' : 'text-ink'}`}>{player.name}</span>
           {isMe && <Chip tone="brandSolid">YOU</Chip>}
@@ -83,9 +85,9 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, u
           )}
         </span>
         {(team || rule) && (
-          <span className="flex items-center gap-2 text-xs text-ink-3 mt-0.5 min-w-0">
+          <span className="flex items-center gap-2 text-xs text-ink-3 mt-0.5 short:mt-0 min-w-0">
             {team && (
-              <span className="flex items-center gap-1 shrink-0 max-w-[40%] min-w-0">
+              <span className="flex items-center gap-1 shrink-0 max-w-[40%] short:max-w-[6rem] min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: teamColor(state, team.id) }} />
                 <span className="truncate">{team.name}</span>
               </span>
