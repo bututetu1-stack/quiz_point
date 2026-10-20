@@ -800,3 +800,17 @@ test('通信が遅いとき「正答」の直後に「元に戻す」を押し�
   h.close();
   p.close();
 });
+
+test('退出してホームに戻ったあとの「戻る」で、URL だけ部屋に戻らない', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  p.click(p.doc.querySelector('button[aria-label="退出"]'));
+  await answerAsk(p);
+  await waitFor(() => p.byText('ホストとして部屋を作る'), { msg: 'home' });
+  p.w.history.back();
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(p.byText('ホストとして部屋を作る'), 'ホームのまま');
+  assert.ok(!p.w.location.search.includes('room='), 'URL に部屋が残らない');
+  h.close();
+  p.close();
+});
