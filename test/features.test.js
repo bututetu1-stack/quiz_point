@@ -155,7 +155,7 @@ test('v33：休み中は「問題を進める」（ホストの次の問題と�
   await waitFor(() => (room(db).rule || {}).rest === 2, { msg: 'rest rule saved' });
   await waitFor(() => p.text().includes('誤答2休'), { msg: 'participant sees rule' });
 
-  p.click(p.byText('誤答')); // Q1 で誤答 → Q2・Q3 は休み
+  p.click(p.byText('誤答', p.doc.querySelector('[data-selfbar]'))); // Q1 で誤答 → Q2・Q3 は休み
   await waitFor(() => p.doc.querySelector('[data-rest]'), { msg: 'rest bar' });
   assert.ok(!p.byText('正答'), '休み中は正答/誤答の代わりに「問題を進める」');
   p.click(p.byText('問題を進める')); // 本人が Q2 へ

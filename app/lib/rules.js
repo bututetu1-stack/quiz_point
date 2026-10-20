@@ -164,6 +164,18 @@ export const ruleLabel = (rule) => {
   }
 };
 
+// 設定の一覧（説明の画面用）：[{ label, value }]
+export const ruleDetails = (rule) => {
+  const r = normalizeRule(rule);
+  const def = RULE_TYPES.find((d) => d.type === r.type);
+  return def.params
+    .filter((p) => !p.when || p.when(r))
+    .map((p) => ({
+      label: p.label,
+      value: p.bool ? (r[p.key] ? 'あり' : 'なし') : p.options ? (p.options.find(([k]) => k === r[p.key]) || ['', ''])[1] : r[p.key] === 0 && /0 で/.test(p.label) ? 'なし' : String(r[p.key]),
+    }));
+};
+
 const int = (n) => `${n}/1`;
 
 // ルールを始めたとき（リセット・途中参加）の得点

@@ -33,7 +33,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v35'));
+  assert.ok(h.text().includes('v36'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -125,8 +125,9 @@ test('存在しない部屋コードで入室するとエラーを出す', async
   const codeInput = p.doc.querySelector('input[placeholder="0000"]');
   p.type([...p.doc.querySelectorAll('input')].find((i) => i !== codeInput), 'ボブ');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
-  await waitFor(() => (p.w.__alerts || []).length > 0, { msg: 'alert' });
-  assert.ok(p.w.__alerts[0].includes('部屋が見つかりません'));
+  await waitFor(() => p.doc.querySelector('[data-entry-error]'), { msg: 'inline error' });
+  assert.ok(p.doc.querySelector('[data-entry-error]').textContent.includes('部屋が見つかりません'));
+  assert.equal((p.w.__alerts || []).length, 0, 'ダイアログは出さない');
   p.close();
 });
 

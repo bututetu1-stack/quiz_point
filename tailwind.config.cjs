@@ -56,5 +56,9 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // short: スマホ横持ちなど、横に広く縦が短い画面（自分の操作パネルを右に置く）。
+    // screens に raw を足すと min-[360px]: などの任意幅の指定が効かなくなるので、プラグインの variant にする
+    ({ addVariant }) => addVariant('short', '@media (max-height: 500px) and (min-width: 640px) and (max-width: 1023px)'),
+  ],
 };

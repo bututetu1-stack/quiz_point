@@ -6,12 +6,13 @@ import { ruleLabel } from '../lib/rules.js';
 import { LogOut, QrCode, Volume2, VolumeX } from '../ui/icons.jsx';
 import { Chip, IconButton } from '../ui/primitives.jsx';
 import { InviteDialog } from './InviteDialog.jsx';
-import { RoomStatus } from './RoomStatus.jsx';
+import { RoomStatus, RuleInfoSheet } from './RoomStatus.jsx';
 import { ThemeButton } from './ThemeButton.jsx';
 
 export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) => {
   const { soundOn, setSoundOn } = useContext(RoomContext);
   const [invite, setInvite] = useState(false);
+  const [ruleOpen, setRuleOpen] = useState(false);
   return (
     <div className="min-h-screen bg-page flex flex-col">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur border-b border-line">
@@ -24,7 +25,7 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
           >
             <QrCode size={16} /> {roomId}
           </button>
-          {state && <RoomStatus state={state} onNextQ={isHost && onOp ? () => onOp('nextQ', { delta: 1 }) : null} />}
+          {state && <RoomStatus state={state} onShowRule={() => setRuleOpen(true)} onNextQ={isHost && onOp ? () => onOp('nextQ', { delta: 1 }) : null} />}
           <div className="flex items-center shrink-0 ml-auto">
             {isHost && <Chip tone="ng" className="hidden sm:inline-flex mr-1">HOST</Chip>}
             <ThemeButton />
@@ -45,13 +46,14 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
       </header>
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">
         {state && (
-          <div className="min-[360px]:hidden -mb-1 text-xs font-black text-brand-ink truncate" data-rule-narrow>
+          <button onClick={() => setRuleOpen(true)} className="min-[360px]:hidden -my-1 py-1.5 min-h-[28px] text-left text-xs font-black text-brand-ink truncate" data-rule-narrow>
             ルール：{ruleLabel(state.rule)}
-          </div>
+          </button>
         )}
         {children}
       </main>
       {invite && <InviteDialog roomId={roomId} isHost={isHost} onClose={() => setInvite(false)} />}
+      {state && <RuleInfoSheet state={state} open={ruleOpen} onClose={() => setRuleOpen(false)} />}
     </div>
   );
 };
