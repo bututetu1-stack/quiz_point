@@ -96,8 +96,10 @@ const CHIP = {
   info: 'bg-info-soft text-info-ink',
   muted: 'bg-ink-3 text-card',
 };
-export const Chip = ({ children, tone = 'neutral', className = '' }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`}>{children}</span>
+export const Chip = ({ children, tone = 'neutral', className = '', ...props }) => (
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`} {...props}>
+    {children}
+  </span>
 );
 
 // 切替（[key, label, activeTextClass?] の配列）
@@ -155,7 +157,7 @@ export const Sheet = ({ open, onClose, title, children, wide = false }) => {
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className={`outline-none w-full ${wide ? 'sm:max-w-lg' : 'sm:max-w-sm'} bg-card rounded-t-3xl sm:rounded-3xl shadow-soft border border-line max-h-[88vh] overflow-y-auto animate-sheet-up p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}
+        className={`outline-none w-full ${wide ? 'sm:max-w-lg' : 'sm:max-w-sm'} bg-card rounded-t-3xl sm:rounded-3xl shadow-soft border border-line max-h-[88vh] overflow-y-auto motion-safe:animate-sheet-up p-4 pb-[max(1rem,env(safe-area-inset-bottom))]`}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line sm:hidden" />
         {title && (
