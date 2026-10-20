@@ -5,11 +5,22 @@ import { forwardRef, useEffect, useRef } from 'react';
 import { Award, BarChart2, Clock, List, X } from './icons.jsx';
 
 // ダイアログの共通の振る舞い：Esc で閉じる・開いたら中の最初の操作に焦点・Tab は中で回す・閉じたら元の場所に焦点を戻す
+// 開いているダイアログ（新しいものが後ろ）。ブラウザの「戻る」でいちばん上を閉じるのに使う
+const openDialogs = [];
+// いちばん上のダイアログを閉じる。開いていれば true（閉じられないもの＝ホストの結果発表でも true）
+export const closeTopDialog = () => {
+  const top = openDialogs[openDialogs.length - 1];
+  if (!top) return false;
+  if (top.current) top.current();
+  return true;
+};
+
 export const useDialog = (open, onClose, ref) => {
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
     if (!open) return undefined;
+    openDialogs.push(close);
     const prev = document.activeElement;
     const focusables = () =>
       [...(ref.current ? ref.current.querySelectorAll('button, input, select, textarea, a[href]') : [])].filter((e) => !e.disabled);
@@ -39,6 +50,8 @@ export const useDialog = (open, onClose, ref) => {
       target.focus({ preventScroll: true });
     }, 0);
     return () => {
+      const i = openDialogs.indexOf(close);
+      if (i >= 0) openDialogs.splice(i, 1);
       document.removeEventListener('keydown', onKey);
       clearTimeout(t);
       if (prev && prev.focus && document.contains(prev)) prev.focus({ preventScroll: true });
