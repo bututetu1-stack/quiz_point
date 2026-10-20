@@ -208,7 +208,10 @@ test('v33：観戦にするとランキングから外れ、参加に戻せる�
   await waitFor(() => p.doc.querySelector('[data-record]'), { msg: 'record panel' });
   const row = [...p.doc.querySelectorAll('[data-record] tbody tr')].find((tr) => tr.textContent.includes('アリス'));
   assert.ok(row, 'アリスの行');
-  assert.deepEqual([...row.querySelectorAll('td')].slice(1).map((td) => td.textContent), ['1', '0', '0', '0']);
+  assert.deepEqual(
+    [...row.querySelectorAll('td')].slice(1).map((td) => td.textContent),
+    ['1', '0', '0', '0'],
+  );
   h.close();
   p.close();
 });
@@ -219,7 +222,12 @@ test('v33：ルール選択は2系統に分かれ、ディバイドの「割る�
   h.click(h.byText('変更する'));
   await waitFor(() => h.byText('このルールで始める'));
   assert.ok(h.text().includes('正解数で勝負') && h.text().includes('総得点で勝負'));
-  ['フリーズ', '+M/−N', 'M by N', 'ディバイド'].forEach((l) => assert.ok(h.buttons().some((b) => b.textContent.trim() === l), l));
+  ['フリーズ', '+M/−N', 'M by N', 'ディバイド'].forEach((l) =>
+    assert.ok(
+      h.buttons().some((b) => b.textContent.trim() === l),
+      l,
+    ),
+  );
   h.click(h.buttons().find((b) => b.textContent.trim() === 'ディバイド'));
   await waitFor(() => h.text().includes('初期点'));
   assert.ok(!h.text().includes('割る数（D）'));
@@ -231,7 +239,10 @@ test('v33：ルール選択は2系統に分かれ、ディバイドの「割る�
   await answerAsk(h);
   await waitFor(() => (room(db).rule || {}).type === 'divide', { msg: 'divide saved' });
   await waitFor(() => p.text().includes('10 ディバイド'), { msg: 'label' });
-  assert.ok(Object.values(room(db).players).every((x) => x.score === '10/1'), '全員 初期 10 点');
+  assert.ok(
+    Object.values(room(db).players).every((x) => x.score === '10/1'),
+    '全員 初期 10 点',
+  );
   h.close();
   p.close();
 });
@@ -322,7 +333,9 @@ test('v38：順位が上がった人の行に ▲（数秒で消える）。大�
   const { h, p, code } = await hostAndAlice(db);
   const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
   const b = boot({ db, url: `/?room=${code}&view=board` });
-  await waitFor(() => b.doc.querySelector('[data-board]') && b.doc.querySelector('[data-board]').textContent.includes('アリス'), { msg: 'board' });
+  await waitFor(() => b.doc.querySelector('[data-board]') && b.doc.querySelector('[data-board]').textContent.includes('アリス'), {
+    msg: 'board',
+  });
   // ホストが先に1点 → アリスが2点で抜く
   h.click(h.byText('正答', h.doc.querySelector('[data-selfbar]')));
   await waitFor(() => Object.values(room(db).players).find((x) => x.name === '司会').maru === 1);
@@ -393,9 +406,12 @@ test('v41：グラフ・ログが読めない（データベースの設定で�
   await waitFor(() => p.doc.querySelector('[data-unavailable]'), { msg: 'graph unavailable' });
   assert.ok(p.doc.querySelector('[data-unavailable]').textContent.includes('グラフ'));
   p.click(p.buttons().find((b) => b.textContent.includes('ログ')));
-  await waitFor(() => p.doc.querySelector('[data-unavailable]') && p.doc.querySelector('[data-unavailable]').textContent.includes('操作ログ'), {
-    msg: 'log unavailable',
-  });
+  await waitFor(
+    () => p.doc.querySelector('[data-unavailable]') && p.doc.querySelector('[data-unavailable]').textContent.includes('操作ログ'),
+    {
+      msg: 'log unavailable',
+    },
+  );
   h.close();
   p.close();
 });
@@ -546,4 +562,24 @@ test('v50：ホームの「前の部屋に戻る」は、部屋がもう無け�
   assert.ok(h.doc.querySelector('[data-toast]').textContent.includes('もう終わっています'));
   assert.ok(!((db._dump() || {}).rooms || {})['9999'], '消えた部屋を作り直さない');
   h.close();
+});
+
+test('大画面：「全画面」ボタンで全画面に（対応ブラウザだけ表示）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  const b = boot({ db, url: `/?room=${code}&view=board` });
+  let asked = 0;
+  Object.defineProperty(b.doc, 'fullscreenEnabled', { configurable: true, value: true });
+  b.doc.documentElement.requestFullscreen = async () => {
+    asked += 1;
+  };
+  await waitFor(() => b.doc.querySelector('[data-board]') && b.doc.querySelector('[data-board]').textContent.includes('アリス'), {
+    msg: 'board',
+  });
+  await waitFor(() => b.doc.querySelector('[data-fullscreen]'), { msg: 'fullscreen button' });
+  b.click(b.doc.querySelector('[data-fullscreen]'));
+  assert.equal(asked, 1);
+  h.close();
+  p.close();
+  b.close();
 });
