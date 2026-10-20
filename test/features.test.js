@@ -704,3 +704,22 @@ test('全員 0 点のまま結果発表したら、「おめでとう」や王�
   h.close();
   p.close();
 });
+
+test('「元に戻す」：戻せたら知らせ、二度押ししても 1 手だけ戻る', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  const alice = () => Object.values(room(db).players).find((x) => x.name === 'アリス');
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => alice().maru === 1);
+  await new Promise((r) => setTimeout(r, 450));
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => alice().maru === 2);
+  const undo = () => p.buttons().find((b) => b.title && b.title.startsWith('元に戻す'));
+  p.click(undo());
+  p.click(undo());
+  await waitFor(() => p.text().includes('元に戻しました'), { msg: 'undo toast' });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(alice().maru, 1, '二度押しでも 1 手だけ');
+  h.close();
+  p.close();
+});
