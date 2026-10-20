@@ -2,6 +2,7 @@
 
 import { useContext, useState } from 'react';
 import { RoomContext } from '../context.js';
+import { ruleLabel } from '../lib/rules.js';
 import { LogOut, QrCode, Volume2, VolumeX } from '../ui/icons.jsx';
 import { Chip, IconButton } from '../ui/primitives.jsx';
 import { InviteDialog } from './InviteDialog.jsx';
@@ -42,7 +43,14 @@ export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) =
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">{children}</main>
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col gap-3">
+        {state && (
+          <div className="min-[360px]:hidden -mb-1 text-xs font-black text-brand-ink truncate" data-rule-narrow>
+            ルール：{ruleLabel(state.rule)}
+          </div>
+        )}
+        {children}
+      </main>
       {invite && <InviteDialog roomId={roomId} isHost={isHost} onClose={() => setInvite(false)} />}
     </div>
   );

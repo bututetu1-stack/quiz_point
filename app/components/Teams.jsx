@@ -43,7 +43,7 @@ export const TeamButton = ({ state, myPlayer, onOpen }) => {
     <button
       onClick={onOpen}
       className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-colors max-w-[7rem] ${
-        team ? 'bg-card text-ink-2 border-line hover:border-brand/60' : 'bg-brand text-on-brand border-brand animate-pulse'
+        team ? 'bg-card text-ink-2 border-line hover:border-brand/60' : 'bg-brand text-on-brand border-brand motion-safe:animate-attn'
       }`}
       data-team-button
     >

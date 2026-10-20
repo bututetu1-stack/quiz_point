@@ -1,9 +1,9 @@
 // 招待：部屋コード・QR コード・リンクのコピー・大画面表示へのリンク
 
 import qrcode from 'qrcode-generator';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Copy, Monitor, X } from '../ui/icons.jsx';
-import { Button, Card, IconButton } from '../ui/primitives.jsx';
+import { Button, Card, IconButton, useDialog } from '../ui/primitives.jsx';
 
 export const inviteUrl = (roomId) => `${location.origin}${location.pathname}?room=${roomId}`;
 export const boardUrl = (roomId) => `${inviteUrl(roomId)}&view=board`;
@@ -39,6 +39,8 @@ export const QrSvg = ({ text, size = 200, className = '' }) => {
 export const InviteDialog = ({ roomId, isHost, onClose }) => {
   const [copied, setCopied] = useState(false);
   const url = inviteUrl(roomId);
+  const ref = useRef(null);
+  useDialog(true, onClose, ref);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
@@ -50,7 +52,7 @@ export const InviteDialog = ({ roomId, isHost, onClose }) => {
   };
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-      <Card className="w-full max-w-sm p-6 relative text-center" onClick={(e) => e.stopPropagation()}>
+      <Card ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="招待" className="outline-none w-full max-w-sm p-6 relative text-center" onClick={(e) => e.stopPropagation()}>
         <IconButton label="閉じる" onClick={onClose} className="absolute top-3 right-3">
           <X size={20} />
         </IconButton>

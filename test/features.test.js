@@ -135,8 +135,11 @@ test('CSV と「1位まであと何点」', () => {
   assert.equal(csv[0], '順位,名前,チーム,得点,〇,✕,状態,累計〇,累計✕,勝ち抜け回数,脱落回数');
   assert.equal(csv[1], '1,アリス,赤組,3,3,0,勝ち抜け1位,0,0,0,0');
   assert.equal(csv[2], '2,"ボブ, Jr.",,2,2,1,,0,0,0,0');
-  assert.deepEqual(myStanding(state, state.players[2]), { rank: 3, gap: 2 }, '競技中のトップ（ボブ）まで 2');
-  assert.deepEqual(myStanding(state, state.players[1]), { rank: 2, gap: 0 });
+  assert.deepEqual(myStanding(state, state.players[2]), { rank: 3, gap: 2, tie: false }, '競技中のトップ（ボブ）まで 2');
+  assert.deepEqual(myStanding(state, state.players[1]), { rank: 2, gap: 0, tie: false });
+  // 競技中のトップが同点なら tie
+  const tied = { ...state, players: [...state.players, { id: 'd', name: 'ダン', score: '2/1', maru: 2, batsu: 1 }] };
+  assert.equal(myStanding(tied, tied.players[1]).tie, true);
 });
 
 test('v33：休み中は「問題を進める」（ホストの次の問題と二重に減らない）・勝ち抜け宣言と元に戻す', async () => {
@@ -280,6 +283,29 @@ test('v34：ホストは行を押すとメニューから改名・観戦・削�
   await waitFor(() => h.doc.querySelector('[data-sheet]'));
   h.click(h.byText('削除する', h.doc.querySelector('[data-sheet]')));
   await waitFor(() => !room(db).players[aliceId], { msg: 'removed' });
+  h.close();
+  p.close();
+});
+
+test('v35：メニュー（シート）は Esc で閉じ、開いている間はダイアログに焦点がある', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  p.click(p.doc.querySelector('button[aria-label="メニュー"]'));
+  await waitFor(() => p.doc.querySelector('[data-sheet] [role="dialog"]'), { msg: 'sheet open' });
+  await waitFor(() => p.doc.activeElement === p.doc.querySelector('[data-sheet] [role="dialog"]'), { msg: 'focus on dialog' });
+  p.doc.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await waitFor(() => !p.doc.querySelector('[data-sheet]'), { msg: 'closed by Esc' });
+  h.close();
+  p.close();
+});
+
+test('v35：全員 0 点のときは「いまトップ！」ではなく「いまトップタイ」', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  await waitFor(() => p.doc.querySelector('[data-selfbar]').textContent.includes('いまトップタイ'), { msg: 'tie on participant' });
+  p.click(p.byText('正答'));
+  await waitFor(() => p.doc.querySelector('[data-selfbar]').textContent.includes('いまトップ！'), { msg: 'top after correct' });
+  await waitFor(() => h.doc.querySelector('[data-selfbar]').textContent.includes('いま2位'), { msg: 'host is 2nd' });
   h.close();
   p.close();
 });

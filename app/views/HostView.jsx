@@ -50,7 +50,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
           <SettingsPanel state={state} roomId={roomId} onOp={onOp} />
         </Sheet>
       </MainLayout>
-      <SelfScoreBar state={state} myPlayer={myPlayer} onOp={onOp} />
+      <SelfScoreBar state={state} myPlayer={myPlayer} onOp={onOp} withAside />
     </div>
   );
 };

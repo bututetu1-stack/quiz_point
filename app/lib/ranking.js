@@ -26,16 +26,18 @@ export const scoreText = (state, p) => (isSimpleFree(state) ? `${p.maru || 0} - 
 // 比較用の数値
 const value = (state, p) => (isSimpleFree(state) ? (p.maru || 0) - (p.batsu || 0) : parseScoreToNumber(p.score));
 
-// 自分の順位と「1位まであと何点」（勝ち抜け・脱落が決まった人と観戦中の人は null）
+// 自分の順位と「1位まであと何点」（勝ち抜け・脱落が決まった人と観戦中の人は gap が null）。
+// tie：競技中のトップと同じ値の人がほかにもいる（トップタイ）
 export const myStanding = (state, me) => {
   if (!me) return null;
   const sorted = rankPlayers(state);
   const rank = sorted.findIndex((p) => p.id === me.id) + 1;
-  if (!rank || me.status) return { rank, gap: null };
+  if (!rank || me.status) return { rank, gap: null, tie: false };
   const leader = sorted.find((p) => !p.status || p.status === 'win');
   const top = isRuleMode(state.rule) ? sorted.find((p) => !p.status) : leader;
   const gap = top && top.id !== me.id ? value(state, top) - value(state, me) : 0;
-  return { rank, gap: Number(gap.toFixed(2)) };
+  const tie = Number(gap.toFixed(2)) === 0 && sorted.some((p) => p.id !== me.id && !p.status && value(state, p) === value(state, me));
+  return { rank, gap: Number(gap.toFixed(2)), tie };
 };
 
 // 状態の表示（勝ち抜け n位 / 脱落）

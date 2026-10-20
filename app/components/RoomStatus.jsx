@@ -7,7 +7,7 @@ export const RoomStatus = ({ state, onNextQ }) => {
   const label = ruleLabel(state.rule);
   return (
     <div className="flex-1 min-w-0 flex items-center gap-1.5" data-room-status>
-      <span className="min-w-0 truncate text-sm font-black text-brand-ink" title={label}>
+      <span className="hidden min-[360px]:block min-w-0 truncate text-sm font-black text-brand-ink" title={label}>
         {label}
       </span>
       <span className="shrink-0 inline-flex items-stretch rounded-full bg-ink text-card text-xs font-black tabular-nums overflow-hidden">

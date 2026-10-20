@@ -33,7 +33,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v34'));
+  assert.ok(h.text().includes('v35'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });

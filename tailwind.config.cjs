@@ -34,6 +34,16 @@ module.exports = {
         'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
         rise: { '0%': { transform: 'translateY(40px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
         'sheet-up': { '0%': { transform: 'translateY(24px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+        attn: {
+          '0%': { boxShadow: '0 0 0 0 rgb(var(--c-brand) / 0.55)' },
+          '70%': { boxShadow: '0 0 0 8px rgb(var(--c-brand) / 0)' },
+          '100%': { boxShadow: '0 0 0 0 rgb(var(--c-brand) / 0)' },
+        },
+        confetti: {
+          '0%': { transform: 'translate3d(0, -5vh, 0) rotate(0deg)', opacity: '1' },
+          '80%': { opacity: '1' },
+          '100%': { transform: 'translate3d(var(--dx, 0), 105vh, 0) rotate(720deg)', opacity: '0' },
+        },
       },
       animation: {
         pop: 'pop 0.55s ease-out',
@@ -41,6 +51,8 @@ module.exports = {
         'fade-in': 'fade-in 0.2s ease-out',
         rise: 'rise 0.6s ease-out both',
         'sheet-up': 'sheet-up 0.22s ease-out',
+        confetti: 'confetti 2s cubic-bezier(.25,.6,.4,1) both',
+        attn: 'attn 1.6s ease-out infinite',
       },
     },
   },
