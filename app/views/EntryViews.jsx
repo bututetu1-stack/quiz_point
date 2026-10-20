@@ -135,6 +135,9 @@ export const HostCreateView = ({ defaultName, error, onCreate, onBack }) => {
       <TextField
         id="host-name"
         type="text"
+        maxLength={30}
+        autoComplete="nickname"
+        enterKeyHint="go"
         value={name}
         autoFocus={true}
         onChange={(e) => setName(e.target.value)}
@@ -201,6 +204,9 @@ export const JoinView = ({ roomId, defaultName, error, onJoin, onBack }) => {
           <TextField
             id="join-name"
             type="text"
+            maxLength={30}
+            autoComplete="nickname"
+            enterKeyHint="go"
             value={name}
             autoFocus={invited}
             onChange={(e) => setName(e.target.value)}

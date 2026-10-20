@@ -64,7 +64,7 @@ export const ParticipantView = ({ state, roomId, myPlayerId, onOp, onLeave, onRe
             <>
               <TeamBoard state={state} />
               <PlayerList state={state} myPlayerId={myPlayerId} />
-              {(state.allPlayers || state.players).length <= 1 && <InviteCard roomId={roomId} />}
+              {myPlayer && (state.allPlayers || state.players).length <= 1 && <InviteCard roomId={roomId} />}
             </>
           )}
           {tab === 'graph' && <GraphPanel state={state} myPlayerId={myPlayerId} />}
