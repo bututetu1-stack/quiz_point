@@ -210,6 +210,16 @@ export const Section = ({ icon, title, action, children, className = '' }) => (
   </Card>
 );
 
+// 読み込めないときの案内（データベースの設定で拒否されているなど）
+export const Unavailable = ({ what }) => (
+  <Card className="p-6 text-center" data-unavailable>
+    <div className="font-black text-ink">{what}を読み込めません</div>
+    <p className="text-sm text-ink-2 mt-2 leading-relaxed">
+      データベースの設定で、{what}の記録が許可されていないようです。得点の操作はそのまま使えます。ホスト（管理者）に伝えてください。
+    </p>
+  </Card>
+);
+
 // 文字入力（大きめ）
 export const TextField = ({ className = '', ...props }) => (
   <input

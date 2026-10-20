@@ -2,7 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { RoomContext } from '../context.js';
-import { Card } from '../ui/primitives.jsx';
+import { Card, Unavailable } from '../ui/primitives.jsx';
 
 const COLOR = {
   correct: 'bg-ok-soft text-ok-ink',
@@ -20,10 +20,15 @@ const hhmmss = (t) => new Date(t).toLocaleTimeString('ja-JP', { hour: '2-digit',
 export const LogPanel = () => {
   const { store, roomId } = useContext(RoomContext);
   const [items, setItems] = useState(null);
+  const [denied, setDenied] = useState(false);
   useEffect(() => {
     if (!store || !roomId) return undefined;
-    return store.subscribeLog(roomId, setItems);
+    return store.subscribeLog(roomId, (xs, d) => {
+      setItems(xs);
+      setDenied(!!d);
+    });
   }, [store, roomId]);
+  if (denied) return <Unavailable what="操作ログ" />;
   if (!items) return <Card className="p-8 text-center text-ink-3 font-bold">読み込み中…</Card>;
   if (!items.length) return <Card className="p-8 text-center text-ink-3 font-bold">まだ操作はありません</Card>;
   return (
