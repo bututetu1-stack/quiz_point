@@ -98,6 +98,17 @@ export const createMemoryAdapter = (initial = null) => {
       setTimeout(() => listeners.has(l) && cb(getAt(p)), 0);
       return () => listeners.delete(l);
     },
+    onValueLast(p, n, cb) {
+      return this.onValue(p, (v) => {
+        if (!v) return cb(null);
+        const keys = Object.keys(v).sort().slice(-n);
+        cb(Object.fromEntries(keys.map((k) => [k, v[k]])));
+      });
+    },
+    presence(p) {
+      setAt(p, true);
+      return () => setAt(p, null);
+    },
     onConnected(cb) {
       setTimeout(() => cb(true), 0);
       return () => {};

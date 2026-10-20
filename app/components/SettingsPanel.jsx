@@ -3,11 +3,25 @@
 import { useState } from 'react';
 import { isRuleMode } from '../lib/rules.js';
 import { getTeamDisplayScore } from '../lib/score.js';
+import { toCsv } from '../lib/ranking.js';
+import { boardUrl } from './InviteDialog.jsx';
 import { ProgressCard, RuleCard } from './RuleSettings.jsx';
-import { Calculator, Edit2, Plus, RefreshCw, Trash2, Users, X } from '../ui/icons.jsx';
+
+// 最終順位を CSV でダウンロード（Excel で文字化けしないよう BOM 付き）
+const downloadCsv = (state, roomId) => {
+  const blob = new Blob(['\ufeff' + toCsv(state)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `quiz_${roomId}_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+import { Calculator, Download, Edit2, Monitor, Plus, RefreshCw, Trash2, Trophy, Users, X } from '../ui/icons.jsx';
 import { Button, Card } from '../ui/primitives.jsx';
 
-export const SettingsPanel = ({ state, onOp, onClose }) => {
+export const SettingsPanel = ({ state, roomId, onOp, onClose }) => {
   const [newTeam, setNewTeam] = useState('');
   const rule = isRuleMode(state.rule);
   const unassigned = state.players.filter((p) => !p.teamId);
@@ -23,6 +37,22 @@ export const SettingsPanel = ({ state, onOp, onClose }) => {
       )}
       <RuleCard state={state} onOp={onOp} />
       <ProgressCard state={state} onOp={onOp} />
+      <Card className="p-5">
+        <h3 className="font-black text-slate-700 mb-3 flex items-center gap-2">
+          <Trophy size={18} /> 発表・共有
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          <Button className="py-3 text-sm col-span-2" onClick={() => onOp('setPhase', { phase: 'result' })}>
+            <Trophy size={16} /> 結果発表（全員の画面に表示）
+          </Button>
+          <Button variant="ghost" className="bg-slate-50 py-3 text-sm text-slate-600" onClick={() => window.open(boardUrl(roomId), '_blank')}>
+            <Monitor size={16} /> 大画面
+          </Button>
+          <Button variant="ghost" className="bg-slate-50 py-3 text-sm text-slate-600" onClick={() => downloadCsv(state, roomId)}>
+            <Download size={16} /> CSV 保存
+          </Button>
+        </div>
+      </Card>
       <Card className="p-5">
         <h3 className="font-black text-slate-700 mb-1 flex items-center gap-2">
           <RefreshCw size={18} /> 一括操作

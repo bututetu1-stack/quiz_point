@@ -19,7 +19,7 @@ const createAsHost = async (db, name = '司会') => {
   await waitFor(() => h.doc.querySelector('input[placeholder="司会"]'), { msg: 'host create view' });
   h.type(h.doc.querySelector('input[placeholder="司会"]'), name);
   h.click(h.buttons().find((b) => b.textContent.trim() === '部屋を作る'));
-  await waitFor(() => h.text().includes(`あなた（${name}）の得点`), { msg: 'host view with self bar' });
+  await waitFor(() => h.text().includes(`あなた（${name}）`), { msg: 'host view with self bar' });
   return h;
 };
 
@@ -33,7 +33,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v31'));
+  assert.ok(h.text().includes('v32'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -79,11 +79,13 @@ test('参加者：招待リンクから入室し、チームを自分で選べ�
   const nameInput = [...p.doc.querySelectorAll('input')].find((i) => i !== codeInput);
   p.type(nameInput, 'アリス');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
-  await waitFor(() => p.text().includes('あなた（アリス）の得点'), { msg: 'participant view' });
+  await waitFor(() => p.text().includes('あなた（アリス）'), { msg: 'participant view' });
   await waitFor(() => p.text().includes('司会'), { msg: 'sees host in ranking' });
 
-  // チームを自分で選ぶ
-  p.click(p.buttons().find((b) => b.textContent.trim() === '赤組'));
+  // チームを自分で選ぶ（「チームを選ぶ」を開いてからチップを押す）
+  p.click(p.doc.querySelector('[data-team-button]'));
+  await waitFor(() => p.doc.querySelector('[data-team-choices]'), { msg: 'team choices open' });
+  p.click([...p.doc.querySelectorAll('[data-team-choices] button')].find((b) => b.textContent.trim() === '赤組'));
   const tid = Object.keys(room(db).teams)[0];
   await waitFor(() => playersOf(db).find((x) => x.name === 'アリス').teamId === tid, { msg: 'team picked' });
 
@@ -110,7 +112,7 @@ test('ホストの再読み込み：保存済みトークンで復帰し、プ�
   }
   h.close();
   const h2 = boot({ db, url: `/?room=${code}`, storage });
-  await waitFor(() => h2.text().includes('あなた（司会）の得点'), { msg: 'host restored' });
+  await waitFor(() => h2.text().includes('あなた（司会）'), { msg: 'host restored' });
   assert.ok(h2.text().includes('HOST'));
   assert.equal(playersOf(db).length, 1);
   h2.close();
