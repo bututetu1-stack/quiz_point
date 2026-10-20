@@ -11,9 +11,9 @@ import { Confetti } from './Confetti.jsx';
 import { teamColor } from './Teams.jsx';
 
 const PODIUM = [
-  { place: 2, h: 'h-24', color: 'bg-medal-2', delay: '0.3s' },
-  { place: 1, h: 'h-36', color: 'bg-medal-1', delay: '0.7s' },
-  { place: 3, h: 'h-16', color: 'bg-medal-3', delay: '0s' },
+  { place: 2, h: 'h-24 short:h-12', color: 'bg-medal-2', delay: '0.3s' },
+  { place: 1, h: 'h-36 short:h-20', color: 'bg-medal-1', delay: '0.7s' },
+  { place: 3, h: 'h-16 short:h-8', color: 'bg-medal-3', delay: '0s' },
 ];
 
 export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
@@ -34,28 +34,28 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
         role="dialog"
         aria-modal="true"
         aria-label="結果発表"
-        className="outline-none w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 relative"
+        className="outline-none w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 short:p-4 relative"
       >
         <IconButton label="閉じる" onClick={onClose} className="absolute top-3 right-3">
           <X size={20} />
         </IconButton>
-        <h2 className="text-center text-3xl font-black text-brand-ink flex items-center justify-center gap-2">
+        <h2 className="text-center text-3xl short:text-2xl font-black text-brand-ink flex items-center justify-center gap-2">
           <Trophy size={30} /> 結果発表
         </h2>
         {myRank > 0 && (
-          <p className="text-center mt-2 font-black text-ink" data-my-result>
+          <p className="text-center mt-2 short:mt-0 font-black text-ink" data-my-result>
             あなたは <span className="text-3xl text-brand-ink tabular-nums">{myRank}</span> 位
             {myRank === 1 ? '！おめでとう！' : myRank <= 3 ? '！' : ''}
           </p>
         )}
-        <div className="flex items-end justify-center gap-3 mt-5 mb-6">
+        <div className="flex items-end justify-center gap-3 mt-5 mb-6 short:mt-2 short:mb-3">
           {PODIUM.map(({ place, h, color, delay }) => {
             const p = sorted[place - 1];
             return (
               <div key={place} className="flex flex-col items-center w-24 motion-safe:animate-rise" style={{ animationDelay: delay }}>
                 {p ? (
                   <>
-                    {place === 1 && <Crown className="w-9 h-9 text-medal-1 drop-shadow" fill="currentColor" />}
+                    {place === 1 && <Crown className="w-9 h-9 short:w-6 short:h-6 text-medal-1 drop-shadow" fill="currentColor" />}
                     <div
                       className={`font-black text-center leading-tight break-all ${p.id === myPlayerId ? 'text-brand-ink' : 'text-ink'}`}
                     >
@@ -67,7 +67,7 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
                   <div className="text-ink-3 text-sm mb-1">—</div>
                 )}
                 <div
-                  className={`w-full ${h} rounded-t-2xl ${color} flex items-start justify-center pt-2 text-3xl font-black text-medal-ink shadow-lg`}
+                  className={`w-full ${h} rounded-t-2xl ${color} flex items-start justify-center pt-2 short:pt-0.5 text-3xl short:text-xl font-black text-medal-ink shadow-lg`}
                 >
                   {place}
                 </div>
@@ -122,9 +122,9 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
 
 // 大画面（プロジェクタ）用の結果発表：画面いっぱいに、遠くからでも読める大きさで。いつも暗い配色
 const BIG_PODIUM = [
-  { place: 2, h: 'h-40', color: 'bg-medal-2', delay: '0.4s' },
-  { place: 1, h: 'h-56', color: 'bg-medal-1', delay: '1s' },
-  { place: 3, h: 'h-28', color: 'bg-medal-3', delay: '0s' },
+  { place: 2, h: 'h-40 lg:h-52', color: 'bg-medal-2', delay: '0.4s' },
+  { place: 1, h: 'h-56 lg:h-72', color: 'bg-medal-1', delay: '1s' },
+  { place: 3, h: 'h-28 lg:h-36', color: 'bg-medal-3', delay: '0s' },
 ];
 
 export const BoardResult = ({ state }) => {
@@ -156,7 +156,7 @@ export const BoardResult = ({ state }) => {
                   <>
                     {place === 1 && <Crown className="w-16 h-16 text-amber-300" fill="currentColor" />}
                     <div className="text-3xl lg:text-4xl font-black text-center leading-tight break-all">{p.name}</div>
-                    <div className="text-2xl font-black text-white/80 mb-2 tabular-nums">{scoreText(state, p)}</div>
+                    <div className="text-3xl lg:text-4xl font-black text-white/90 mb-2 tabular-nums">{scoreText(state, p)}</div>
                   </>
                 ) : (
                   <div className="text-white/60 text-2xl mb-2">—</div>

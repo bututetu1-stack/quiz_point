@@ -196,8 +196,8 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
                     {/* 狭い画面では「〇6 ✕2」「〇あと1・✕あと2」を 2 行に分けて、途中で切れないように */}
                     <div className="text-xs text-ink-3 mt-0.5 flex flex-wrap gap-x-2 max-h-8 overflow-hidden" data-standing>
                       {detail.length
-                        ? detail.map((d) => (
-                            <span key={d} className="whitespace-nowrap">
+                        ? detail.map((d, i) => (
+                            <span key={i} className="whitespace-nowrap">
                               {d}
                             </span>
                           ))
