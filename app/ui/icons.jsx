@@ -12,6 +12,8 @@ export const Svg = ({ size = 24, className, fill = 'none', children }) => (
     strokeLinecap="round"
     strokeLinejoin="round"
     className={className}
+    aria-hidden="true"
+    focusable="false"
   >
     {children}
   </svg>

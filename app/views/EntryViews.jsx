@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { HelpSheet } from '../components/HelpSheet.jsx';
 import { ThemeButton } from '../components/ThemeButton.jsx';
-import { ChevronLeft, ChevronRight, Crown, HelpCircle, RotateCcw, UserPlus, Zap } from '../ui/icons.jsx';
+import { Award, ChevronLeft, ChevronRight, Crown, HelpCircle, Monitor, QrCode, RotateCcw, UserPlus, Zap } from '../ui/icons.jsx';
 import { Button, Card, IconButton, TextField } from '../ui/primitives.jsx';
 import { BUILD } from '../version.js';
 
@@ -90,7 +90,7 @@ export const HomeView = ({ onGoHostCreate, onGoJoin, lastRoom, onResume }) => (
       </Button>
       <div className="flex items-center gap-3 py-1" aria-hidden="true">
         <div className="flex-1 border-t border-line" />
-        <span className="text-ink-3 text-xs font-bold">OR</span>
+        <span className="text-ink-3 text-xs font-bold">または</span>
         <div className="flex-1 border-t border-line" />
       </div>
       <Button onClick={onGoHostCreate} variant="secondary" className="w-full py-4 text-lg">
@@ -98,10 +98,18 @@ export const HomeView = ({ onGoHostCreate, onGoJoin, lastRoom, onResume }) => (
         {' ホストとして部屋を作る'}
       </Button>
     </div>
-    <ul className="mt-7 grid grid-cols-3 gap-2 text-center text-[0.6875rem] font-bold text-ink-3">
-      <li className="bg-sunken rounded-xl px-1 py-2">8 種類のルール</li>
-      <li className="bg-sunken rounded-xl px-1 py-2">QR で招待</li>
-      <li className="bg-sunken rounded-xl px-1 py-2">大画面・結果発表</li>
+    {/* できること（押せる物と見分けがつくよう、枠のない文字＋アイコン） */}
+    <ul className="mt-7 grid grid-cols-3 gap-2 text-center text-[0.6875rem] font-bold text-ink-2">
+      {[
+        [Award, '8 種類のルール'],
+        [QrCode, 'QR で招待'],
+        [Monitor, '大画面・結果発表'],
+      ].map(([Icon, label]) => (
+        <li key={label} className="flex flex-col items-center gap-1">
+          <Icon size={18} className="text-brand-ink" />
+          {label}
+        </li>
+      ))}
     </ul>
     <p className="text-ink-3 text-[0.6875rem] mt-6 text-center">{BUILD}</p>
   </EntryFrame>
