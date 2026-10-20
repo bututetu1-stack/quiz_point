@@ -1,7 +1,7 @@
 // 画面：大画面モード（?room=XXXX&view=board）。プロジェクタ用で操作 UI は無い。いつも暗い配色。
 // 人数が多くても1画面に収まるよう、幅に合わせて列を増やす
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { inviteUrl, QrSvg } from '../components/InviteDialog.jsx';
 import { teamColor } from '../components/Teams.jsx';
 import { WinToast } from '../components/WinToast.jsx';
@@ -9,6 +9,7 @@ import { rankPlayers, scoreText } from '../lib/ranking.js';
 import { isRuleMode, playerState, ruleLabel, winRanks } from '../lib/rules.js';
 import { calcTeamScore, getTeamDisplayScore, parseScoreToNumber } from '../lib/score.js';
 import { Crown, Users } from '../ui/icons.jsx';
+import { useFlip, useRankUps } from '../ui/motion.js';
 
 const MEDAL = ['bg-medal-1 text-medal-ink', 'bg-medal-2 text-medal-ink', 'bg-medal-3 text-medal-ink'];
 
@@ -26,6 +27,9 @@ export const BoardView = ({ state, roomId }) => {
   const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
   const q = state.q || 1;
   const many = sorted.length > 8;
+  const listRef = useRef(null);
+  useFlip(listRef);
+  const ups = useRankUps(sorted.map((p) => p.id));
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-5 lg:p-8 flex flex-col gap-5" data-board>
       <WinToast state={state} />
@@ -35,7 +39,7 @@ export const BoardView = ({ state, roomId }) => {
         <div className="ml-auto text-6xl lg:text-7xl font-black tracking-tight tabular-nums">Q{q}</div>
       </header>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
-        <ol className={`grid gap-2.5 ${many ? 'grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]'}`}>
+        <ol ref={listRef} className={`grid gap-2.5 ${many ? 'grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))]'}`}>
           {sorted.map((p, i) => {
             const st = playerState(p, q);
             const scored = st.kind === 'win' || parseScoreToNumber(p.score) > 0 || (p.maru || 0) > 0;
@@ -44,6 +48,7 @@ export const BoardView = ({ state, roomId }) => {
             return (
               <li
                 key={p.id}
+                data-flip-id={p.id}
                 className={`flex items-center gap-3 rounded-2xl ${many ? 'px-3 py-2' : 'px-4 py-3'} ${
                   st.kind === 'win' ? 'bg-emerald-500/20 ring-2 ring-emerald-400' : st.kind === 'lose' ? 'bg-white/5' : 'bg-white/10'
                 }`}
@@ -58,6 +63,9 @@ export const BoardView = ({ state, roomId }) => {
                   <span className={`flex items-center gap-2 ${many ? 'text-2xl' : 'text-3xl'} font-black min-w-0 ${st.kind === 'lose' ? 'text-white/60' : ''}`}>
                     {color && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />}
                     <span className="truncate">{p.name}</span>
+                    {ups[p.id] && (
+                      <span className="shrink-0 text-base font-black text-white bg-emerald-700 rounded-full px-2 py-0.5 motion-safe:animate-pop">▲{ups[p.id].d}</span>
+                    )}
                   </span>
                   {rule && (
                     <span className="flex items-center gap-2 text-base font-bold text-white/80 mt-0.5">

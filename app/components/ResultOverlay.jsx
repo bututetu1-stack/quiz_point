@@ -33,7 +33,7 @@ export const ResultOverlay = ({ state, isHost, onClose }) => {
           {PODIUM.map(({ place, h, color, delay }) => {
             const p = sorted[place - 1];
             return (
-              <div key={place} className="flex flex-col items-center w-24 animate-rise" style={{ animationDelay: delay }}>
+              <div key={place} className="flex flex-col items-center w-24 motion-safe:animate-rise" style={{ animationDelay: delay }}>
                 {p ? (
                   <>
                     {place === 1 && <Crown className="w-9 h-9 text-medal-1 drop-shadow" fill="currentColor" />}

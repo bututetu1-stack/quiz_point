@@ -162,7 +162,7 @@ export const SelfScoreBar = ({ state, myPlayer, onOp, withAside = false }) => {
             <>
               <div className="flex items-center gap-2 short:flex-wrap short:justify-end">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1 short:basis-full">
-                  <span key={flash} data-my-score className={`text-[2rem] leading-none font-black tabular-nums tracking-tight text-ink ${flash ? 'animate-pop' : ''}`}>
+                  <span key={flash} data-my-score className={`text-[2rem] leading-none font-black tabular-nums tracking-tight text-ink ${flash ? 'motion-safe:animate-pop' : ''}`}>
                     {text}
                   </span>
                   <div className="min-w-0 leading-tight">

@@ -314,3 +314,24 @@ test('v35：全員 0 点のときは「いまトップ！」ではなく「い�
   h.close();
   p.close();
 });
+
+test('v38：順位が上がった人の行に ▲（数秒で消える）。大画面にも出る', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  const b = boot({ db, url: `/?room=${code}&view=board` });
+  await waitFor(() => b.doc.querySelector('[data-board]') && b.doc.querySelector('[data-board]').textContent.includes('アリス'), { msg: 'board' });
+  // ホストが先に1点 → アリスが2点で抜く
+  h.click(h.byText('正答', h.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => Object.values(room(db).players).find((x) => x.name === '司会').maru === 1);
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => room(db).players[aliceId].maru === 1);
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => room(db).players[aliceId].maru === 2);
+  await waitFor(() => h.doc.querySelector(`[data-player-id="${aliceId}"] [data-rank-up]`), { msg: 'rank up chip on host' });
+  assert.ok(h.doc.querySelector(`[data-player-id="${aliceId}"] [data-rank-up]`).textContent.includes('▲1'));
+  await waitFor(() => b.doc.querySelector('[data-board]').textContent.includes('▲1'), { msg: 'rank up on board' });
+  b.close();
+  h.close();
+  p.close();
+});

@@ -8,6 +8,7 @@ import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js
 import { parseScoreToNumber } from '../lib/score.js';
 import { Crown, Edit2, Eye, Trash2, UserPlus } from '../ui/icons.jsx';
 import { useAsk } from '../ui/dialogs.jsx';
+import { useFlip, useRankUps } from '../ui/motion.js';
 import { Card, Chip, Sheet, SheetItem } from '../ui/primitives.jsx';
 import { teamColor } from './Teams.jsx';
 
@@ -45,7 +46,7 @@ const OnlineDot = ({ online }) =>
     />
   );
 
-export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap }) => {
+export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap, up }) => {
   const team = state.teams.find((t) => t.id === player.teamId);
   const rule = isRuleMode(state.rule);
   const st = rule ? playerState(player, state.q || 1) : { kind: 'play' };
@@ -63,6 +64,7 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap })
   return (
     <Tag
       data-player-id={player.id}
+      data-flip-id={player.id}
       onClick={onTap}
       className={`w-full text-left flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 rounded-2xl border transition-colors ${tone} ${st.kind === 'lose' ? 'bg-sunken shadow-none' : 'shadow-sm'} ${onTap ? 'hover:border-brand/60 cursor-pointer' : ''}`}
     >
@@ -76,6 +78,11 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap })
           <span className={`font-bold text-[15px] truncate ${st.kind === 'lose' ? 'text-ink-2' : 'text-ink'}`}>{player.name}</span>
           {isMe && <Chip tone="brandSolid">YOU</Chip>}
           {rule && <StateChip st={st} winRank={winRank} />}
+          {up > 0 && (
+            <Chip tone="ok" className="motion-safe:animate-pop" data-rank-up>
+              ▲{up}
+            </Chip>
+          )}
         </span>
         {(team || rule) && (
           <span className="flex items-center gap-2 text-xs text-ink-3 mt-0.5 min-w-0">
@@ -94,37 +101,11 @@ export const PlayerRow = ({ player, rank, state, isMe, winRank, online, onTap })
           </span>
         )}
       </span>
-      <span key={flash} className={`shrink-0 text-[1.65rem] leading-none font-black tracking-tight tabular-nums ${st.kind === 'lose' ? 'text-ink-3' : 'text-ink'} ${flash ? 'animate-pop' : ''}`}>
+      <span key={flash} className={`shrink-0 text-[1.65rem] leading-none font-black tracking-tight tabular-nums ${st.kind === 'lose' ? 'text-ink-3' : 'text-ink'} ${flash ? 'motion-safe:animate-pop' : ''}`}>
         {text}
       </span>
     </Tag>
   );
-};
-
-// 順位が入れ替わったとき、行を元の位置から滑らかに動かす（FLIP）
-const useFlip = (ref) => {
-  const pos = useRef({});
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const rows = [...el.children].filter((r) => r.dataset && r.dataset.playerId);
-    const next = {};
-    rows.forEach((r) => {
-      next[r.dataset.playerId] = r.offsetTop;
-    });
-    rows.forEach((r) => {
-      const prev = pos.current[r.dataset.playerId];
-      const d = prev == null ? 0 : prev - next[r.dataset.playerId];
-      if (!d) return;
-      r.style.transition = 'none';
-      r.style.transform = `translateY(${d}px)`;
-      requestAnimationFrame(() => {
-        r.style.transition = 'transform 450ms cubic-bezier(.2,.8,.2,1)';
-        r.style.transform = '';
-      });
-    });
-    pos.current = next;
-  });
 };
 
 // 観戦中の人（ランキングの下に名前のチップ。ホストは押すとメニュー）
@@ -208,6 +189,7 @@ export const PlayerList = ({ state, myPlayerId, hostOp }) => {
   const [menu, setMenu] = useState(null);
   const listRef = useRef(null);
   useFlip(listRef);
+  const ups = useRankUps(sorted.map((p) => p.id));
   const tap = hostOp ? (p) => setMenu(p) : null;
   return (
     <div className="flex flex-col gap-3">
@@ -223,6 +205,7 @@ export const PlayerList = ({ state, myPlayerId, hostOp }) => {
             winRank={ranks[p.id]}
             online={presenceKnown ? !!online[p.id] : null}
             onTap={tap ? () => tap(p) : null}
+            up={ups[p.id] ? ups[p.id].d : 0}
           />
         ))}
       </div>

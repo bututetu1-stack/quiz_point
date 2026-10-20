@@ -44,10 +44,11 @@ const html = `<!DOCTYPE html>
 <meta name="theme-color" content="#fbf7ef" />
 <link rel="icon" href="data:image/svg+xml,${encodeURIComponent(ICON)}" />
 <title>Quiz Score Pro — クイズの得点表</title>
+<script>try{var t=localStorage.getItem("qp_theme"),d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";document.querySelector('meta[name="theme-color"]').content=d?"#0d1322":"#fbf7ef"}catch(e){}</script>
 <style>${css}</style>
 </head>
 <body>
-<div id="root"><div id="boot" style="padding:24px;color:#94a3b8;font-family:sans-serif">読み込み中…</div></div>
+<div id="root"><div id="boot" style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:rgb(var(--c-ink-3));font:700 15px system-ui,sans-serif">読み込み中…</div></div>
 <script>window.addEventListener("error",function(e){var b=document.getElementById("boot");if(b)b.textContent="エラー: "+(e.message||e.error);});</script>
 <script>${code}</script>
 </body>
