@@ -466,6 +466,7 @@ test('v43：結果発表では自分の順位を大きく出し、チームが�
   h.click(h.byText('結果発表（全員の画面に表示）'));
   await waitFor(() => p.doc.querySelector('[data-result] [data-my-result]'), { msg: 'my result' });
   assert.ok(p.doc.querySelector('[data-my-result]').textContent.includes('1'));
+  assert.ok(p.doc.querySelector('[data-my-result]').textContent.includes('おめでとう'), '得点した 1 位にはお祝い');
   assert.ok(p.doc.querySelector('[data-result] [data-team-result]').textContent.includes('赤組'));
   await waitFor(() => h.doc.querySelector('[data-result] [data-my-result]'));
   assert.ok(h.doc.querySelector('[data-my-result]').textContent.includes('2'));
@@ -692,4 +693,14 @@ test('大画面：無い部屋コードなら「この部屋は見つかりま�
     },
   );
   b.close();
+});
+
+test('全員 0 点のまま結果発表したら、「おめでとう」や王冠は出さない', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  h.click(h.byText('結果発表（全員の画面に表示）'));
+  await waitFor(() => p.doc.querySelector('[data-result] [data-my-result]'), { msg: 'my result' });
+  assert.ok(!p.doc.querySelector('[data-my-result]').textContent.includes('おめでとう'));
+  h.close();
+  p.close();
 });
