@@ -30,7 +30,8 @@ const setRoomInUrl = (roomId) => {
   if (roomId) url.searchParams.set('room', roomId);
   else url.searchParams.delete('room');
   url.searchParams.delete('view');
-  window.history.pushState({}, '', url);
+  // 部屋の履歴には印を付ける（「戻る」で部屋を抜ける前に確かめるため）
+  window.history.pushState(roomId ? { qpRoom: roomId } : {}, '', url);
 };
 
 const load = (k, d = null) => {
@@ -257,6 +258,27 @@ export const App = ({ store }) => {
     setState(EMPTY);
     setView('home');
   };
+
+  // 部屋の中でブラウザの「戻る」（Android のジェスチャー含む）を押したら、いきなり抜けずに確かめる
+  const leaveRef = useRef(leaveRoom);
+  leaveRef.current = leaveRoom;
+  useEffect(() => {
+    if (!inRoom || !roomId || view === 'board') return undefined;
+    // URL から直接戻ってきたときなど、部屋の履歴が無ければ 1 つ積んでおく（「戻る」でいきなりサイトを離れないように）
+    if ((window.history.state || {}).qpRoom !== roomId) setRoomInUrl(roomId);
+    const onPop = async () => {
+      setRoomInUrl(roomId); // URL を部屋に戻しておく（やめたときはそのまま）
+      if (
+        await confirm('退出してタイトルに戻りますか？', {
+          ok: '退出する',
+          note: '部屋と得点はそのまま残ります。招待リンクを開けば戻れます。',
+        })
+      )
+        leaveRef.current();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [inRoom, roomId, view, confirm]);
 
   const ctx = useMemo(() => ({ store, roomId, soundOn, setSoundOn, online }), [store, roomId, soundOn, online]);
   const isHost = view === 'host';

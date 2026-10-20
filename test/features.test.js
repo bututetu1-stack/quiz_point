@@ -652,3 +652,32 @@ test('ホストは自分の行のメニューから自分を削除できない�
   h.close();
   p.close();
 });
+
+test('部屋の中でブラウザの「戻る」を押したら、退出するか確かめる', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  p.w.history.back();
+  await waitFor(() => p.doc.querySelector('[data-ask="confirm"]'), { msg: 'leave confirm on back' });
+  p.click(p.doc.querySelector('[data-ask-cancel]'));
+  await waitFor(() => !p.doc.querySelector('[data-ask]'));
+  assert.ok(p.doc.querySelector('[data-selfbar]'), 'やめたら部屋のまま');
+  assert.ok(p.w.location.search.includes(`room=${code}`), 'URL も部屋のまま');
+  p.w.history.back();
+  await answerAsk(p);
+  await waitFor(() => p.byText('ホストとして部屋を作る'), { msg: 'back to home' });
+  h.close();
+  p.close();
+});
+
+test('招待リンクから保存済みの情報で直接戻ったときも、「戻る」でいきなり抜けない', async () => {
+  const db = createMemoryAdapter();
+  const { h, p, code } = await hostAndAlice(db);
+  const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  const q = boot({ db, url: `/?room=${code}`, storage: { playerName: 'アリス', [`playerId_${code}`]: aliceId } });
+  await waitFor(() => q.doc.querySelector('[data-selfbar]'), { msg: 'resumed' });
+  q.w.history.back();
+  await waitFor(() => q.doc.querySelector('[data-ask="confirm"]'), { msg: 'confirm after resume' });
+  h.close();
+  p.close();
+  q.close();
+});
