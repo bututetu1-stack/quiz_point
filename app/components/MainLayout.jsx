@@ -10,7 +10,9 @@ import { InviteDialog } from './InviteDialog.jsx';
 import { RoomStatus, RuleInfoSheet } from './RoomStatus.jsx';
 import { ThemeButton } from './ThemeButton.jsx';
 
-export const MainLayout = ({ roomId, state, isHost, onOp, onLeave, children }) => {
+export const MainLayout = ({ roomId, state: rawState, isHost, onOp, onLeave, children }) => {
+  // 部屋を読み込むまではルール名・Q を出さない（仮の「自由計算」が一瞬見えないように）
+  const state = rawState && rawState.exists ? rawState : null;
   const { soundOn, setSoundOn } = useContext(RoomContext);
   const [invite, setInvite] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
