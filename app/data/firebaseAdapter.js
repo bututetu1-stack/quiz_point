@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase/app';
 import {
   get,
   getDatabase,
+  limitToFirst,
   limitToLast,
   onDisconnect,
   onValue,
@@ -21,6 +22,10 @@ export const createFirebaseAdapter = (config) => {
   const r = (p) => ref(db, p);
   return {
     get: async (p) => (await get(r(p))).val(),
+    // 読めるかだけ確かめる（中身は 1 件だけ）。拒否なら例外
+    probe: async (p) => {
+      await get(query(r(p), limitToFirst(1)));
+    },
     set: (p, v) => set(r(p), v),
     update: (p, v) => update(r(p), v),
     remove: (p) => remove(r(p)),

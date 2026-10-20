@@ -18,10 +18,22 @@ module.exports = {
         ok: { DEFAULT: v('ok'), ink: v('ok-ink'), soft: v('ok-soft') },
         ng: { DEFAULT: v('ng'), ink: v('ng-ink'), soft: v('ng-soft') },
         info: { DEFAULT: v('info'), ink: v('info-ink'), soft: v('info-soft') },
+        // ダイアログの後ろの暗幕（明るい・暗い 共通）
+        scrim: 'rgb(15 23 42 / <alpha-value>)',
         medal: { 1: '#f5b40b', 2: '#a9b8cc', 3: '#f39a55', ink: '#2b1f06' },
       },
       fontFamily: {
-        sans: ['system-ui', '-apple-system', '"Segoe UI"', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Noto Sans JP"', '"Yu Gothic UI"', 'Meiryo', 'sans-serif'],
+        sans: [
+          'system-ui',
+          '-apple-system',
+          '"Segoe UI"',
+          '"Hiragino Sans"',
+          '"Hiragino Kaku Gothic ProN"',
+          '"Noto Sans JP"',
+          '"Yu Gothic UI"',
+          'Meiryo',
+          'sans-serif',
+        ],
       },
       boxShadow: {
         soft: '0 1px 2px rgb(var(--c-shadow) / 0.06), 0 6px 20px rgb(var(--c-shadow) / 0.07)',

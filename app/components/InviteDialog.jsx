@@ -80,7 +80,7 @@ export const InviteDialog = ({ roomId, isHost, onClose }) => {
   const ref = useRef(null);
   useDialog(true, onClose, ref);
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-scrim/50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <Card
         ref={ref}
         tabIndex={-1}

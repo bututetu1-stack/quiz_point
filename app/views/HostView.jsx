@@ -1,6 +1,6 @@
 // 画面：ホスト（自分も1プレイヤー。PC では右に管理パネル、スマホでは「管理」で下から開く）
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LogPanel } from '../components/LogPanel.jsx';
 import { MainLayout } from '../components/MainLayout.jsx';
 import { PlayerList } from '../components/PlayerList.jsx';
@@ -19,19 +19,21 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
   const [showPanel, setShowPanel] = useState(false);
   const myPlayer = (state.allPlayers || state.players || []).find((p) => p.id === myPlayerId);
   // PC のキーボード：→ で次の問題、← で 1 問戻す（文字の入力中やダイアログを開いているときは効かない）
+  const opRef = useRef(onOp);
+  opRef.current = onOp;
   useEffect(() => {
     const onKey = (e) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
       if (document.querySelector('[role="dialog"]')) return;
       e.preventDefault();
-      onOp('nextQ', { delta: e.key === 'ArrowRight' ? 1 : -1 });
+      opRef.current('nextQ', { delta: e.key === 'ArrowRight' ? 1 : -1 });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onOp]);
+  }, []);
   return (
     <div className={myPlayer ? 'pb-[var(--selfbar-h,180px)] short:pb-0 short:pr-80' : ''}>
       <WinToast state={state} />

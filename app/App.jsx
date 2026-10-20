@@ -1,6 +1,6 @@
 // App：画面の切り替え・入室/部屋作成・データ層（store）とのやりとり
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BoardResult, ResultOverlay } from './components/ResultOverlay.jsx';
 import { RoomContext } from './context.js';
 import { ruleLabel } from './lib/rules.js';
@@ -200,7 +200,15 @@ export const App = ({ store }) => {
   };
 
   // 操作の送信。ログ用に操作した人の名前も添える
+  const lastNextQ = useRef({ delta: 0, t: 0 });
   const executeOp = async (type, payload = {}) => {
+    // 問題を進める／戻すの二度押し（▶ の連打・キーの押しっぱなし）は 0.5 秒に 1 回だけ
+    if (type === 'nextQ') {
+      const d = payload.delta === -1 ? -1 : 1;
+      const now = Date.now();
+      if (lastNextQ.current.delta === d && now - lastNextQ.current.t < 500) return { ok: true, skipped: true };
+      lastNextQ.current = { delta: d, t: now };
+    }
     const res = await store.op(roomId, type, { by: myName, ...payload });
     if (!res.ok) {
       console.error('Op failed:', type, res.error);
@@ -235,8 +243,14 @@ export const App = ({ store }) => {
         {view === 'home' && (
           <HomeView
             lastRoom={lastRoom}
-            onResume={(r) => {
+            onResume={async (r) => {
               setEntryError('');
+              if (!(await store.roomAlive(r))) {
+                save('qp_last_room', '');
+                toast(`部屋 ${r} はもう終わっています（部屋は 24 時間で消えます）`);
+                setView('home');
+                return;
+              }
               setRoomInUrl(r);
               resumeRoom(r);
             }}

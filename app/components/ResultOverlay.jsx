@@ -26,7 +26,7 @@ export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
   // ホストの Esc では全員の結果発表を終えない（終えるのはボタンだけ）
   useDialog(true, isHost ? null : onClose, ref);
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4 animate-fade-in" data-result>
+    <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4 animate-fade-in" data-result>
       <Confetti count={90} />
       <Card
         ref={ref}
