@@ -1,10 +1,27 @@
-// プレイヤー一覧（ランキング）
+// プレイヤー一覧（ランキング）：メダル色・得点変化のアニメ・順位入れ替えのアニメ・オンライン表示
 
-import { useMemo } from 'react';
-import { isRuleMode, playerState, progressHint, sortForRule, winRanks } from '../lib/rules.js';
-import { formatScoreStr, memberValue, parseScoreToNumber } from '../lib/score.js';
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { RoomContext } from '../context.js';
+import { rankPlayers, scoreText } from '../lib/ranking.js';
+import { isRuleMode, playerState, progressHint, winRanks } from '../lib/rules.js';
+import { parseScoreToNumber } from '../lib/score.js';
 import { Crown, Edit2, Trash2, Users } from '../ui/icons.jsx';
 import { Badge, Card } from '../ui/primitives.jsx';
+
+const MEDAL = ['bg-amber-400 text-white', 'bg-slate-400 text-white', 'bg-orange-400 text-white'];
+
+// 値が変わったら番号が増える（初回は 0）。key に使うとアニメが毎回やり直される
+const useChangeKey = (value) => {
+  const prev = useRef(value);
+  const [n, setN] = useState(0);
+  useLayoutEffect(() => {
+    if (prev.current !== value) {
+      prev.current = value;
+      setN((x) => x + 1);
+    }
+  }, [value]);
+  return n;
+};
 
 // ルール時の状態バッジ（勝ち抜け n 位 / 失格 / 休み あと k 問）
 const StateBadge = ({ st, winRank }) => {
@@ -14,26 +31,37 @@ const StateBadge = ({ st, winRank }) => {
   return null;
 };
 
-export const PlayerRow = ({ player, rank, state, isMe, onRename, onRemove, winRank }) => {
+export const PlayerRow = ({ player, rank, state, isMe, onRename, onRemove, winRank, online }) => {
   const team = state.teams.find((t) => t.id === player.teamId);
   const rule = isRuleMode(state.rule);
-  const simple = !rule && state.scoreMode === 'simple';
   const st = rule ? playerState(player, state.q || 1) : { kind: 'play' };
-  const isTop = rank === 1 && (rule ? st.kind === 'win' || parseScoreToNumber(player.score) > 0 : simple ? (player.maru || 0) > 0 : memberValue(player, 'addsub') > 0);
-  const scoreText = simple ? `${player.maru || 0} - ${player.batsu || 0}` : formatScoreStr(player.score);
+  const text = scoreText(state, player);
+  const flash = useChangeKey(text);
+  const scored = st.kind === 'win' || parseScoreToNumber(player.score) > 0 || (player.maru || 0) > 0;
+  const medal = rank <= 3 && scored && st.kind !== 'lose' ? MEDAL[rank - 1] : 'bg-white text-slate-700';
   const rowColor = isMe ? 'border-amber-400 bg-amber-50' : st.kind === 'win' ? 'border-emerald-300 bg-emerald-50' : 'border-transparent bg-slate-50';
+  const score = (
+    <span key={flash} className={`inline-block ${flash ? 'animate-pop' : ''}`}>
+      {text}
+    </span>
+  );
   return (
     <div
       data-player-id={player.id}
-      className={`relative flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-3xl border-2 transition-all ${rowColor} ${st.kind === 'lose' ? 'opacity-60' : ''}`}
+      className={`relative flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-3xl border-2 transition-colors ${rowColor} ${st.kind === 'lose' ? 'opacity-60' : ''}`}
     >
       <div className="flex items-center gap-3 w-full md:flex-1 min-w-0">
-        <div className="w-12 h-12 shrink-0 flex items-center justify-center rounded-2xl bg-white shadow-sm text-xl font-black text-slate-700 relative">
-          {isTop && <Crown className="absolute -top-4 -left-2 w-8 h-8 text-amber-400 drop-shadow-md" fill="currentColor" />}
+        <div className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-2xl shadow-sm text-xl font-black relative ${medal}`}>
+          {rank === 1 && scored && <Crown className="absolute -top-4 -left-2 w-8 h-8 text-amber-400 drop-shadow-md" fill="currentColor" />}
           {rank}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            <span
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${online ? 'bg-emerald-400' : 'bg-slate-300'}`}
+              title={online ? '接続中' : '未接続'}
+              data-online={online ? '1' : '0'}
+            />
             <h3 className="font-bold text-lg text-slate-800 truncate">{player.name}</h3>
             {isMe && <Badge color="bg-amber-400 text-white shadow-sm">YOU</Badge>}
             {rule && <StateBadge st={st} winRank={winRank} />}
@@ -52,9 +80,9 @@ export const PlayerRow = ({ player, rank, state, isMe, onRename, onRemove, winRa
             {rule && st.kind !== 'win' && st.kind !== 'lose' && progressHint(state.rule, player) && <span>{progressHint(state.rule, player)}</span>}
           </div>
         </div>
-        <div className="md:hidden text-3xl font-black text-slate-800 tracking-tighter shrink-0">{scoreText}</div>
+        <div className="md:hidden text-3xl font-black text-slate-800 tracking-tighter shrink-0">{score}</div>
       </div>
-      <div className="hidden md:block text-4xl font-black text-slate-800 tracking-tighter w-32 text-center shrink-0">{scoreText}</div>
+      <div className="hidden md:block text-4xl font-black text-slate-800 tracking-tighter w-32 text-center shrink-0">{score}</div>
       {(onRename || onRemove) && (
         <div className="flex md:flex-col gap-1 justify-end shrink-0">
           {onRename && (
@@ -86,26 +114,41 @@ export const PlayerRow = ({ player, rank, state, isMe, onRename, onRemove, winRa
   );
 };
 
-// 自由計算の並び（従来どおり）
-const sortFree = (players, simple) =>
-  [...players].sort((a, b) => {
-    if (simple) {
-      if ((b.maru || 0) !== (a.maru || 0)) return (b.maru || 0) - (a.maru || 0);
-      if ((a.batsu || 0) !== (b.batsu || 0)) return (a.batsu || 0) - (b.batsu || 0);
-      return (a.name || '').localeCompare(b.name || '');
-    }
-    const d = parseScoreToNumber(b.score) - parseScoreToNumber(a.score);
-    return d !== 0 ? d : (a.name || '').localeCompare(b.name || '');
+// 順位が入れ替わったとき、行を元の位置から滑らかに動かす（FLIP）
+const useFlip = (ref) => {
+  const pos = useRef({});
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rows = [...el.children].filter((r) => r.dataset && r.dataset.playerId);
+    const next = {};
+    rows.forEach((r) => {
+      next[r.dataset.playerId] = r.offsetTop;
+    });
+    rows.forEach((r) => {
+      const prev = pos.current[r.dataset.playerId];
+      const d = prev == null ? 0 : prev - next[r.dataset.playerId];
+      if (!d) return;
+      r.style.transition = 'none';
+      r.style.transform = `translateY(${d}px)`;
+      requestAnimationFrame(() => {
+        r.style.transition = 'transform 450ms cubic-bezier(.2,.8,.2,1)';
+        r.style.transform = '';
+      });
+    });
+    pos.current = next;
   });
+};
 
 export const PlayerList = ({ state, myPlayerId, onRename, onRemove }) => {
-  const rule = isRuleMode(state.rule);
-  const simple = state.scoreMode === 'simple';
-  const sorted = useMemo(() => (rule ? sortForRule(state.players) : sortFree(state.players, simple)), [state.players, simple, rule]);
+  const { online = {} } = useContext(RoomContext);
+  const sorted = useMemo(() => rankPlayers(state), [state.players, state.rule, state.scoreMode]);
   const ranks = useMemo(() => winRanks(state.players), [state.players]);
+  const listRef = useRef(null);
+  useFlip(listRef);
   if (!state.players.length) return <Card className="p-8 text-center text-slate-400 font-bold">まだ参加者がいません</Card>;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" ref={listRef}>
       {sorted.map((p, i) => (
         <PlayerRow
           key={p.id}
@@ -116,6 +159,7 @@ export const PlayerList = ({ state, myPlayerId, onRename, onRemove }) => {
           onRename={onRename}
           onRemove={onRemove}
           winRank={ranks[p.id]}
+          online={!!online[p.id]}
         />
       ))}
     </div>

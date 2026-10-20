@@ -9,6 +9,8 @@
 //   history/{room}/{pid}/k  : そのプレイヤーの得点変更前 { score, maru, batsu }（プレイヤー別 Undo 用）
 //   timeline/{room}/k       : 得点推移イベント { t, p?, s?, m?, b? }（lib/timeline.js 参照）
 //   roomIndex/{room}        : createdAt（期限切れの部屋を掃除するための軽い索引）
+//   log/{room}/k            : 操作ログ { t, text, kind }（最新50件だけ表示）
+//   presence/{room}/{pid}   : 接続中なら true（切断でサーバ側が消す）
 //
 // 同時操作で更新が消えないよう、プレイヤー1人分は players/{pid} の transaction、
 // 全員分は players の transaction で書く（手元のキャッシュで丸ごと上書きしない）。
@@ -17,7 +19,8 @@
 
 import { applyOp, parseValue } from '../lib/rational.js';
 import { genId, genRoomCode, genToken } from '../lib/ids.js';
-import { applyAnswer, DEFAULT_RULE, freshRuleFields, normalizeRule } from '../lib/rules.js';
+import { applyAnswer, DEFAULT_RULE, freshRuleFields, normalizeRule, ruleLabel } from '../lib/rules.js';
+import { formatScoreStr } from '../lib/score.js';
 
 export const ROOM_TTL = 24 * 60 * 60 * 1000; // 24h 経過した部屋は掃除対象
 
@@ -52,6 +55,7 @@ export const roomState = (roomId, v) => {
     scoreMode: v.scoreMode || 'addsub',
     rule: normalizeRule(v.rule),
     q: v.q || 1,
+    phase: v.phase || null,
   };
 };
 
@@ -63,6 +67,8 @@ export const createStore = (db) => {
   const T = (room) => `timeline/${room}`;
 
   const pushTimeline = (room, e) => soft(db.push(T(room), { t: now(), ...e }));
+  const addLog = (room, text, kind = 'info') => soft(db.push(`log/${room}`, { t: now(), text, kind }));
+  const OP_SYMBOL = { '+': '＋', '-': '−', '*': '×', '/': '÷' };
 
   // 1人分を transaction で更新。mutate はコピーを受け取り、変更後を返す
   const updatePlayer = async (room, pid, mutate) => {
@@ -104,7 +110,13 @@ export const createStore = (db) => {
     });
     if (!res.ok) return res;
     if (error) return err(error);
-    await Promise.all([db.push(H(room, pid), res.prior), pushTimeline(room, eventOf(pid, res.player, qq))]);
+    const pl = res.player;
+    const tail = pl.status === 'win' ? '（勝ち抜け！）' : pl.status === 'lose' ? '（失格）' : '';
+    await Promise.all([
+      db.push(H(room, pid), res.prior),
+      pushTimeline(room, eventOf(pid, pl, qq)),
+      addLog(room, `Q${qq} ${pl.name} ${result === 'correct' ? '〇' : '✕'}${tail}`, pl.status === 'win' ? 'win' : result),
+    ]);
     if (res.player.status === 'win' && res.player.winSeq == null) {
       const seq = await db.transaction(`${R(room)}/seq`, (n) => (n || 0) + 1);
       await updatePlayer(room, pid, (p) => (p.status === 'win' && p.winSeq == null ? { ...p, winSeq: seq.value } : p));
@@ -145,12 +157,18 @@ export const createStore = (db) => {
     }));
     if (!res.ok) return res;
     const q = await soft(db.get(`${R(room)}/q`));
-    await Promise.all([db.remove(`${H(room, pid)}/${key}`), pushTimeline(room, eventOf(pid, res.player, q || 1))]);
+    await Promise.all([
+      db.remove(`${H(room, pid)}/${key}`),
+      pushTimeline(room, eventOf(pid, res.player, q || 1)),
+      addLog(room, `${res.player.name} 1つ戻す`, 'undo'),
+    ]);
     return OK;
   };
 
   const removeRoomData = (room) =>
-    Promise.all([db.remove(R(room)), db.remove(`history/${room}`), db.remove(T(room)), db.remove(`roomIndex/${room}`)]);
+    Promise.all(
+      [R(room), `history/${room}`, T(room), `roomIndex/${room}`, `log/${room}`, `presence/${room}`].map((p) => soft(db.remove(p))),
+    );
 
   return {
     onConnected: (cb) => db.onConnected(cb),
@@ -210,6 +228,25 @@ export const createStore = (db) => {
 
     subscribeRoom: (room, cb) => db.onValue(R(room), (v) => cb(roomState(room, v))),
     subscribeTimeline: (room, cb) => db.onValue(T(room), (v) => cb(Object.values(v || {}))),
+    // 操作ログ：新しい順に最新50件
+    subscribeLog: (room, cb) =>
+      db.onValueLast(`log/${room}`, 50, (v) =>
+        cb(
+          Object.entries(v || {})
+            .sort(([a], [b]) => (a < b ? 1 : -1))
+            .map(([, e]) => e),
+        ),
+      ),
+    // 接続中の人：{ pid: true }
+    subscribePresence: (room, cb) => db.onValue(`presence/${room}`, (v) => cb(v || {})),
+    // 自分を「接続中」にする（戻り値で解除）。書けなくても動作は止めない
+    goOnline: (room, pid) => {
+      try {
+        return db.presence(`presence/${room}/${pid}`);
+      } catch (e) {
+        return () => {};
+      }
+    },
 
     async op(room, type, payload = {}) {
       try {
@@ -223,6 +260,7 @@ export const createStore = (db) => {
               p[type] = (p[type] || 0) + 1;
               return p;
             });
+            if (res.ok) await addLog(room, `${res.player.name} ${type === 'maru' ? '〇' : '✕'}`, type === 'maru' ? 'correct' : 'wrong');
             return res.ok ? OK : res;
           }
           case 'score':
@@ -233,6 +271,10 @@ export const createStore = (db) => {
               p.score = type === 'score' ? applyOp(p.score || '0/1', payload.operator, val) : val;
               return p;
             });
+            if (res.ok) {
+              const how = type === 'score' ? `${OP_SYMBOL[payload.operator] || payload.operator}${payload.valueStr}` : `を ${payload.valueStr} に`;
+              await addLog(room, `${res.player.name} ${how} → ${formatScoreStr(res.player.score)}`, 'score');
+            }
             return res.ok ? OK : res;
           }
           case 'setAll': {
@@ -245,11 +287,15 @@ export const createStore = (db) => {
                 return p;
               },
               { s: val },
-            );
+            ).then(async (res) => {
+              if (res.ok) await addLog(room, `${payload.by || 'ホスト'} が全員を ${payload.valueStr} に`, 'host');
+              return res;
+            });
           }
           case 'resetAll': {
             const res = await bulkOp(room, (p) => ({ ...p, ...freshRuleFields(), score: '0/1', maru: 0, batsu: 0 }), { s: '0/1', m: 0, b: 0, q: 1 });
-            if (res.ok) await Promise.all([db.set(`${R(room)}/q`, 1), db.remove(`${R(room)}/seq`)]);
+            if (res.ok)
+              await Promise.all([db.set(`${R(room)}/q`, 1), db.remove(`${R(room)}/seq`), addLog(room, `${payload.by || 'ホスト'} が全員をリセット`, 'host')]);
             return res;
           }
           // ルール変更：全員の得点・状態と問題番号をリセットし、別ルールの Undo 履歴は消す
@@ -265,19 +311,29 @@ export const createStore = (db) => {
               return next;
             });
             await Promise.all([db.set(`${R(room)}/q`, 1), db.remove(`${R(room)}/seq`), db.remove(`history/${room}`)]);
-            await pushTimeline(room, { s: '0/1', m: 0, b: 0, q: 1 });
+            await Promise.all([
+              pushTimeline(room, { s: '0/1', m: 0, b: 0, q: 1 }),
+              addLog(room, `${payload.by || 'ホスト'} がルールを「${ruleLabel(rule)}」に`, 'host'),
+            ]);
             return OK;
           }
           // 問題番号を進める / 戻す（1 未満にはしない）
           case 'nextQ': {
             const d = payload.delta === -1 ? -1 : 1;
-            await db.transaction(`${R(room)}/q`, (q) => Math.max(1, (q || 1) + d));
+            const res = await db.transaction(`${R(room)}/q`, (q) => Math.max(1, (q || 1) + d));
+            await addLog(room, `Q${res.value} ${d > 0 ? 'へ進む' : 'に戻す'}`, 'q');
+            return OK;
+          }
+          // 結果発表の表示（'result'）／解除（null）
+          case 'setPhase': {
+            await db.set(`${R(room)}/phase`, payload.phase === 'result' ? 'result' : null);
+            if (payload.phase === 'result') await addLog(room, '結果発表！', 'host');
             return OK;
           }
           case 'undo':
             return await undo(room, pid);
           case 'removePlayer':
-            await Promise.all([db.remove(P(room, pid)), db.remove(H(room, pid))]);
+            await Promise.all([db.remove(P(room, pid)), db.remove(H(room, pid)), soft(db.remove(`presence/${room}/${pid}`))]);
             return OK;
           case 'renamePlayer': {
             const nm = cleanName(payload.name);

@@ -1,9 +1,11 @@
 // 共通部品（カード・ボタン・バッジ・切替・タブ）
 
-import { BarChart2, List } from './icons.jsx';
+import { BarChart2, Clock, List } from './icons.jsx';
 
-export const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-3xl shadow-xl shadow-amber-100/50 border-4 border-white ${className}`}>{children}</div>
+export const Card = ({ children, className = '', ...props }) => (
+  <div className={`bg-white rounded-3xl shadow-xl shadow-amber-100/50 border-4 border-white ${className}`} {...props}>
+    {children}
+  </div>
 );
 export const Button = ({ children, onClick, variant = 'primary', className = '', disabled, ...props }) => {
   const base =
@@ -42,11 +44,14 @@ export const Seg = ({ value, options, onChange }) => (
 );
 export const TabBar = ({ tab, setTab }) => (
   <div className="flex gap-2">
-    <Button variant={tab === 'ranking' ? 'primary' : 'ghost'} className="py-2 px-6 rounded-xl" onClick={() => setTab('ranking')}>
+    <Button variant={tab === 'ranking' ? 'primary' : 'ghost'} className="py-2 px-4 sm:px-6 rounded-xl" onClick={() => setTab('ranking')}>
       <List size={20} /> <span className="hidden sm:inline">ランキング</span>
     </Button>
-    <Button variant={tab === 'graph' ? 'primary' : 'ghost'} className="py-2 px-6 rounded-xl" onClick={() => setTab('graph')}>
+    <Button variant={tab === 'graph' ? 'primary' : 'ghost'} className="py-2 px-4 sm:px-6 rounded-xl" onClick={() => setTab('graph')}>
       <BarChart2 size={20} /> <span className="hidden sm:inline">グラフ</span>
+    </Button>
+    <Button variant={tab === 'log' ? 'primary' : 'ghost'} className="py-2 px-4 sm:px-6 rounded-xl" onClick={() => setTab('log')}>
+      <Clock size={20} /> <span className="hidden sm:inline">ログ</span>
     </Button>
   </div>
 );
