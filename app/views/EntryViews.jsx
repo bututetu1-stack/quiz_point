@@ -118,7 +118,7 @@ export const HostCreateView = ({ defaultName, error, onCreate, onBack }) => {
     <EntryFrame onBack={onBack}>
       <div className="text-center mb-6">
         <Logo size="sm" />
-        <h2 className="text-2xl font-black text-ink mt-4">部屋を作る（ホスト）</h2>
+        <h1 className="text-2xl font-black text-ink mt-4">部屋を作る（ホスト）</h1>
         <p className="text-ink-2 text-sm mt-1">ホストも1人のプレイヤーとして参加します</p>
       </div>
       <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="host-name">
@@ -156,7 +156,7 @@ export const JoinView = ({ roomId, defaultName, error, onJoin, onBack }) => {
   };
   return (
     <EntryFrame onBack={onBack}>
-      <h2 className="text-2xl font-black text-ink mb-1 text-center">部屋に参加する</h2>
+      <h1 className="text-2xl font-black text-ink mb-1 text-center">部屋に参加する</h1>
       {invited ? (
         <div className="flex flex-col items-center mb-6" data-invited-room>
           <span className="text-sm text-ink-2">招待された部屋</span>

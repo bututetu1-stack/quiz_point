@@ -26,6 +26,7 @@ const AskSheet = ({ req, onDone }) => {
           <TextField
             value={value}
             data-autofocus
+            aria-label={req.message}
             maxLength={30}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {

@@ -69,6 +69,7 @@ export const BoardView = ({ state, roomId }) => {
       data-board
     >
       <WinToast state={state} />
+      <h1 className="sr-only">大画面 部屋 {roomId}</h1>
       <header className="flex items-center gap-4 flex-wrap">
         <div className="bg-amber-400 text-slate-900 rounded-2xl px-5 py-2 font-black text-3xl tabular-nums"># {roomId}</div>
         <div className="text-2xl lg:text-3xl font-black text-amber-300 min-w-0 truncate">{ruleLabel(state.rule)}</div>
