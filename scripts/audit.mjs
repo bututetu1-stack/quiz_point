@@ -138,6 +138,17 @@ const VIEWS = {
   log: { url: '?room=0427', storage: alice, act: clickText('ログ') },
   record: { url: '?room=0427', storage: alice, act: clickText('記録') },
   alone: { url: '?room=0427', storage: host, alone: true },
+  // ホスト：Firebase のルールで付随データが拒否されているとき（「データベースの設定が足りません」のカード）
+  denied: { url: '?room=0427', storage: host, deny: true },
+  // 参加者：ホストに削除されたとき（「あなたはこの部屋のプレイヤーから外れています」）
+  removed: {
+    url: '?room=0427',
+    storage: alice,
+    act: async (p) => {
+      await p.evaluate(() => window.__QP_ADAPTER__.remove('rooms/0427/players/p_2'));
+      await p.waitForTimeout(1800);
+    },
+  },
   toast: { url: '?room=0427', storage: alice, act: clickText('元に戻す') },
   askConfirm: {
     url: '?room=0427',
@@ -304,6 +315,10 @@ for (const [view, opt] of Object.entries(VIEWS)) {
       page.on('pageerror', (e) => errors.push(e.message));
       await page.addInitScript(
         `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase, !!opt.alone, !!opt.crowd))});\n` +
+          (opt.deny
+            ? `{ const a = window.__QP_ADAPTER__; const no = (p) => /^(timeline|log|presence|roomIndex)\\//.test(p);\n` +
+              `window.__QP_ADAPTER__ = { ...a, get: (p) => (no(p) ? Promise.reject(new Error('permission_denied')) : a.get(p)) }; }\n`
+            : '') +
           Object.entries(opt.storage || {})
             .map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`)
             .join('\n') +
