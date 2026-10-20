@@ -155,9 +155,12 @@ const VIEWS = {
       ),
   },
 };
+// [幅, 高さ, 文字の拡大率]
 const SIZES = [
+  [280, 653], // Galaxy Fold（閉じたとき）
   [320, 640],
   [390, 844],
+  [390, 844, 1.5], // 端末の文字を大きくしている人
   [844, 390], // スマホ横向き
   [768, 1024],
   [1280, 860],
@@ -278,7 +281,7 @@ const measure = () => {
 const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' });
 const results = [];
 for (const [view, opt] of Object.entries(VIEWS)) {
-  for (const [w, h] of SIZES) {
+  for (const [w, h, scale = 1] of SIZES) {
     for (const theme of opt.board ? ['dark'] : ['light', 'dark']) {
       const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: theme });
       const page = await ctx.newPage();
@@ -288,7 +291,10 @@ for (const [view, opt] of Object.entries(VIEWS)) {
         `${adapterJs}\nwindow.__QP_ADAPTER__ = __QPMem.createMemoryAdapter(${JSON.stringify(scenario(!!opt.free, !!opt.phase, !!opt.alone))});\n` +
           Object.entries(opt.storage || {})
             .map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`)
-            .join('\n'),
+            .join('\n') +
+          (scale !== 1
+            ? `\ndocument.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = '${scale * 100}%'; });`
+            : ''),
       );
       await page.goto(PAGE + (opt.url || ''));
       await page.waitForTimeout(opt.phase ? 2600 : 350); // 結果発表は表彰台のアニメが終わるまで待つ
@@ -297,8 +303,9 @@ for (const [view, opt] of Object.entries(VIEWS)) {
         await page.waitForTimeout(350);
       }
       const m = await page.evaluate(measure);
-      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${view}_${w}_${theme}.png`) });
-      results.push({ view, w, h, theme, errors, ...m });
+      const tag = scale !== 1 ? `${w}x${scale * 100}` : `${w}`;
+      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${view}_${tag}_${theme}.png`) });
+      results.push({ view, w, h, scale, theme, errors, ...m });
       await ctx.close();
     }
   }
@@ -313,8 +320,8 @@ const lowContrast = uniq('lowContrast').size;
 const small = uniq('smallTargets').size;
 const unnamed = uniq('unnamed').size;
 const tiny = uniq('tinyText').size;
-const rows390 = results.find((r) => r.view === 'participant' && r.w === 390 && r.theme === 'light').rows;
-const hostRows390 = results.find((r) => r.view === 'host' && r.w === 390 && r.theme === 'light').rows;
+const rows390 = results.find((r) => r.view === 'participant' && r.w === 390 && r.scale === 1 && r.theme === 'light').rows;
+const hostRows390 = results.find((r) => r.view === 'host' && r.w === 390 && r.scale === 1 && r.theme === 'light').rows;
 const landRows = results.find((r) => r.view === 'participant' && r.w === 844 && r.theme === 'light').rows;
 const errors = results.reduce((a, r) => a + r.errors.length, 0);
 const density = (n) => (n >= 8 ? 10 : n >= 7 ? 8 : n >= 6 ? 6 : n >= 5 ? 4 : 2);

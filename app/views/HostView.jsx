@@ -28,7 +28,7 @@ export const HostView = ({ state, roomId, myPlayerId, onOp, onLeave }) => {
               <TabBar tab={tab} setTab={setTab} />
               <button
                 onClick={() => setShowPanel(true)}
-                className="lg:hidden shrink-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 px-3 rounded-2xl bg-ink text-card text-[11px] min-[360px]:text-xs sm:text-sm font-bold hover:bg-ink-2 transition-colors"
+                className="lg:hidden shrink-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 px-3 rounded-2xl bg-ink text-card text-[0.6875rem] min-[360px]:text-xs sm:text-sm font-bold hover:bg-ink-2 transition-colors"
               >
                 <Settings size={17} /> 管理
               </button>

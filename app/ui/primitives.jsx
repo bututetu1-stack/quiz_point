@@ -99,7 +99,7 @@ const CHIP = {
 };
 export const Chip = ({ children, tone = 'neutral', className = '', ...props }) => (
   <span
-    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`}
+    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`}
     {...props}
   >
     {children}
@@ -129,14 +129,14 @@ const TABS = [
   ['record', Award, '記録'],
 ];
 export const TabBar = ({ tab, setTab }) => (
-  <div className="flex flex-1 bg-sunken rounded-2xl p-1 gap-1" role="tablist">
+  <div className="flex flex-1 min-w-0 bg-sunken rounded-2xl p-1 gap-1" role="tablist">
     {TABS.map(([key, Icon, label]) => (
       <button
         key={key}
         role="tab"
         aria-selected={tab === key}
         onClick={() => setTab(key)}
-        className={`flex-1 min-w-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 sm:gap-1.5 py-1.5 rounded-xl text-[11px] min-[360px]:text-xs sm:text-sm font-bold transition-colors ${
+        className={`flex-1 min-w-0 flex flex-col min-[360px]:flex-row items-center justify-center gap-0.5 min-[360px]:gap-1 sm:gap-1.5 py-1.5 rounded-xl text-[0.6875rem] min-[360px]:text-xs sm:text-sm font-bold transition-colors ${
           tab === key ? 'bg-card text-brand-ink shadow-sm' : 'text-ink-3 hover:text-ink-2'
         }`}
       >
@@ -200,7 +200,7 @@ export const SheetItem = ({ icon, children, onClick, tone = 'ink', hint }) => (
 export const Section = ({ icon, title, action, children, className = '' }) => (
   <Card className={`p-4 ${className}`}>
     <div className="flex items-center justify-between gap-2 mb-3">
-      <h3 className="font-black text-ink flex items-center gap-2 text-[15px]">
+      <h3 className="font-black text-ink flex items-center gap-2 text-[0.9375rem]">
         {icon && <span className="text-brand">{icon}</span>}
         {title}
       </h3>

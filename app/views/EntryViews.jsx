@@ -72,12 +72,12 @@ export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
         {' ホストとして部屋を作る'}
       </Button>
     </div>
-    <ul className="mt-7 grid grid-cols-3 gap-2 text-center text-[11px] font-bold text-ink-3">
+    <ul className="mt-7 grid grid-cols-3 gap-2 text-center text-[0.6875rem] font-bold text-ink-3">
       <li className="bg-sunken rounded-xl px-1 py-2">8 種類のルール</li>
       <li className="bg-sunken rounded-xl px-1 py-2">QR で招待</li>
       <li className="bg-sunken rounded-xl px-1 py-2">大画面・結果発表</li>
     </ul>
-    <p className="text-ink-3 text-[11px] mt-6 text-center">{BUILD}</p>
+    <p className="text-ink-3 text-[0.6875rem] mt-6 text-center">{BUILD}</p>
   </EntryFrame>
 );
 
