@@ -157,7 +157,7 @@
 - `window.__QP_ADAPTER__` を設定してからページを読むとメモリ上の DB で動く（テストとスクリーンショット用）。
 - プレイヤーの項目（ルール系）: `score`・`maru`・`batsu`・`status`（win/lose）・`winSeq`/`loseSeq`・`restUntilQ`・`restFromQ`（誤答した問題番号。v59）・`pq`（本人が進めた問題番号）・`streak`・`correctAt`・`rec {o,x,win,lose}`・`spectator`。
 - ルールの表示用の関数（`rules.js`）: `ruleLabel`（短い名前）・`ruleSummary`（いまの設定の具体的な文。v65）・`ruleDetails`（設定の一覧）・`progressHint`（〇あと1・✕あと2）・`isReach`（リーチ。v60）。
-- **UI の自動チェック**: `npm run audit -- --shots <dir> --json <file>`。12 人（と 30 人・ひとり）の部屋を 280/320/390/390（文字 150%）/844×390/768/1024×768/1280px × 明るい/暗い × 約 25 画面で開き、はみ出し・WCAG コントラスト（祖先の opacity も考慮）・24px 未満の押し先・名前のないボタンと入力欄・各画面の h1・小さすぎる文字・Tab で移った先が見えるか・見える人数を数え、55 点満点の自動点を出す（残り 45 点は目視：わかりやすさ・一貫性・楽しさ・a11y）。`PAGE_FILE=<html>` で別のビルドも測れる
+- **UI の自動チェック**: `npm run audit -- --shots <dir> --json <file>`。12 人（と 30 人・ひとり・付随データが拒否された部屋・削除された参加者）の部屋を 280/320/390/390（文字 150%）/844×390/768/1024×768/1280px × 明るい/暗い × 約 25 画面で開き、はみ出し・WCAG コントラスト（祖先の opacity も考慮）・24px 未満の押し先・名前のないボタンと入力欄・各画面の h1・小さすぎる文字・Tab で移った先が見えるか・見える人数を数え、55 点満点の自動点を出す（残り 45 点は目視：わかりやすさ・一貫性・楽しさ・a11y）。`PAGE_FILE=<html>` で別のビルドも測れる
 - 画面の確認: `node scripts/screenshot.mjs <出力先> [名前の一部]` でテスト用シナリオの画面を撮れる（手元の Chrome を使う）。`RULE=free` で自由計算、`PHASE=1` で結果発表。v33 で `rest_mobile`・`spectator_mobile`・`record_mobile`・`rule_editor_desktop` を追加。
 - **Tokuten の仕様の調べ方**: Tokuten は Next.js 製で、計算はブラウザ側のコードにある。`https://tokuten.baton8.com/_next/static/<buildId>/_buildManifest.js` からページの JS（`pages/room/[code]-*.js`）を取り、`calcNextScore`・`compareScore`・`rankPlayers`・`getInitialRule` を読むと定義が分かる（2026-10-21 時点の ver 2.0.1）。要点:
   - simple：〇✕を数える／skip（M〇N休）：誤答で N 問休み（既定 2）／freeze：k 回目の誤答で k 問休み
