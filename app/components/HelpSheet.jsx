@@ -47,6 +47,9 @@ export const HelpSheet = ({ open, onClose }) => (
           <Step n="3" title="間違えたら">
             「元に戻す」で自分の直前の操作だけ取り消せます。
           </Step>
+          <Step n="4" title="ランキングの印">
+            「リーチ」はあと 1 問正答で勝ち抜け。「休み あと n 問」は誤答のあと答えられない問題の数で、問題が進んだら「問題を進める」を押します（ホストが進めた分は自動で数えます）。
+          </Step>
         </ol>
       </section>
       <p className="text-xs text-ink-3 leading-relaxed">
