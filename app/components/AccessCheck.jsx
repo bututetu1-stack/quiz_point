@@ -70,7 +70,7 @@ export const AccessCheck = () => {
         Firebase コンソール →（このプロジェクト）→ Realtime Database
         →「ルール」に、下のルールを貼り付けて「公開」してください（アプリの持ち主だけができます）。
       </p>
-      <div className="mt-3 grid grid-cols-1 min-[420px]:grid-cols-2 gap-2">
+      <div className="mt-3 flex flex-col gap-2">
         <Button variant="secondary" className="py-2.5 text-sm" onClick={copy}>
           <Copy size={16} /> {copied ? 'コピーしました' : '1. ルールをコピー'}
         </Button>
