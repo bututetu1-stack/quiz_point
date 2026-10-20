@@ -1,11 +1,14 @@
-// 結果発表：表彰台（上位3人）と最終順位。ホストが出すと全員の画面に表示される
+// 結果発表：表彰台（上位3人）・チームの結果・最終順位。ホストが出すと全員の画面に表示される。
+// 自分の順位は一番上に大きく出し、一覧でも強調する
 
 import { useRef } from 'react';
 import { rankPlayers, scoreText, statusText } from '../lib/ranking.js';
 import { winRanks } from '../lib/rules.js';
-import { Crown, Trophy, X } from '../ui/icons.jsx';
+import { calcTeamScore, getTeamDisplayScore } from '../lib/score.js';
+import { Crown, Trophy, Users, X } from '../ui/icons.jsx';
 import { Button, Card, IconButton, useDialog } from '../ui/primitives.jsx';
 import { Confetti } from './Confetti.jsx';
+import { teamColor } from './Teams.jsx';
 
 const PODIUM = [
   { place: 2, h: 'h-24', color: 'bg-medal-2', delay: '0.3s' },
@@ -13,10 +16,12 @@ const PODIUM = [
   { place: 3, h: 'h-16', color: 'bg-medal-3', delay: '0s' },
 ];
 
-export const ResultOverlay = ({ state, isHost, onClose }) => {
+export const ResultOverlay = ({ state, isHost, myPlayerId, onClose }) => {
   const sorted = rankPlayers(state);
   const ranks = winRanks(state.players);
   const status = (p) => statusText(p, ranks);
+  const myRank = sorted.findIndex((p) => p.id === myPlayerId) + 1;
+  const teams = [...state.teams].sort((a, b) => calcTeamScore(b.id, state) - calcTeamScore(a.id, state));
   const ref = useRef(null);
   useDialog(true, onClose, ref);
   return (
@@ -33,10 +38,16 @@ export const ResultOverlay = ({ state, isHost, onClose }) => {
         <IconButton label="閉じる" onClick={onClose} className="absolute top-3 right-3">
           <X size={20} />
         </IconButton>
-        <h2 className="text-center text-3xl font-black text-brand-ink flex items-center justify-center gap-2 mb-6">
+        <h2 className="text-center text-3xl font-black text-brand-ink flex items-center justify-center gap-2">
           <Trophy size={30} /> 結果発表
         </h2>
-        <div className="flex items-end justify-center gap-3 mb-6">
+        {myRank > 0 && (
+          <p className="text-center mt-2 font-black text-ink" data-my-result>
+            あなたは <span className="text-3xl text-brand-ink tabular-nums">{myRank}</span> 位
+            {myRank === 1 ? '！おめでとう！' : myRank <= 3 ? '！' : ''}
+          </p>
+        )}
+        <div className="flex items-end justify-center gap-3 mt-5 mb-6">
           {PODIUM.map(({ place, h, color, delay }) => {
             const p = sorted[place - 1];
             return (
@@ -44,7 +55,11 @@ export const ResultOverlay = ({ state, isHost, onClose }) => {
                 {p ? (
                   <>
                     {place === 1 && <Crown className="w-9 h-9 text-medal-1 drop-shadow" fill="currentColor" />}
-                    <div className="font-black text-ink text-center leading-tight break-all">{p.name}</div>
+                    <div
+                      className={`font-black text-center leading-tight break-all ${p.id === myPlayerId ? 'text-brand-ink' : 'text-ink'}`}
+                    >
+                      {p.name}
+                    </div>
                     <div className="text-sm font-bold text-ink-2 mb-1 tabular-nums">{scoreText(state, p)}</div>
                   </>
                 ) : (
@@ -59,11 +74,38 @@ export const ResultOverlay = ({ state, isHost, onClose }) => {
             );
           })}
         </div>
+        {teams.length > 0 && (
+          <div className="mb-4" data-team-result>
+            <div className="text-xs font-bold text-ink-3 mb-1.5 flex items-center gap-1">
+              <Users size={14} /> チームの結果
+            </div>
+            <ol className="flex flex-col gap-1.5">
+              {teams.map((t, i) => (
+                <li key={t.id} className="flex items-center gap-3 rounded-xl px-3 py-2 bg-sunken">
+                  <span className="w-7 text-center font-black text-ink-2 tabular-nums">{i + 1}</span>
+                  <span className="w-2 self-stretch rounded-full shrink-0" style={{ background: teamColor(state, t.id) }} />
+                  <span className="flex-1 min-w-0 truncate font-black text-ink flex items-center gap-1">
+                    {i === 0 && <Crown size={16} className="text-medal-1 shrink-0" fill="currentColor" />}
+                    {t.name}
+                  </span>
+                  <span className="font-black text-ink tabular-nums text-lg">{getTeamDisplayScore(t.id, state)}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+        <div className="text-xs font-bold text-ink-3 mb-1.5">最終順位</div>
         <ol className="flex flex-col gap-1.5">
           {sorted.map((p, i) => (
-            <li key={p.id} className="flex items-center gap-3 bg-sunken rounded-xl px-3 py-2">
+            <li
+              key={p.id}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 ${p.id === myPlayerId ? 'bg-brand-soft ring-2 ring-brand/60' : 'bg-sunken'}`}
+            >
               <span className="w-7 text-center font-black text-ink-2 tabular-nums">{i + 1}</span>
-              <span className="flex-1 min-w-0 truncate font-bold text-ink">{p.name}</span>
+              <span className="flex-1 min-w-0 truncate font-bold text-ink">
+                {p.name}
+                {p.id === myPlayerId && <span className="ml-1 text-xs text-brand-ink">（あなた）</span>}
+              </span>
               {status(p) && <span className="text-xs font-bold text-ink-3">{status(p)}</span>}
               <span className="font-black text-ink tabular-nums">{scoreText(state, p)}</span>
             </li>
