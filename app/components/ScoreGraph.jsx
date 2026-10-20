@@ -146,9 +146,11 @@ export const ScoreGraph = ({ state, myPlayerId, limit, plotHeight, title }) => {
   // 最終時点にスコアがあるプレイヤーのみ描画
   const last = tl.length ? tl[tl.length - 1].scores || {} : {};
   // 凡例はいまの順位の順
-  const players = rankPlayers(state)
-    .filter((p) => last[p.id] !== undefined)
-    .slice(0, limit || Infinity);
+  const all = rankPlayers(state).filter((p) => last[p.id] !== undefined);
+  // 上位 limit 人まで（自分が入っていなければ自分も足す）
+  const top = all.slice(0, limit || Infinity);
+  const me = all.find((p) => p.id === myPlayerId);
+  const players = me && !top.includes(me) ? [...top, me] : top;
   return (
     <Card className="p-4 w-full">
       <div ref={box} className="w-full">
@@ -199,11 +201,19 @@ const useTimeline = (state) => {
   return { timeline, denied };
 };
 
-// グラフタブ
+// グラフタブ。人数が多いと線が絡まり凡例も長くなるので、上位 10 人と自分だけにする
 export const GraphPanel = ({ state, myPlayerId }) => {
   const { timeline, denied } = useTimeline(state);
   if (denied) return <Unavailable what="グラフ（得点の推移）" />;
-  return <ScoreGraph state={{ ...state, timeline }} myPlayerId={myPlayerId} />;
+  const many = state.players.length > 10;
+  return (
+    <ScoreGraph
+      state={{ ...state, timeline }}
+      myPlayerId={myPlayerId}
+      limit={many ? 10 : undefined}
+      title={many ? `上位 10 人とあなた（全 ${state.players.length} 人）` : undefined}
+    />
+  );
 };
 
 // 大画面の右の列：上位 5 人の推移を小さく（読めない・まだ動いていないときは出さない）
