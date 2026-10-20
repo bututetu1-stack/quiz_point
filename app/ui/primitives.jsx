@@ -11,7 +11,8 @@ export const useDialog = (open, onClose, ref) => {
   useEffect(() => {
     if (!open) return undefined;
     const prev = document.activeElement;
-    const focusables = () => [...(ref.current ? ref.current.querySelectorAll('button, input, select, textarea, a[href]') : [])].filter((e) => !e.disabled);
+    const focusables = () =>
+      [...(ref.current ? ref.current.querySelectorAll('button, input, select, textarea, a[href]') : [])].filter((e) => !e.disabled);
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -97,7 +98,10 @@ const CHIP = {
   muted: 'bg-ink-3 text-card',
 };
 export const Chip = ({ children, tone = 'neutral', className = '', ...props }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`} {...props}>
+  <span
+    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold leading-4 whitespace-nowrap ${CHIP[tone]} ${className}`}
+    {...props}
+  >
     {children}
   </span>
 );
@@ -149,7 +153,11 @@ export const Sheet = ({ open, onClose, title, children, wide = false }) => {
   useDialog(open, onClose, ref);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4 animate-fade-in" onClick={onClose} data-sheet>
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
+      onClick={onClose}
+      data-sheet
+    >
       <div
         ref={ref}
         tabIndex={-1}

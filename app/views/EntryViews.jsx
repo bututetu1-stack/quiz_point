@@ -131,25 +131,35 @@ export const JoinView = ({ roomId, defaultName, error, onJoin, onBack }) => {
   return (
     <EntryFrame onBack={onBack}>
       <h2 className="text-2xl font-black text-ink mb-1 text-center">部屋に参加する</h2>
-      <p className="text-ink-2 text-sm text-center mb-6">{invited ? `部屋 ${roomId} に招待されています` : 'ホストから聞いた 4 桁の部屋コードを入れてください'}</p>
-      <div className="flex flex-col gap-4">
-        <div>
-          <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="join-code">
-            部屋コード (4桁)
-          </label>
-          <TextField
-            id="join-code"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength="4"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-            disabled={invited}
-            className="text-3xl font-black tracking-[0.4em] text-center tabular-nums disabled:opacity-70"
-            placeholder="0000"
-          />
+      {invited ? (
+        <div className="flex flex-col items-center mb-6" data-invited-room>
+          <span className="text-sm text-ink-2">招待された部屋</span>
+          <span className="mt-1 bg-brand-soft text-brand-ink rounded-2xl px-5 py-1.5 text-3xl font-black tracking-[0.25em] tabular-nums">
+            {roomId}
+          </span>
         </div>
+      ) : (
+        <p className="text-ink-2 text-sm text-center mb-6">ホストから聞いた 4 桁の部屋コードを入れてください</p>
+      )}
+      <div className="flex flex-col gap-4">
+        {!invited && (
+          <div>
+            <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="join-code">
+              部屋コード (4桁)
+            </label>
+            <TextField
+              id="join-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength="4"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+              className="text-3xl font-black tracking-[0.4em] text-center tabular-nums"
+              placeholder="0000"
+            />
+          </div>
+        )}
         <div>
           <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="join-name">
             あなたの名前

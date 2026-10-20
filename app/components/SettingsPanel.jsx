@@ -118,7 +118,14 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
                   </button>
                   <button
                     onClick={async () => {
-                      if (await confirm(`チーム「${team.name}」を削除しますか？`, { ok: '削除する', danger: true, note: 'メンバーは未所属に戻ります。' })) onOp('removeTeam', { teamId: team.id });
+                      if (
+                        await confirm(`チーム「${team.name}」を削除しますか？`, {
+                          ok: '削除する',
+                          danger: true,
+                          note: 'メンバーは未所属に戻ります。',
+                        })
+                      )
+                        onOp('removeTeam', { teamId: team.id });
                     }}
                     className="p-1.5 rounded-lg text-ink-3 hover:text-ng-ink hover:bg-card"
                     aria-label={`${team.name} を削除`}
@@ -129,9 +136,16 @@ export const SettingsPanel = ({ state, roomId, onOp }) => {
                 <div className="flex flex-wrap gap-1">
                   {members.length ? (
                     members.map((p) => (
-                      <span key={p.id} className="flex items-center gap-1 bg-card border border-line rounded-full pl-2.5 pr-1 py-0.5 text-xs font-bold text-ink-2 max-w-full">
+                      <span
+                        key={p.id}
+                        className="flex items-center gap-1 bg-card border border-line rounded-full pl-2.5 pr-1 py-0.5 text-xs font-bold text-ink-2 max-w-full"
+                      >
                         <span className="truncate">{p.name}</span>
-                        <button onClick={() => onOp('assignTeam', { playerId: p.id, teamId: null })} className="text-ng-ink px-2 min-h-[24px] rounded-full hover:bg-ng-soft" aria-label={`${p.name} をチームから外す`}>
+                        <button
+                          onClick={() => onOp('assignTeam', { playerId: p.id, teamId: null })}
+                          className="text-ng-ink px-2 min-h-[24px] rounded-full hover:bg-ng-soft"
+                          aria-label={`${p.name} をチームから外す`}
+                        >
                           外す
                         </button>
                       </span>

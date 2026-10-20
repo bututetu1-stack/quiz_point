@@ -63,7 +63,8 @@ export const InviteCard = ({ roomId }) => {
       <div className="flex-1 min-w-0 text-center min-[480px]:text-left">
         <div className="font-black text-ink text-lg">みんなを招待しよう</div>
         <p className="text-sm text-ink-2 mt-1 leading-relaxed">
-          スマホのカメラで QR コードを読み取るか、ホームの「参加者として入室する」で部屋コード <b className="text-brand-ink tabular-nums">{roomId}</b> を入れると参加できます。
+          スマホのカメラで QR コードを読み取るか、ホームの「参加者として入室する」で部屋コード{' '}
+          <b className="text-brand-ink tabular-nums">{roomId}</b> を入れると参加できます。
         </p>
         <Button className="mt-3 px-4 py-2.5 text-sm" onClick={copy}>
           <Copy size={16} /> {copied ? 'コピーしました' : 'リンクをコピー'}
@@ -80,7 +81,15 @@ export const InviteDialog = ({ roomId, isHost, onClose }) => {
   useDialog(true, onClose, ref);
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-      <Card ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="招待" className="outline-none w-full max-w-sm p-6 relative text-center" onClick={(e) => e.stopPropagation()}>
+      <Card
+        ref={ref}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="招待"
+        className="outline-none w-full max-w-sm p-6 relative text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <IconButton label="閉じる" onClick={onClose} className="absolute top-3 right-3">
           <X size={20} />
         </IconButton>

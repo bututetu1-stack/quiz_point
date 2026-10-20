@@ -339,7 +339,8 @@ export const createStore = (db) => {
               return p;
             });
             if (res.ok) {
-              const how = type === 'score' ? `${OP_SYMBOL[payload.operator] || payload.operator}${payload.valueStr}` : `を ${payload.valueStr} に`;
+              const how =
+                type === 'score' ? `${OP_SYMBOL[payload.operator] || payload.operator}${payload.valueStr}` : `を ${payload.valueStr} に`;
               await addLog(room, `${res.player.name} ${how} → ${formatScoreStr(res.player.score)}`, 'score');
             }
             return res.ok ? OK : res;
@@ -361,9 +362,18 @@ export const createStore = (db) => {
           }
           case 'resetAll': {
             const s0 = initialScore(await db.get(`${R(room)}/rule`));
-            const res = await bulkOp(room, (p) => ({ ...p, ...freshRuleFields(), score: s0, maru: 0, batsu: 0 }), { s: s0, m: 0, b: 0, q: 1 });
+            const res = await bulkOp(room, (p) => ({ ...p, ...freshRuleFields(), score: s0, maru: 0, batsu: 0 }), {
+              s: s0,
+              m: 0,
+              b: 0,
+              q: 1,
+            });
             if (res.ok)
-              await Promise.all([db.set(`${R(room)}/q`, 1), db.remove(`${R(room)}/seq`), addLog(room, `${payload.by || 'ホスト'} が全員をリセット`, 'host')]);
+              await Promise.all([
+                db.set(`${R(room)}/q`, 1),
+                db.remove(`${R(room)}/seq`),
+                addLog(room, `${payload.by || 'ホスト'} が全員をリセット`, 'host'),
+              ]);
             return res;
           }
           // ルール変更：全員の得点・状態と問題番号をリセットし、別ルールの Undo 履歴は消す

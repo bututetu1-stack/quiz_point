@@ -9,7 +9,17 @@ import { HomeView, HostCreateView, JoinView } from './views/EntryViews.jsx';
 import { HostView } from './views/HostView.jsx';
 import { ParticipantView } from './views/ParticipantView.jsx';
 
-const EMPTY = { players: [], spectators: [], allPlayers: [], teams: [], scoreMode: 'addsub', teamMode: 'product', rule: { type: 'free' }, q: 1, phase: null };
+const EMPTY = {
+  players: [],
+  spectators: [],
+  allPlayers: [],
+  teams: [],
+  scoreMode: 'addsub',
+  teamMode: 'product',
+  rule: { type: 'free' },
+  q: 1,
+  phase: null,
+};
 
 const setRoomInUrl = (roomId) => {
   const url = new URL(window.location);
@@ -74,7 +84,10 @@ export const App = ({ store }) => {
 
   // タブの名前：部屋にいる間は部屋コードとルール（複数の部屋を開いていても見分けられる）
   useEffect(() => {
-    document.title = inRoom && roomId ? `${view === 'board' ? '大画面 ' : ''}#${roomId} ${ruleLabel(state.rule)} | Quiz Score Pro` : 'Quiz Score Pro — クイズの得点表';
+    document.title =
+      inRoom && roomId
+        ? `${view === 'board' ? '大画面 ' : ''}#${roomId} ${ruleLabel(state.rule)} | Quiz Score Pro`
+        : 'Quiz Score Pro — クイズの得点表';
   }, [inRoom, roomId, view, state.rule]);
 
   // 結果発表が新しく出たら、閉じた状態を戻す
@@ -202,7 +215,9 @@ export const App = ({ store }) => {
             }}
           />
         )}
-        {view === 'hostcreate' && <HostCreateView defaultName={myName} error={entryError} onCreate={handleCreateRoom} onBack={() => setView('home')} />}
+        {view === 'hostcreate' && (
+          <HostCreateView defaultName={myName} error={entryError} onCreate={handleCreateRoom} onBack={() => setView('home')} />
+        )}
         {view === 'join' && (
           <JoinView
             roomId={roomId}

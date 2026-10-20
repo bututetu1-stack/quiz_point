@@ -19,7 +19,10 @@ export const TeamBoard = ({ state }) => {
       {sorted.map((team) => {
         const lead = sorted.length > 1 && calcTeamScore(team.id, state) === top && top !== 0;
         return (
-          <div key={team.id} className="shrink-0 min-w-[7.5rem] flex-1 bg-card border border-line rounded-2xl pl-2 pr-3 py-1.5 flex items-stretch gap-2.5 shadow-sm">
+          <div
+            key={team.id}
+            className="shrink-0 min-w-[7.5rem] flex-1 bg-card border border-line rounded-2xl pl-2 pr-3 py-1.5 flex items-stretch gap-2.5 shadow-sm"
+          >
             <span className="w-1.5 rounded-full shrink-0" style={{ background: teamColor(state, team.id) }} />
             <span className="min-w-0">
               <span className="flex items-center gap-1 text-xs font-bold text-ink-2 truncate">
@@ -42,7 +45,7 @@ export const TeamButton = ({ state, myPlayer, onOpen }) => {
   return (
     <button
       onClick={onOpen}
-      className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-colors max-w-[7rem] ${
+      className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-colors max-w-[5.5rem] min-[420px]:max-w-[7rem] ${
         team ? 'bg-card text-ink-2 border-line hover:border-brand/60' : 'bg-brand text-on-brand border-brand motion-safe:animate-attn'
       }`}
       data-team-button
@@ -66,7 +69,10 @@ export const TeamChoices = ({ state, myPlayer, onOp, onDone }) => {
         cur === key ? 'bg-brand-soft border-brand/60 text-brand-ink' : 'bg-card border-line text-ink hover:bg-sunken'
       }`}
     >
-      <span className="w-3 h-3 rounded-full shrink-0 border border-line" style={color ? { background: color, borderColor: color } : undefined} />
+      <span
+        className="w-3 h-3 rounded-full shrink-0 border border-line"
+        style={color ? { background: color, borderColor: color } : undefined}
+      />
       <span className="flex-1 min-w-0 truncate">{label}</span>
       {cur === key && <Check size={18} />}
     </button>

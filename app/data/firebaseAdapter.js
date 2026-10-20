@@ -1,7 +1,20 @@
 // 本番用アダプタ：Firebase Realtime Database（modular API）を store.js が使う形に包む
 
 import { initializeApp } from 'firebase/app';
-import { get, getDatabase, limitToLast, onDisconnect, onValue, push, query, ref, remove, runTransaction, set, update } from 'firebase/database';
+import {
+  get,
+  getDatabase,
+  limitToLast,
+  onDisconnect,
+  onValue,
+  push,
+  query,
+  ref,
+  remove,
+  runTransaction,
+  set,
+  update,
+} from 'firebase/database';
 
 export const createFirebaseAdapter = (config) => {
   const db = getDatabase(initializeApp(config));
@@ -45,7 +58,9 @@ export const createFirebaseAdapter = (config) => {
       });
       return () => {
         off();
-        onDisconnect(node).cancel().catch(() => {});
+        onDisconnect(node)
+          .cancel()
+          .catch(() => {});
         remove(node).catch(() => {});
       };
     },

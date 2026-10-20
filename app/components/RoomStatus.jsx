@@ -18,7 +18,12 @@ export const RoomStatus = ({ state, onNextQ, onShowRule }) => {
       <span className="shrink-0 inline-flex items-stretch rounded-full bg-ink text-card text-xs font-black tabular-nums overflow-hidden">
         <span className="px-2.5 py-1">Q{state.q || 1}</span>
         {onNextQ && (
-          <button onClick={onNextQ} className="pl-1.5 pr-2 border-l border-card/25 hover:bg-ink-2 flex items-center" aria-label="次の問題へ" title="次の問題へ">
+          <button
+            onClick={onNextQ}
+            className="pl-1.5 pr-2 border-l border-card/25 hover:bg-ink-2 flex items-center"
+            aria-label="次の問題へ"
+            title="次の問題へ"
+          >
             <ChevronRight size={14} />
           </button>
         )}
@@ -49,7 +54,9 @@ export const RuleInfoSheet = ({ state, open, onClose }) => {
             ))}
           </dl>
         )}
-        <p className="text-xs text-ink-3 mt-3">いまの問題：Q{state.q || 1}。ルールはホストが変えられます（変えると全員の得点と問題番号がリセット）。</p>
+        <p className="text-xs text-ink-3 mt-3">
+          いまの問題：Q{state.q || 1}。ルールはホストが変えられます（変えると全員の得点と問題番号がリセット）。
+        </p>
       </div>
     </Sheet>
   );

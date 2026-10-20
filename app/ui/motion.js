@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-export const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const reducedMotion = () =>
+  typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // 並びが変わったとき、data-flip-id を持つ子要素を元の位置から滑らかに動かす（縦・横とも。スクロールの影響を受けない offset で測る）
 export const useFlip = (ref) => {

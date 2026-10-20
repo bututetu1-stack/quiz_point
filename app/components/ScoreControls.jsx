@@ -70,7 +70,12 @@ export const FreeControls = ({ onAct }) => {
         {mode === 'calc' && (
           <>
             <label className="shrink-0 flex items-center bg-sunken rounded-xl px-1">
-              <select value={op} onChange={(e) => setOp(e.target.value)} className="bg-transparent text-xl font-black text-ink outline-none px-2" aria-label="計算の種類">
+              <select
+                value={op}
+                onChange={(e) => setOp(e.target.value)}
+                className="bg-transparent text-xl font-black text-ink outline-none px-2"
+                aria-label="計算の種類"
+              >
                 <option value="×">×</option>
                 <option value="÷">÷</option>
                 <option value="+">＋</option>
@@ -87,7 +92,13 @@ export const FreeControls = ({ onAct }) => {
         {mode === 'quick' && (
           <>
             {[1, 2, 3, 4, 5].map((n) => (
-              <Button key={n} variant="primary" className="flex-1 min-w-0 px-0 py-3 text-base" onClick={() => onAct('+', String(n))} data-act={`plus${n}`}>
+              <Button
+                key={n}
+                variant="primary"
+                className="flex-1 min-w-0 px-0 py-3 text-base"
+                onClick={() => onAct('+', String(n))}
+                data-act={`plus${n}`}
+              >
                 ＋{n}
               </Button>
             ))}

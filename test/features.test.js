@@ -22,9 +22,8 @@ const hostAndAlice = async (db) => {
   await waitFor(() => h.text().includes('あなた（司会）'), { msg: 'host view' });
   const code = room(db).id;
   const p = boot({ db, url: `/?room=${code}` });
-  await waitFor(() => p.doc.querySelector('input[placeholder="0000"]'));
-  const codeInput = p.doc.querySelector('input[placeholder="0000"]');
-  p.type([...p.doc.querySelectorAll('input')].find((i) => i !== codeInput), 'アリス');
+  await waitFor(() => p.doc.querySelector('#join-name'));
+  p.type(p.doc.querySelector('#join-name'), 'アリス');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
   await waitFor(() => p.text().includes('あなた（アリス）'), { msg: 'participant view' });
   return { h, p, code };
@@ -111,7 +110,7 @@ test('自動再入室：入ったことのある参加者は名前入力を省�
   p.close();
   const p2 = boot({ db, url: `/?room=${code}`, storage });
   await waitFor(() => p2.text().includes('あなた（アリス）'), { msg: 'auto rejoin' });
-  assert.ok(!p2.doc.querySelector('input[placeholder="0000"]'), '入室画面を経由しない');
+  assert.ok(!p2.doc.querySelector('#join-name'), '入室画面を経由しない');
   assert.equal(Object.keys(room(db).players).length, 2, 'プレイヤーは増えない');
   // 部屋コードを押すと招待ダイアログ（QR とリンク）
   p2.click(p2.buttons().find((b) => b.textContent.includes(code)));
@@ -332,6 +331,16 @@ test('v38：順位が上がった人の行に ▲（数秒で消える）。大�
   assert.ok(h.doc.querySelector(`[data-player-id="${aliceId}"] [data-rank-up]`).textContent.includes('▲1'));
   await waitFor(() => b.doc.querySelector('[data-board]').textContent.includes('▲1'), { msg: 'rank up on board' });
   b.close();
+  h.close();
+  p.close();
+});
+
+test('v39：初めての人には最初の〇✕まで「正答／誤答を押す」の一言が出る', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  await waitFor(() => p.doc.querySelector('[data-first-tip]'), { msg: 'first tip' });
+  p.click(p.byText('正答', p.doc.querySelector('[data-selfbar]')));
+  await waitFor(() => !p.doc.querySelector('[data-first-tip]'), { msg: 'tip hidden after first answer' });
   h.close();
   p.close();
 });

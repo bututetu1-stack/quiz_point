@@ -34,7 +34,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v38'));
+  assert.ok(h.text().includes('v39'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -73,11 +73,10 @@ test('参加者：招待リンクから入室し、チームを自分で選べ�
   await waitFor(() => Object.keys(room(db).teams || {}).length === 1, { msg: 'team created' });
 
   const p = boot({ db, url: `/?room=${code}` });
-  await waitFor(() => p.doc.querySelector('input[placeholder="0000"]'), { msg: 'join view' });
-  const codeInput = p.doc.querySelector('input[placeholder="0000"]');
-  assert.equal(codeInput.value, code);
-  assert.ok(codeInput.disabled, '招待リンクではコードが固定');
-  const nameInput = [...p.doc.querySelectorAll('input')].find((i) => i !== codeInput);
+  await waitFor(() => p.doc.querySelector('#join-name'), { msg: 'join view' });
+  assert.ok(p.doc.querySelector('[data-invited-room]').textContent.includes(code), '招待された部屋を表示');
+  assert.ok(!p.doc.querySelector('input[placeholder="0000"]'), '招待リンクではコードを入れ直させない');
+  const nameInput = p.doc.querySelector('#join-name');
   p.type(nameInput, 'アリス');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
   await waitFor(() => p.text().includes('あなた（アリス）'), { msg: 'participant view' });
@@ -122,9 +121,8 @@ test('ホストの再読み込み：保存済みトークンで復帰し、プ�
 test('存在しない部屋コードで入室するとエラーを出す', async () => {
   const db = createMemoryAdapter();
   const p = boot({ db, url: '/?room=9999' });
-  await waitFor(() => p.doc.querySelector('input[placeholder="0000"]'));
-  const codeInput = p.doc.querySelector('input[placeholder="0000"]');
-  p.type([...p.doc.querySelectorAll('input')].find((i) => i !== codeInput), 'ボブ');
+  await waitFor(() => p.doc.querySelector('#join-name'));
+  p.type(p.doc.querySelector('#join-name'), 'ボブ');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
   await waitFor(() => p.doc.querySelector('[data-entry-error]'), { msg: 'inline error' });
   assert.ok(p.doc.querySelector('[data-entry-error]').textContent.includes('部屋が見つかりません'));
@@ -149,9 +147,8 @@ test('ルール：ホストが 2〇2✕ に変えると、参加者は正解/誤
   await waitFor(() => h.doc.querySelector('[data-room-status]').textContent.includes('2〇2✕'), { msg: 'status label' });
 
   const p = boot({ db, url: `/?room=${code}` });
-  await waitFor(() => p.doc.querySelector('input[placeholder="0000"]'));
-  const codeInput = p.doc.querySelector('input[placeholder="0000"]');
-  p.type([...p.doc.querySelectorAll('input')].find((i) => i !== codeInput), 'アリス');
+  await waitFor(() => p.doc.querySelector('#join-name'));
+  p.type(p.doc.querySelector('#join-name'), 'アリス');
   p.click(p.buttons().find((b) => /入室|参加/.test(b.textContent) && !b.disabled));
   await waitFor(() => p.byText('正答') && p.byText('誤答'), { msg: 'answer buttons' });
   assert.ok(!p.text().includes('自由計算'), 'ルール時はモード切替を出さない');

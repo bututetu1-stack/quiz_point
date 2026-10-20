@@ -18,11 +18,30 @@ const SHOTS = arg('--shots');
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
 const adapterJs = (
-  await esbuild.build({ entryPoints: [path.join(REPO, 'test/helpers/memoryAdapter.js')], bundle: true, format: 'iife', globalName: '__QPMem', write: false })
+  await esbuild.build({
+    entryPoints: [path.join(REPO, 'test/helpers/memoryAdapter.js')],
+    bundle: true,
+    format: 'iife',
+    globalName: '__QPMem',
+    write: false,
+  })
 ).outputFiles[0].text;
 
 // 12 人（長い名前・勝ち抜け・脱落・休み・チーム・観戦あり）
-const NAMES = ['司会', 'アリス', 'ボブ', 'チャーリー', 'デイジー', 'とても長い名前のプレイヤーさん', 'Alexander the Great', 'エマ', 'フランク', 'グレース', 'ヘンリー', 'アイビー'];
+const NAMES = [
+  '司会',
+  'アリス',
+  'ボブ',
+  'チャーリー',
+  'デイジー',
+  'とても長い名前のプレイヤーさん',
+  'Alexander the Great',
+  'エマ',
+  'フランク',
+  'グレース',
+  'ヘンリー',
+  'アイビー',
+];
 const scenario = (free, phase, alone) => {
   const players = {};
   (alone ? NAMES.slice(0, 1) : NAMES).forEach((name, i) => {
@@ -92,7 +111,8 @@ const VIEWS = {
   hostPanel: {
     url: '?room=0427',
     storage: host,
-    act: (p) => p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '管理' && b.offsetParent)?.click()),
+    act: (p) =>
+      p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '管理' && b.offsetParent)?.click()),
   },
   board: { url: '?room=0427&view=board', board: true },
   result: { url: '?room=0427', storage: alice, phase: true },
@@ -102,14 +122,20 @@ const VIEWS = {
     act: async (p) => {
       await clickText('管理')(p);
       await p.waitForTimeout(200);
-      await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '変更する' && b.offsetParent)?.click());
+      await p.evaluate(() =>
+        [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '変更する' && b.offsetParent)?.click(),
+      );
     },
   },
   graph: { url: '?room=0427', storage: alice, act: clickText('グラフ') },
   log: { url: '?room=0427', storage: alice, act: clickText('ログ') },
   record: { url: '?room=0427', storage: alice, act: clickText('記録') },
   alone: { url: '?room=0427', storage: host, alone: true },
-  askConfirm: { url: '?room=0427', storage: host, act: (p) => p.evaluate(() => document.querySelector('button[aria-label="退出"]').click()) },
+  askConfirm: {
+    url: '?room=0427',
+    storage: host,
+    act: (p) => p.evaluate(() => document.querySelector('button[aria-label="退出"]').click()),
+  },
   askPrompt: {
     url: '?room=0427',
     storage: alice,
@@ -122,7 +148,10 @@ const VIEWS = {
   ruleInfo: {
     url: '?room=0427',
     storage: alice,
-    act: (p) => p.evaluate(() => [...document.querySelectorAll('[data-room-status] button, [data-rule-narrow]')].find((b) => b.offsetParent)?.click()),
+    act: (p) =>
+      p.evaluate(() =>
+        [...document.querySelectorAll('[data-room-status] button, [data-rule-narrow]')].find((b) => b.offsetParent)?.click(),
+      ),
   },
 };
 const SIZES = [
@@ -140,7 +169,10 @@ const measure = () => {
   const parse = (c) => {
     const m = c.match(/rgba?\(([^)]+)\)/);
     if (!m) return [0, 0, 0, 0];
-    const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+    const p = m[1]
+      .split(/[ ,/]+/)
+      .filter(Boolean)
+      .map(Number);
     return [p[0], p[1], p[2], p[3] === undefined ? 1 : p[3]];
   };
   const over = (top, bottom) => {
@@ -182,7 +214,15 @@ const measure = () => {
     for (let i = layers.length - 1; i >= 0; i--) bg = over(layers[i], bg);
     return { bg, op };
   };
-  const out = { overflowX: Math.max(0, document.documentElement.scrollWidth - vw), offscreen: [], lowContrast: [], smallTargets: [], unnamed: [], tinyText: [], rows: 0 };
+  const out = {
+    overflowX: Math.max(0, document.documentElement.scrollWidth - vw),
+    offscreen: [],
+    lowContrast: [],
+    smallTargets: [],
+    unnamed: [],
+    tinyText: [],
+    rows: 0,
+  };
   // SVG の文字は描画後の高さで測る（縮小表示で読めなくなっていないか）
   for (const t of document.querySelectorAll('svg text')) {
     const h = t.getBoundingClientRect().height;
