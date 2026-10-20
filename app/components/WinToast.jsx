@@ -32,7 +32,7 @@ export const WinToast = ({ state }) => {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="animate-slide-down bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-5 py-3 rounded-2xl shadow-xl font-black text-lg flex items-center gap-2"
+          className="animate-slide-down bg-ok text-white px-5 py-3 rounded-2xl shadow-btn font-black text-xl flex items-center gap-2 max-w-full"
         >
           <Trophy size={22} /> {t.text}
           {t.rank && <span className="bg-white/25 rounded-full px-2 py-0.5 text-sm">{t.rank}位</span>}

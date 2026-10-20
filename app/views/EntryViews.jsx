@@ -1,85 +1,118 @@
 // 画面：ホーム / 部屋を作る / 入室
 
 import { useState } from 'react';
-import { Crown, UserPlus, X, Zap } from '../ui/icons.jsx';
-import { Button, Card } from '../ui/primitives.jsx';
+import { ThemeButton } from '../components/ThemeButton.jsx';
+import { ChevronLeft, Crown, UserPlus, Zap } from '../ui/icons.jsx';
+import { Button, Card, IconButton, TextField } from '../ui/primitives.jsx';
 import { BUILD } from '../version.js';
 
-export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
-  <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-    <Card className="w-full max-w-md p-8 text-center">
-      <div className="w-24 h-24 bg-amber-400 rounded-3xl mx-auto mb-6 flex items-center justify-center rotate-12 shadow-lg shadow-amber-200">
-        <Zap className="text-white w-12 h-12" fill="currentColor" />
-      </div>
-      <h1 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Quiz Score Pro</h1>
-      <p className="text-slate-500 font-medium mb-8">みんなで盛り上がるリアルタイム得点表</p>
-      <div className="space-y-4">
-        <Button onClick={onGoJoin} className="w-full py-4 text-lg">
-          <UserPlus size={24} />
-          {' 参加者として入室する'}
-        </Button>
-        <div className="relative flex py-2 items-center">
-          <div className="flex-grow border-t border-slate-200" />
-          <span className="flex-shrink-0 mx-4 text-slate-300 text-sm font-bold">OR</span>
-          <div className="flex-grow border-t border-slate-200" />
-        </div>
-        <Button
-          onClick={onGoHostCreate}
-          variant="secondary"
-          className="w-full py-4 text-lg text-amber-600 border-amber-200 hover:bg-amber-50"
-        >
-          <Crown size={24} />
-          {' ホストとして部屋を作る'}
-        </Button>
-      </div>
-      <p className="text-slate-300 text-[10px] mt-6">{BUILD}</p>
-    </Card>
+const savedName = () => {
+  try {
+    return (typeof localStorage !== 'undefined' && localStorage.getItem('playerName')) || '';
+  } catch {
+    return '';
+  }
+};
+
+// ロゴ（傾いた琥珀のタイルに稲妻）
+const Logo = ({ size = 'lg' }) => (
+  <div
+    className={`${size === 'lg' ? 'w-20 h-20 rounded-3xl' : 'w-14 h-14 rounded-2xl'} bg-brand mx-auto flex items-center justify-center rotate-6 shadow-btn`}
+  >
+    <Zap className={`text-white ${size === 'lg' ? 'w-10 h-10' : 'w-7 h-7'}`} fill="currentColor" />
   </div>
+);
+
+// 入口の画面の共通の枠（中央のカード・右上に表示切替）
+const EntryFrame = ({ children, onBack }) => (
+  <div className="min-h-screen bg-page flex flex-col">
+    <div className="flex items-center justify-between px-2 py-2">
+      {onBack ? (
+        <IconButton label="戻る" onClick={onBack}>
+          <ChevronLeft size={24} />
+        </IconButton>
+      ) : (
+        <span />
+      )}
+      <ThemeButton />
+    </div>
+    <div className="flex-1 flex items-center justify-center px-4 pb-10">
+      <Card className="w-full max-w-md p-6 sm:p-8">{children}</Card>
+    </div>
+  </div>
+);
+
+export const HomeView = ({ onGoHostCreate, onGoJoin }) => (
+  <EntryFrame>
+    <div className="text-center">
+      <Logo />
+      <h1 className="text-3xl font-black text-ink mt-6 tracking-tight">Quiz Score Pro</h1>
+      <p className="text-ink-2 font-bold mt-1 mb-7">みんなで盛り上がるリアルタイム得点表</p>
+    </div>
+    <div className="flex flex-col gap-3">
+      <Button onClick={onGoJoin} className="w-full py-4 text-lg">
+        <UserPlus size={22} />
+        {' 参加者として入室する'}
+      </Button>
+      <div className="flex items-center gap-3 py-1" aria-hidden="true">
+        <div className="flex-1 border-t border-line" />
+        <span className="text-ink-3 text-xs font-bold">OR</span>
+        <div className="flex-1 border-t border-line" />
+      </div>
+      <Button onClick={onGoHostCreate} variant="secondary" className="w-full py-4 text-lg">
+        <Crown size={22} className="text-brand" />
+        {' ホストとして部屋を作る'}
+      </Button>
+    </div>
+    <ul className="mt-7 grid grid-cols-3 gap-2 text-center text-[11px] font-bold text-ink-3">
+      <li className="bg-sunken rounded-xl px-1 py-2">8 種類のルール</li>
+      <li className="bg-sunken rounded-xl px-1 py-2">QR で招待</li>
+      <li className="bg-sunken rounded-xl px-1 py-2">大画面・結果発表</li>
+    </ul>
+    <p className="text-ink-3 text-[10px] mt-6 text-center">{BUILD}</p>
+  </EntryFrame>
 );
 
 // ホストも1参加者。部屋を作る前に表示名を入力
 export const HostCreateView = ({ defaultName, onCreate, onBack }) => {
-  const [name, setName] = useState(defaultName || (typeof localStorage !== 'undefined' ? localStorage.getItem('playerName') || '' : ''));
+  const [name, setName] = useState(defaultName || savedName());
   const submit = () => {
     const n = name.trim();
     if (n) onCreate(n);
   };
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 relative">
-        <button onClick={onBack} className="absolute top-4 left-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
-          <X size={24} />
-        </button>
-        <div className="text-center mt-2 mb-6">
-          <div className="w-16 h-16 bg-amber-400 rounded-2xl mx-auto mb-3 flex items-center justify-center rotate-6 shadow-lg shadow-amber-200">
-            <Crown className="text-white w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-black text-slate-800">部屋を作る（ホスト）</h2>
-          <p className="text-slate-400 text-sm mt-1">ホストも1人のプレイヤーとして参加します</p>
-        </div>
-        <label className="block text-sm font-bold text-slate-500 mb-2">あなたの名前</label>
-        <input
-          type="text"
-          value={name}
-          autoFocus={true}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
-          }}
-          className="w-full bg-slate-100 border-none rounded-2xl p-4 text-lg font-bold focus:ring-4 focus:ring-amber-200 outline-none transition-all mb-4"
-          placeholder="司会"
-        />
-        <Button onClick={submit} disabled={!name.trim()} className="w-full py-4 text-lg">
-          <Crown size={22} />
-          {' 部屋を作る'}
-        </Button>
-      </Card>
-    </div>
+    <EntryFrame onBack={onBack}>
+      <div className="text-center mb-6">
+        <Logo size="sm" />
+        <h2 className="text-2xl font-black text-ink mt-4">部屋を作る（ホスト）</h2>
+        <p className="text-ink-2 text-sm mt-1">ホストも1人のプレイヤーとして参加します</p>
+      </div>
+      <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="host-name">
+        あなたの名前
+      </label>
+      <TextField
+        id="host-name"
+        type="text"
+        value={name}
+        autoFocus={true}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submit();
+        }}
+        placeholder="司会"
+        className="mb-4"
+      />
+      <Button onClick={submit} disabled={!name.trim()} className="w-full py-4 text-lg">
+        <Crown size={22} />
+        {' 部屋を作る'}
+      </Button>
+    </EntryFrame>
   );
 };
+
 export const JoinView = ({ roomId, defaultName, onJoin, onBack }) => {
   const [code, setCode] = useState(roomId || '');
-  const [name, setName] = useState(defaultName || (typeof localStorage !== 'undefined' ? localStorage.getItem('playerName') || '' : ''));
+  const [name, setName] = useState(defaultName || savedName());
   const invited = !!roomId;
   const submit = () => {
     const c = code.trim(),
@@ -87,45 +120,47 @@ export const JoinView = ({ roomId, defaultName, onJoin, onBack }) => {
     if (c && n) onJoin(c, n);
   };
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 relative">
-        <button onClick={onBack} className="absolute top-4 left-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
-          <X size={24} />
-        </button>
-        <h2 className="text-2xl font-black text-slate-800 mt-4 mb-6 text-center">部屋に参加する</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-500 mb-2">部屋コード (4桁)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength="4"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-              disabled={invited}
-              className="w-full bg-slate-100 border-none rounded-2xl p-4 text-2xl font-black tracking-widest text-center focus:ring-4 focus:ring-amber-200 outline-none transition-all disabled:opacity-70"
-              placeholder="0000"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-500 mb-2">あなたの名前</label>
-            <input
-              type="text"
-              value={name}
-              autoFocus={invited}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submit();
-              }}
-              className="w-full bg-slate-100 border-none rounded-2xl p-4 text-lg font-bold focus:ring-4 focus:ring-amber-200 outline-none transition-all"
-              placeholder="ゲスト"
-            />
-          </div>
-          <Button onClick={submit} disabled={!code.trim() || !name.trim()} className="w-full py-4 mt-2 text-lg">
-            入室する
-          </Button>
+    <EntryFrame onBack={onBack}>
+      <h2 className="text-2xl font-black text-ink mb-1 text-center">部屋に参加する</h2>
+      <p className="text-ink-2 text-sm text-center mb-6">{invited ? `部屋 ${roomId} に招待されています` : 'ホストから聞いた 4 桁の部屋コードを入れてください'}</p>
+      <div className="flex flex-col gap-4">
+        <div>
+          <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="join-code">
+            部屋コード (4桁)
+          </label>
+          <TextField
+            id="join-code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength="4"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+            disabled={invited}
+            className="text-3xl font-black tracking-[0.4em] text-center tabular-nums disabled:opacity-70"
+            placeholder="0000"
+          />
         </div>
-      </Card>
-    </div>
+        <div>
+          <label className="block text-sm font-bold text-ink-2 mb-2" htmlFor="join-name">
+            あなたの名前
+          </label>
+          <TextField
+            id="join-name"
+            type="text"
+            value={name}
+            autoFocus={invited}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+            }}
+            placeholder="ゲスト"
+          />
+        </div>
+        <Button onClick={submit} disabled={!code.trim() || !name.trim()} className="w-full py-4 mt-1 text-lg">
+          入室する
+        </Button>
+      </div>
+    </EntryFrame>
   );
 };

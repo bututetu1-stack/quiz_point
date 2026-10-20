@@ -183,12 +183,16 @@ test('v33：観戦にするとランキングから外れ、参加に戻せる�
   p.click(p.byText('正答'));
   await waitFor(() => Object.values(room(db).players).find((x) => x.name === 'アリス').maru === 1);
   // 本人が観戦に
-  p.click(p.doc.querySelector('button[aria-label="観戦にする"]'));
+  p.click(p.doc.querySelector('button[aria-label="メニュー"]'));
+  await waitFor(() => p.doc.querySelector('[data-sheet]'), { msg: 'menu sheet' });
+  p.click(p.byText('観戦にする', p.doc.querySelector('[data-sheet]')));
   await waitFor(() => p.doc.querySelector('[data-spectating]'), { msg: 'spectating bar' });
   await waitFor(() => !h.doc.querySelector(`[data-player-id="${aliceId()}"]`), { msg: 'removed from host ranking' });
   assert.ok(h.doc.querySelector('[data-spectators]').textContent.includes('アリス'));
   // ホストが参加に戻す
-  h.click(h.byText('参加に戻す', h.doc.querySelector('[data-spectators]')));
+  h.click(h.doc.querySelector(`[data-spectator-id="${aliceId()}"]`));
+  await waitFor(() => h.doc.querySelector('[data-sheet]'), { msg: 'host menu for spectator' });
+  h.click(h.byText('参加に戻す', h.doc.querySelector('[data-sheet]')));
   await waitFor(() => h.doc.querySelector(`[data-player-id="${aliceId()}"]`), { msg: 'back in ranking' });
   await waitFor(() => p.byText('正答'), { msg: 'answer buttons again' });
   // 記録タブ
@@ -219,6 +223,63 @@ test('v33：ルール選択は2系統に分かれ、ディバイドの「割る�
   await waitFor(() => (room(db).rule || {}).type === 'divide', { msg: 'divide saved' });
   await waitFor(() => p.text().includes('10 ディバイド'), { msg: 'label' });
   assert.ok(Object.values(room(db).players).every((x) => x.score === '10/1'), '全員 初期 10 点');
+  h.close();
+  p.close();
+});
+
+test('v34：表示の切替ボタン（自動 → 明るい → 暗い → 自動）が data-theme と保存に反映される', async () => {
+  const db = createMemoryAdapter();
+  const h = boot({ db });
+  await waitFor(() => h.doc.querySelector('[data-theme-button]'), { msg: 'theme button on home' });
+  const btn = () => h.doc.querySelector('[data-theme-button]');
+  assert.equal(btn().dataset.themeButton, 'auto');
+  assert.equal(h.doc.documentElement.dataset.theme, 'light', 'jsdom は OS 設定が無いので明るい');
+  h.click(btn());
+  await waitFor(() => btn().dataset.themeButton === 'light');
+  assert.equal(h.w.localStorage.getItem('qp_theme'), 'light');
+  h.click(btn());
+  await waitFor(() => btn().dataset.themeButton === 'dark');
+  assert.equal(h.doc.documentElement.dataset.theme, 'dark');
+  assert.equal(h.w.localStorage.getItem('qp_theme'), 'dark');
+  h.click(btn());
+  await waitFor(() => btn().dataset.themeButton === 'auto');
+  assert.equal(h.w.localStorage.getItem('qp_theme'), null);
+  assert.equal(h.doc.documentElement.dataset.theme, 'light');
+  h.close();
+  // 保存した設定は次に開いたときにも効く
+  const h2 = boot({ db, storage: { qp_theme: 'dark' } });
+  await waitFor(() => h2.doc.querySelector('[data-theme-button]'));
+  assert.equal(h2.doc.documentElement.dataset.theme, 'dark');
+  h2.close();
+});
+
+test('v34：ホストは行を押すとメニューから改名・観戦・削除ができる（参加者の行は押せない）', async () => {
+  const db = createMemoryAdapter();
+  const { h, p } = await hostAndAlice(db);
+  const aliceId = Object.values(room(db).players).find((x) => x.name === 'アリス').id;
+  const row = () => h.doc.querySelector(`[data-player-id="${aliceId}"]`);
+  await waitFor(() => row(), { msg: 'alice row on host' });
+  assert.equal(row().tagName, 'BUTTON');
+  await waitFor(() => p.doc.querySelector(`[data-player-id="${aliceId}"]`));
+  assert.equal(p.doc.querySelector(`[data-player-id="${aliceId}"]`).tagName, 'DIV', '参加者の画面の行はボタンではない');
+  // 改名
+  h.w.__promptAnswer = 'アリス2';
+  h.click(row());
+  await waitFor(() => h.doc.querySelector('[data-sheet]'), { msg: 'menu' });
+  h.click(h.byText('名前を変える', h.doc.querySelector('[data-sheet]')));
+  await waitFor(() => room(db).players[aliceId].name === 'アリス2', { msg: 'renamed' });
+  assert.ok(!h.doc.querySelector('[data-sheet]'), 'メニューは閉じる');
+  // 観戦にする
+  h.click(row());
+  await waitFor(() => h.doc.querySelector('[data-sheet]'));
+  h.click(h.byText('観戦にする', h.doc.querySelector('[data-sheet]')));
+  await waitFor(() => room(db).players[aliceId].spectator === true, { msg: 'spectator' });
+  await waitFor(() => p.doc.querySelector('[data-spectating]'), { msg: 'alice sees spectating bar' });
+  // 観戦中のチップから削除
+  h.click(h.doc.querySelector(`[data-spectator-id="${aliceId}"]`));
+  await waitFor(() => h.doc.querySelector('[data-sheet]'));
+  h.click(h.byText('削除する', h.doc.querySelector('[data-sheet]')));
+  await waitFor(() => !room(db).players[aliceId], { msg: 'removed' });
   h.close();
   p.close();
 });

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { normalizeRule, RULE_GROUPS, RULE_TYPES, ruleLabel } from '../lib/rules.js';
-import { Zap } from '../ui/icons.jsx';
-import { Button, Card, Seg } from '../ui/primitives.jsx';
+import { ChevronLeft, ChevronRight, Zap } from '../ui/icons.jsx';
+import { Button, Section, Seg } from '../ui/primitives.jsx';
 
 // N〇M✕ のよく使う設定（「誤答2休」は Tokuten の M〇N休）
 const NOMX_PRESETS = [
@@ -15,7 +15,7 @@ const NOMX_PRESETS = [
 ];
 
 const NumberField = ({ label, value, min, max, onChange }) => (
-  <label className="flex items-center justify-between gap-3 text-sm font-bold text-slate-600">
+  <label className="flex items-center justify-between gap-3 text-sm font-bold text-ink-2">
     <span className="min-w-0">{label}</span>
     <input
       type="number"
@@ -24,7 +24,7 @@ const NumberField = ({ label, value, min, max, onChange }) => (
       max={max}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-20 shrink-0 bg-slate-100 rounded-xl px-3 py-2 text-right text-base font-black text-slate-800 outline-none focus:ring-2 focus:ring-amber-300"
+      className="w-20 shrink-0 bg-sunken rounded-xl px-3 py-2 text-right text-base font-black text-ink outline-none focus:ring-2 focus:ring-brand/40"
     />
   </label>
 );
@@ -43,14 +43,14 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
     <div className="flex flex-col gap-3">
       {RULE_GROUPS.map((g) => (
         <div key={g.key}>
-          <div className="text-xs font-bold text-slate-400 mb-1">{g.label}</div>
+          <div className="text-xs font-bold text-ink-3 mb-1.5">{g.label}</div>
           <div className="grid grid-cols-2 gap-2">
             {RULE_TYPES.filter((d) => d.group === g.key).map((d) => (
               <button
                 key={d.type}
                 onClick={() => pick(d.type)}
                 className={`rounded-2xl px-3 py-2.5 text-sm font-black border-2 transition-colors ${
-                  draft.type === d.type ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:border-amber-200'
+                  draft.type === d.type ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line bg-card text-ink-2 hover:border-brand/50'
                 }`}
               >
                 {d.label}
@@ -59,7 +59,7 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
           </div>
         </div>
       ))}
-      <p className="text-xs text-slate-500 leading-relaxed">{def.desc}</p>
+      <p className="text-xs text-ink-2 leading-relaxed bg-sunken rounded-xl px-3 py-2">{def.desc}</p>
       {draft.type === 'nomx' && (
         <div className="flex flex-wrap gap-1.5">
           {NOMX_PRESETS.map(([label, patch]) => (
@@ -67,7 +67,7 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
               key={label}
               onClick={() => set(patch)}
               className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                presetOn(patch) ? 'bg-amber-400 text-white border-amber-400' : 'bg-white text-slate-500 border-slate-200'
+                presetOn(patch) ? 'bg-brand text-on-brand border-brand' : 'bg-card text-ink-2 border-line hover:border-brand/50'
               }`}
             >
               {label}
@@ -79,13 +79,13 @@ const RuleEditor = ({ current, onApply, onCancel }) => {
         .filter((p) => !p.when || p.when(draft))
         .map((p) =>
           p.bool ? (
-            <label key={p.key} className="flex items-center justify-between gap-3 text-sm font-bold text-slate-600">
+            <label key={p.key} className="flex items-center justify-between gap-3 text-sm font-bold text-ink-2">
               <span>{p.label}</span>
-              <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-5 h-5 accent-amber-500" />
+              <input type="checkbox" checked={!!draft[p.key]} onChange={(e) => set({ [p.key]: e.target.checked })} className="w-5 h-5 accent-amber-500 shrink-0" />
             </label>
           ) : p.options ? (
             <div key={p.key}>
-              <div className="text-sm font-bold text-slate-600 mb-1">{p.label}</div>
+              <div className="text-sm font-bold text-ink-2 mb-1">{p.label}</div>
               <Seg value={draft[p.key]} onChange={(k) => set({ [p.key]: k })} options={p.options} />
             </div>
           ) : (
@@ -109,17 +109,17 @@ export const RuleCard = ({ state, onOp }) => {
   const rule = normalizeRule(state.rule);
   const def = RULE_TYPES.find((d) => d.type === rule.type);
   return (
-    <Card className="p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-black text-slate-700 flex items-center gap-2">
-          <Zap size={18} /> ルール
-        </h3>
-        {!editing && (
+    <Section
+      icon={<Zap size={18} />}
+      title="ルール"
+      action={
+        !editing && (
           <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>
             変更する
           </Button>
-        )}
-      </div>
+        )
+      }
+    >
       {editing ? (
         <RuleEditor
           current={rule}
@@ -130,55 +130,55 @@ export const RuleCard = ({ state, onOp }) => {
           }}
         />
       ) : (
-        <>
-          <div className="text-2xl font-black text-amber-600">{ruleLabel(rule)}</div>
-          <p className="text-xs text-slate-500 leading-relaxed">{def.desc}</p>
+        <div className="flex flex-col gap-3">
+          <div className="text-2xl font-black text-brand-ink leading-tight">{ruleLabel(rule)}</div>
+          <p className="text-xs text-ink-2 leading-relaxed">{def.desc}</p>
           {rule.type === 'free' && (
             <>
               <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">得点モード</label>
+                <label className="text-xs font-bold text-ink-3 block mb-1">得点モード</label>
                 <Seg
                   value={state.scoreMode || 'addsub'}
                   onChange={(k) => onOp('setScoreMode', { mode: k })}
                   options={[
                     ['addsub', '＋/− 数値'],
-                    ['simple', '〇/✖ Simple', 'text-emerald-600'],
+                    ['simple', '〇/✖ Simple', 'text-ok-ink'],
                   ]}
                 />
               </div>
               {state.scoreMode !== 'simple' && (
                 <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">チーム得点計算</label>
+                  <label className="text-xs font-bold text-ink-3 block mb-1">チーム得点計算</label>
                   <Seg
                     value={state.teamMode || 'product'}
                     onChange={(k) => onOp('setTeamMode', { mode: k })}
                     options={[
-                      ['sum', '和 (＋)', 'text-blue-600'],
-                      ['product', '積 (×)', 'text-rose-600'],
+                      ['sum', '和 (＋)', 'text-info-ink'],
+                      ['product', '積 (×)', 'text-ng-ink'],
                     ]}
                   />
                 </div>
               )}
             </>
           )}
-        </>
+        </div>
       )}
-    </Card>
+    </Section>
   );
 };
 
 // 問題番号の進行（休みのカウントとグラフの横軸に使う。休み中の人は自分の「問題を進める」でも数えられる）
-export const ProgressCard = ({ state, onOp }) => (
-  <Card className="p-5 flex items-center gap-3">
+export const ProgressControls = ({ state, onOp }) => (
+  <div className="flex items-center gap-2">
     <div className="flex-1 min-w-0">
-      <div className="text-xs font-bold text-slate-400">いまの問題</div>
-      <div className="text-4xl font-black text-slate-800 tracking-tight">Q{state.q || 1}</div>
+      <div className="text-xs font-bold text-ink-3">いまの問題</div>
+      <div className="text-4xl font-black text-ink tracking-tight tabular-nums leading-none mt-1">Q{state.q || 1}</div>
     </div>
-    <Button variant="secondary" className="px-3 py-3" onClick={() => onOp('nextQ', { delta: -1 })} disabled={(state.q || 1) <= 1} title="1問戻す">
-      ◀
+    <Button variant="secondary" className="px-2.5 py-3" onClick={() => onOp('nextQ', { delta: -1 })} disabled={(state.q || 1) <= 1} aria-label="1問戻す" title="1問戻す">
+      <ChevronLeft size={20} />
     </Button>
-    <Button className="px-4 py-3 text-base" onClick={() => onOp('nextQ', { delta: 1 })}>
-      次の問題 ▶
+    <Button variant="info" className="px-4 py-3 text-base" onClick={() => onOp('nextQ', { delta: 1 })}>
+      次の問題 <ChevronRight size={18} />
     </Button>
-  </Card>
+  </div>
 );

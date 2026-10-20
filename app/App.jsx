@@ -175,9 +175,9 @@ export const App = ({ store }) => {
 
   return (
     <RoomContext.Provider value={ctx}>
-      <div className="text-slate-800 bg-slate-50 min-h-screen">
+      <div className="text-ink bg-page min-h-screen">
         {!connected && (
-          <div className="bg-rose-500 text-white text-center text-xs sm:text-sm py-2 px-3 font-bold">
+          <div className="bg-ng text-white text-center text-xs sm:text-sm py-2 px-3 font-bold sticky top-0 z-40">
             接続中… つながらない場合は再読み込みしてください
           </div>
         )}

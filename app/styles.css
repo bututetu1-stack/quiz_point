@@ -2,53 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  background: #f8fafc;
-  margin: 0;
+/* 色の値（"R G B"）。部品は tailwind.config.cjs の意味の名前（bg-card・text-ink など）で使う。
+   <html data-theme="dark"> で暗い配色に切り替わる（app/lib/theme.js が OS の設定と切替ボタンから決める） */
+:root {
+  --c-page: 251 247 239;
+  --c-card: 255 255 255;
+  --c-sunken: 244 239 229;
+  --c-line: 236 228 214;
+  --c-ink: 31 41 55;
+  --c-ink-2: 75 85 99;
+  --c-ink-3: 99 107 120;
+  --c-brand: 245 158 11;
+  --c-brand-strong: 234 118 12;
+  --c-brand-ink: 160 70 5;
+  --c-brand-soft: 255 241 212;
+  --c-ok: 5 150 105;
+  --c-ok-ink: 4 120 87;
+  --c-ok-soft: 222 247 236;
+  --c-ng: 225 29 72;
+  --c-ng-ink: 190 18 60;
+  --c-ng-soft: 255 228 232;
+  --c-info: 2 118 180;
+  --c-info-ink: 3 105 161;
+  --c-info-soft: 224 242 254;
+  --c-shadow: 120 80 20;
+  --c-on-brand: 43 27 2;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --c-page: 13 19 34;
+  --c-card: 24 32 51;
+  --c-sunken: 17 25 43;
+  --c-line: 44 56 82;
+  --c-ink: 232 236 243;
+  --c-ink-2: 172 182 199;
+  --c-ink-3: 142 154 178;
+  --c-brand: 247 169 40;
+  --c-brand-strong: 245 158 11;
+  --c-brand-ink: 252 203 110;
+  --c-brand-soft: 60 45 18;
+  --c-ok: 5 150 105;
+  --c-ok-ink: 110 231 183;
+  --c-ok-soft: 18 52 43;
+  --c-ng: 225 29 72;
+  --c-ng-ink: 253 164 180;
+  --c-ng-soft: 62 24 35;
+  --c-info: 2 118 180;
+  --c-info-ink: 125 211 252;
+  --c-info-soft: 15 45 68;
+  --c-shadow: 0 0 0;
+  --c-on-brand: 43 27 2;
+  color-scheme: dark;
 }
 
-/* ダークモード：OS がダーク設定のとき、よく使う色クラスを暗い配色に置き換える。
-   （各部品に dark: を書き足す代わりに、ここで一括して上書きする。大画面モードは元から暗いので対象外） */
-@media (prefers-color-scheme: dark) {
-  html,
-  body {
-    background: #0b1220;
-    color-scheme: dark;
-  }
-  .bg-slate-50 { background-color: #0b1220; }
-  .bg-slate-100 { background-color: #111a2e; }
-  .bg-white { background-color: #1a2438; }
-  .border-white { border-color: #1a2438; }
-  .bg-amber-50 { background-color: rgba(245, 158, 11, 0.14); }
-  .bg-amber-100 { background-color: rgba(245, 158, 11, 0.22); }
-  .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.14); }
-  .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.22); }
-  .bg-rose-50 { background-color: rgba(244, 63, 94, 0.14); }
-  .bg-rose-100 { background-color: rgba(244, 63, 94, 0.22); }
-  .bg-sky-50,
-  .bg-sky-100 { background-color: rgba(14, 165, 233, 0.18); }
-  .text-slate-800,
-  .text-slate-700 { color: #e2e8f0; }
-  .text-slate-600 { color: #cbd5e1; }
-  .text-slate-500 { color: #94a3b8; }
-  .text-slate-300 { color: #64748b; }
-  .border-slate-200,
-  .border-slate-100 { border-color: #2c3a55; }
-  .text-emerald-700 { color: #6ee7b7; }
-  .text-sky-700 { color: #7dd3fc; }
-  .border-emerald-200 { border-color: rgba(16, 185, 129, 0.4); }
-  .border-sky-200 { border-color: rgba(14, 165, 233, 0.4); }
-  .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2c3a55; }
-  .hover\:bg-slate-50:hover,
-  .hover\:bg-slate-100:hover { background-color: #22304a; }
-  input,
-  select { color: #e2e8f0; }
-  [data-graph] line { stroke: #2c3a55; }
-  [data-graph] circle { fill: #1a2438; }
-  /* 大画面モードと QR は元の色のまま */
-  [data-board] .bg-white,
-  [data-qr] rect { background-color: #fff; fill: #fff; }
-  [data-board] .text-slate-800 { color: #1e293b; }
-  [data-board] .text-slate-500 { color: #64748b; }
+html,
+body {
+  margin: 0;
+  background: rgb(var(--c-page));
+  color: rgb(var(--c-ink));
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  font-feature-settings: 'palt';
+}
+input,
+select {
+  color: rgb(var(--c-ink));
 }

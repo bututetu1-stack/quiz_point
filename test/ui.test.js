@@ -33,7 +33,7 @@ test('ビルド成果物は外部読み込みなしの1ファイル', () => {
 test('ホーム画面：バージョン表記と2つの入口', async () => {
   const h = boot({ db: createMemoryAdapter() });
   await waitFor(() => h.text().includes('ホストとして部屋を作る'));
-  assert.ok(h.text().includes('v33'));
+  assert.ok(h.text().includes('v34'));
   assert.ok(h.text().includes('参加者として入室する'));
   h.close();
 });
@@ -47,9 +47,9 @@ test('ホスト：部屋を作るとホストも1プレイヤーになり、自�
   assert.ok(h.text().includes(r.id), 'ヘッダーに部屋コード');
   assert.equal(playersOf(db).length, 1);
   assert.equal(playersOf(db)[0].name, '司会');
-  // 下部バーの 〇（緑）で +1
-  const bar = h.doc.querySelector('.fixed.bottom-0');
-  h.click([...bar.querySelectorAll('button')].find((b) => b.className.includes('from-emerald-400')));
+  // 下部パネルの「正答」で +1
+  const bar = h.doc.querySelector('[data-selfbar]');
+  h.click(h.byText('正答', bar));
   await waitFor(() => playersOf(db)[0].score === '1/1', { msg: 'host +1' });
   h.click(h.byText('元に戻す', bar));
   await waitFor(() => playersOf(db)[0].score === '0/1', { msg: 'host undo' });
@@ -90,8 +90,8 @@ test('参加者：招待リンクから入室し、チームを自分で選べ�
   await waitFor(() => playersOf(db).find((x) => x.name === 'アリス').teamId === tid, { msg: 'team picked' });
 
   // 加点 → ホスト画面にも反映
-  const bar = p.doc.querySelector('.fixed.bottom-0');
-  p.click([...bar.querySelectorAll('button')].find((b) => b.className.includes('from-emerald-400')));
+  const bar = p.doc.querySelector('[data-selfbar]');
+  p.click(p.byText('正答', bar));
   await waitFor(() => playersOf(db).find((x) => x.name === 'アリス').score === '1/1', { msg: 'alice +1' });
 
   // グラフタブ：プレイヤー数ぶんの折れ線

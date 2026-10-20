@@ -1,15 +1,18 @@
-// ホストの管理パネル（ゲーム設定・一括操作・チーム）
+// ホストの管理パネル：進行（問題番号・結果発表・大画面・CSV）／ルール／一括操作／チーム
 
 import { useState } from 'react';
+import { toCsv } from '../lib/ranking.js';
 import { isRuleMode } from '../lib/rules.js';
 import { getTeamDisplayScore } from '../lib/score.js';
-import { toCsv } from '../lib/ranking.js';
+import { Calculator, Download, Edit2, Monitor, Plus, RefreshCw, Trash2, Trophy, Users } from '../ui/icons.jsx';
+import { Button, Section } from '../ui/primitives.jsx';
 import { boardUrl } from './InviteDialog.jsx';
-import { ProgressCard, RuleCard } from './RuleSettings.jsx';
+import { ProgressControls, RuleCard } from './RuleSettings.jsx';
+import { teamColor } from './Teams.jsx';
 
 // 最終順位を CSV でダウンロード（Excel で文字化けしないよう BOM 付き）
 const downloadCsv = (state, roomId) => {
-  const blob = new Blob(['\ufeff' + toCsv(state)], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['﻿' + toCsv(state)], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `quiz_${roomId}_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -18,51 +21,41 @@ const downloadCsv = (state, roomId) => {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
-import { Calculator, Download, Edit2, Monitor, Plus, RefreshCw, Trash2, Trophy, Users, X } from '../ui/icons.jsx';
-import { Button, Card } from '../ui/primitives.jsx';
 
-export const SettingsPanel = ({ state, roomId, onOp, onClose }) => {
+export const SettingsPanel = ({ state, roomId, onOp }) => {
   const [newTeam, setNewTeam] = useState('');
   const rule = isRuleMode(state.rule);
   const unassigned = state.players.filter((p) => !p.teamId);
+  const addTeam = () => {
+    if (newTeam.trim()) {
+      onOp('createTeam', { name: newTeam.trim() });
+      setNewTeam('');
+    }
+  };
   return (
-    <div className="flex flex-col gap-4">
-      {onClose && (
-        <div className="flex justify-between items-center md:hidden">
-          <h3 className="font-black text-slate-700">ホストの管理</h3>
-          <button onClick={onClose} className="p-2 text-slate-400">
-            <X />
-          </button>
-        </div>
-      )}
-      <RuleCard state={state} onOp={onOp} />
-      <ProgressCard state={state} onOp={onOp} />
-      <Card className="p-5">
-        <h3 className="font-black text-slate-700 mb-3 flex items-center gap-2">
-          <Trophy size={18} /> 発表・共有
-        </h3>
-        <div className="grid grid-cols-2 gap-2">
-          <Button className="py-3 text-sm col-span-2" onClick={() => onOp('setPhase', { phase: 'result' })}>
-            <Trophy size={16} /> 結果発表（全員の画面に表示）
-          </Button>
-          <Button variant="ghost" className="bg-slate-50 py-3 text-sm text-slate-600" onClick={() => window.open(boardUrl(roomId), '_blank')}>
+    <div className="flex flex-col gap-3">
+      <Section icon={<Trophy size={18} />} title="進行">
+        <ProgressControls state={state} onOp={onOp} />
+        <Button className="w-full py-3 text-sm mt-3" onClick={() => onOp('setPhase', { phase: 'result' })}>
+          <Trophy size={16} /> 結果発表（全員の画面に表示）
+        </Button>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <Button variant="soft" className="py-2.5 text-sm" onClick={() => window.open(boardUrl(roomId), '_blank')}>
             <Monitor size={16} /> 大画面
           </Button>
-          <Button variant="ghost" className="bg-slate-50 py-3 text-sm text-slate-600" onClick={() => downloadCsv(state, roomId)}>
+          <Button variant="soft" className="py-2.5 text-sm" onClick={() => downloadCsv(state, roomId)}>
             <Download size={16} /> CSV 保存
           </Button>
         </div>
-      </Card>
-      <Card className="p-5">
-        <h3 className="font-black text-slate-700 mb-1 flex items-center gap-2">
-          <RefreshCw size={18} /> 一括操作
-        </h3>
-        <p className="text-xs text-slate-400 mb-3">全プレイヤーが各自の得点を操作します（ホストも1参加者）。</p>
+      </Section>
+      <RuleCard state={state} onOp={onOp} />
+      <Section icon={<RefreshCw size={18} />} title="一括操作">
+        <p className="text-xs text-ink-3 mb-3">得点は各自が自分で操作します（ホストも1参加者）。</p>
         <div className="grid grid-cols-2 gap-2">
           {!rule && (
             <Button
-              variant="ghost"
-              className="bg-slate-50 py-3 text-sm text-slate-600"
+              variant="soft"
+              className="py-2.5 text-sm"
               onClick={() => {
                 if (window.confirm('全員を1にしますか？')) onOp('setAll', { valueStr: '1' });
               }}
@@ -71,8 +64,8 @@ export const SettingsPanel = ({ state, roomId, onOp, onClose }) => {
             </Button>
           )}
           <Button
-            variant="ghost"
-            className={`bg-rose-50 text-rose-600 py-3 text-sm ${rule ? 'col-span-2' : ''}`}
+            variant="soft"
+            className={`py-2.5 text-sm text-ng-ink ${rule ? 'col-span-2' : ''}`}
             onClick={() => {
               if (window.confirm(rule ? '全員の得点・状態をリセットして Q1 に戻しますか？（記録タブの成績は残ります）' : '全員を0にリセットしますか？')) onOp('resetAll');
             }}
@@ -80,107 +73,76 @@ export const SettingsPanel = ({ state, roomId, onOp, onClose }) => {
             <RefreshCw size={16} /> {rule ? '全員リセット' : '全員 0 リセット'}
           </Button>
         </div>
-      </Card>
-      <Card className="p-5">
-        <h3 className="font-black text-slate-700 mb-1 flex items-center gap-2">
-          <Users size={18} />
-          {' チーム'}
-        </h3>
-        <p className="text-xs text-slate-400 mb-3">
-          所属は<b className="text-amber-600">各自が自分のバーでタップ選択</b>します。ここでは作成・改名・削除・「外す」ができます。
-        </p>
+      </Section>
+      <Section icon={<Users size={18} />} title="チーム">
+        <p className="text-xs text-ink-3 mb-3">所属は各自が自分のパネルで選びます。ここでは作成・改名・削除・「外す」ができます。</p>
         <div className="flex gap-2 mb-3">
           <input
             value={newTeam}
             onChange={(e) => setNewTeam(e.target.value)}
-            placeholder="新チーム名"
-            className="flex-1 bg-slate-100 rounded-xl px-3 py-2 text-sm outline-none"
-          />
-          <Button
-            onClick={() => {
-              if (newTeam.trim()) {
-                onOp('createTeam', {
-                  name: newTeam.trim(),
-                });
-                setNewTeam('');
-              }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addTeam();
             }}
-            className="px-4"
-          >
+            placeholder="新チーム名"
+            className="flex-1 min-w-0 bg-sunken rounded-xl px-3 py-2 text-sm font-bold text-ink placeholder:text-ink-3 outline-none focus:ring-2 focus:ring-brand/40"
+          />
+          <Button onClick={addTeam} className="px-3.5" aria-label="チームを作る">
             <Plus size={18} />
           </Button>
         </div>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-2">
           {state.teams.map((team) => {
             const members = state.players.filter((p) => p.teamId === team.id);
             return (
-              <div key={team.id} className="bg-slate-50 rounded-2xl p-3 border border-slate-200">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="font-bold text-slate-700 truncate text-sm">
-                    {team.name}
-                    <span className="ml-2 text-sky-600">{getTeamDisplayScore(team.id, state)}</span>
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button
-                      onClick={() => {
-                        const n = prompt('新しいチーム名', team.name);
-                        if (n && n.trim())
-                          onOp('renameTeam', {
-                            teamId: team.id,
-                            name: n.trim(),
-                          });
-                      }}
-                      className="p-1 text-slate-400 hover:text-amber-500"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`チーム「${team.name}」を削除しますか？`))
-                          onOp('removeTeam', {
-                            teamId: team.id,
-                          });
-                      }}
-                      className="p-1 text-slate-400 hover:text-rose-500"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+              <div key={team.id} className="bg-sunken rounded-xl p-2.5">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: teamColor(state, team.id) }} />
+                  <span className="flex-1 min-w-0 font-bold text-ink truncate text-sm">{team.name}</span>
+                  <span className="font-black tabular-nums text-ink">{getTeamDisplayScore(team.id, state)}</span>
+                  <button
+                    onClick={() => {
+                      const n = prompt('新しいチーム名', team.name);
+                      if (n && n.trim()) onOp('renameTeam', { teamId: team.id, name: n.trim() });
+                    }}
+                    className="p-1.5 rounded-lg text-ink-3 hover:text-brand-ink hover:bg-card"
+                    aria-label={`${team.name} の名前を変える`}
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`チーム「${team.name}」を削除しますか？`)) onOp('removeTeam', { teamId: team.id });
+                    }}
+                    className="p-1.5 rounded-lg text-ink-3 hover:text-ng-ink hover:bg-card"
+                    aria-label={`${team.name} を削除`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                <div className="space-y-1">
+                <div className="flex flex-wrap gap-1">
                   {members.length ? (
                     members.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-sm">
-                        <span className="flex-1 truncate text-slate-700">{p.name}</span>
-                        <button
-                          onClick={() =>
-                            onOp('assignTeam', {
-                              playerId: p.id,
-                              teamId: null,
-                            })
-                          }
-                          className="text-rose-400 text-xs shrink-0"
-                        >
+                      <span key={p.id} className="flex items-center gap-1 bg-card border border-line rounded-full pl-2.5 pr-1 py-0.5 text-xs font-bold text-ink-2 max-w-full">
+                        <span className="truncate">{p.name}</span>
+                        <button onClick={() => onOp('assignTeam', { playerId: p.id, teamId: null })} className="text-ng-ink px-2 min-h-[24px] rounded-full hover:bg-ng-soft" aria-label={`${p.name} をチームから外す`}>
                           外す
                         </button>
-                      </div>
+                      </span>
                     ))
                   ) : (
-                    <div className="text-xs text-slate-300 py-1">メンバーなし</div>
+                    <span className="text-xs text-ink-3 px-1">メンバーなし</span>
                   )}
                 </div>
               </div>
             );
           })}
         </div>
-        {unassigned.length > 0 && (
-          <div className="mt-3 text-xs text-slate-400">
-            未所属（{unassigned.length}
-            {'）: '}
-            {unassigned.map((p) => p.name).join('、')}
+        {unassigned.length > 0 && state.teams.length > 0 && (
+          <div className="mt-3 text-xs text-ink-3">
+            未所属（{unassigned.length}）: {unassigned.map((p) => p.name).join('、')}
           </div>
         )}
-      </Card>
+      </Section>
     </div>
   );
 };
