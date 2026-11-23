@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111111">
+<title>曲リクエスト</title>
+<style>
+  :root { --bg:#111; --card:#1c1c1e; --ink:#f2f2f2; --ink2:#a8a8ad; --brand:#ff8a2a; --line:#333; --ng:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  h1 { font-size:22px; margin:4px 0 12px; }
+  h2 { font-size:16px; margin:0 0 10px; color:var(--ink2); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; }
+  textarea, input { width:100%; font-size:16px; padding:12px; border-radius:10px; border:1px solid var(--line); background:#000; color:var(--ink); font-family:inherit; }
+  textarea { min-height:72px; resize:vertical; }
+  label { display:block; font-size:14px; color:var(--ink2); margin:10px 0 4px; }
+  button { font:inherit; font-size:16px; padding:10px 16px; min-height:44px; border-radius:10px; border:0; background:var(--brand); color:#111; font-weight:700; cursor:pointer; }
+  button.sub { background:#333; color:var(--ink); font-weight:600; }
+  button:disabled { opacity:.5; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .grow { flex:1; }
+  ol { list-style:none; padding:0; margin:0; }
+  li { display:flex; gap:10px; align-items:center; padding:10px 0; border-top:1px solid var(--line); }
+  li:first-child { border-top:0; }
+  .num { width:2em; text-align:right; color:var(--ink2); flex:none; }
+  .t { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .by { color:var(--ink2); font-size:13px; }
+  .now .num, .now .t { color:var(--brand); font-weight:700; }
+  .msg { color:var(--ink2); font-size:14px; min-height:1.3em; margin-top:8px; }
+  .err { color:var(--ng); }
+  #playerWrap { aspect-ratio:16/9; width:100%; background:#000; border-radius:10px; overflow:hidden; }
+  #playerWrap iframe, #player { width:100%; height:100%; }
+  details summary { cursor:pointer; color:var(--ink2); padding:6px 0; }
+  a { color:var(--brand); }
+  .help { font-size:14px; color:var(--ink2); line-height:1.6; margin:0; padding-left:1.2em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🍖 曲リクエスト <span id="roomLabel" class="by"></span></h1>
+
+  <section class="card" id="playerCard" hidden>
+    <h2>このスマホで流す</h2>
+    <div id="playerWrap"><div id="player"></div></div>
+    <div id="nowTitle" class="msg"></div>
+    <div class="row" style="margin-top:8px">
+      <button id="startBtn">▶ 再生スタート</button>
+      <button id="skipBtn" class="sub" hidden>⏭ 次の曲へ</button>
+    </div>
+    <div id="playerMsg" class="msg">スタートを押すと、古いリクエストから順に流れます。</div>
+  </section>
+
+  <section class="card">
+    <h2>リクエストを送る</h2>
+    <form id="form">
+      <label for="text">YouTube のリンク（曲名だけでも OK）</label>
+      <textarea id="text" placeholder="YouTube アプリの「共有」→「コピー」して、ここに貼り付け"></textarea>
+      <label for="name">名前（なくても OK）</label>
+      <input id="name" maxlength="20" autocomplete="nickname">
+      <div class="row" style="margin-top:12px">
+        <button id="sendBtn" type="submit" class="grow">送る</button>
+      </div>
+      <div id="formMsg" class="msg"></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>これから流れる曲</h2>
+    <ol id="queue"></ol>
+    <div id="emptyMsg" class="msg">まだリクエストはありません。</div>
+    <details id="playedBox" hidden>
+      <summary id="playedSummary"></summary>
+      <ol id="played"></ol>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <button id="shareBtn" class="sub grow">🔗 このページをみんなに送る</button>
+      <a id="playLink" href="#"><button class="sub" type="button" tabindex="-1">🔊 このスマホで流す</button></a>
+    </div>
+    <ol class="help" style="list-style:decimal;margin-top:12px">
+      <li style="display:list-item;border:0;padding:2px 0">スピーカーにつないだスマホで「このスマホで流す」→「再生スタート」</li>
+      <li style="display:list-item;border:0;padding:2px 0">「みんなに送る」で LINE などにリンクを貼る</li>
+      <li style="display:list-item;border:0;padding:2px 0">みんなは YouTube の「共有」→「コピー」→ ここに貼って「送る」</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+(() => {
+  const DB = 'https://quiz-point-8dfab-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const $ = (id) => document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+  let room = (qs.get('r') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+  if (!room) {
+    room = Math.random().toString(36).slice(2, 7);
+    qs.set('r', room);
+    history.replaceState(null, '', location.pathname + '?' + qs.toString());
+  }
+  const isPlayer = qs.has('play');
+  const base = `${DB}/rooms/_bbq_${room}`;
+  const pageUrl = location.origin + location.pathname + '?r=' + room;
+
+  const api = async (path, opt) => {
+    const r = await fetch(`${base}${path}.json`, opt);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  };
+  const send = (path, method, body) =>
+    api(path, { method, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  $('roomLabel').textContent = '部屋 ' + room;
+  $('name').value = store.get('bbq-name');
+  $('playLink').href = pageUrl + '&play';
+  if (isPlayer) { $('playerCard').hidden = false; $('playLink').hidden = true; }
+
+  // ---- YouTube のリンクから動画 ID を取り出す ----
+  function ytId(s) {
+    try {
+      const u = new URL(s);
+      const h = u.hostname.replace(/^(www|m|music)\./, '');
+      let id = null;
+      if (h === 'youtu.be') id = u.pathname.split('/')[1];
+      else if (h === 'youtube.com' || h === 'youtube-nocookie.com') {
+        id = u.searchParams.get('v');
+        const m = u.pathname.match(/^\/(shorts|live|embed|v)\/([\w-]{11})/);
+        if (!id && m) id = m[2];
+      }
+      return id && /^[\w-]{11}$/.test(id) ? id : null;
+    } catch { return null; }
+  }
+
+  async function ytTitle(id) {
+    try {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 4000);
+      const r = await fetch('https://www.youtube.com/oembed?format=json&url=' +
+        encodeURIComponent('https://www.youtube.com/watch?v=' + id), { signal: ctl.signal });
+      clearTimeout(timer);
+      if (!r.ok) return null;
+      return (await r.json()).title || null;
+    } catch { return null; }
+  }
+
+  // ---- 送る ----
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const raw = $('text').value.trim();
+    const by = $('name').value.trim().slice(0, 20);
+    const msg = $('formMsg');
+    msg.className = 'msg';
+    if (!raw) { msg.textContent = 'リンクか曲名を入れてください。'; return; }
+    store.set('bbq-name', by);
+    $('sendBtn').disabled = true;
+    msg.textContent = '送っています…';
+    try {
+      const url = (raw.match(/https?:\/\/\S+/) || [null])[0];
+      const yt = url ? ytId(url) : null;
+      let title = yt ? await ytTitle(yt) : null;
+      if (!title) title = url ? raw.replace(url, '').trim() || url : raw;
+      await send('/songs', 'POST', {
+        url: url || null, yt: yt || null, title: title.slice(0, 200), by: by || null,
+        at: { '.sv': 'timestamp' },
+      });
+      $('text').value = '';
+      msg.textContent = yt ? '送りました！順番に流れます 🎶'
+        : '送りました（YouTube のリンクではないので、流す係が手で探します）';
+      refresh();
+    } catch (err) {
+      msg.className = 'msg err';
+      msg.textContent = '送れませんでした。電波を確かめてもう一度。（' + err.message + '）';
+    } finally {
+      $('sendBtn').disabled = false;
+    }
+  });
+
+  // ---- 共有 ----
+  $('shareBtn').addEventListener('click', async () => {
+    try { if (navigator.share) { await navigator.share({ title: '曲リクエスト', url: pageUrl }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(pageUrl); $('shareBtn').textContent = '✅ リンクをコピーしました'; }
+    catch { $('shareBtn').textContent = pageUrl; }
+  });
+
+  // ---- 一覧 ----
+  let songs = [];          // [{key, ...}] 古い順
+  let nowKey = null;
+  const doneKeys = new Set(); // このスマホで流し終えた曲（サーバ反映前の巻き戻りを防ぐ）
+  const isDone = (s) => s.played || doneKeys.has(s.key);
+
+  let refreshing = null;
+  async function refresh() {
+    if (refreshing) return refreshing;
+    refreshing = (async () => {
+      try {
+        const data = (await api('')) || {};
+        songs = Object.entries(data.songs || {}).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([key, v]) => ({ key, ...v }));
+        if (!isPlayer) nowKey = data.now || null;
+        render();
+        if (isPlayer) onQueueChanged();
+      } catch (err) {
+        $('emptyMsg').hidden = false;
+        $('emptyMsg').textContent = '読み込めません（' + err.message + '）';
+      }
+    })();
+    try { await refreshing; } finally { refreshing = null; }
+  }
+
+  function li(s, n, opts = {}) {
+    const el = document.createElement('li');
+    if (s.key === nowKey) el.className = 'now';
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = s.key === nowKey ? '▶' : n;
+    const t = document.createElement('div');
+    t.className = 't';
+    const title = document.createElement(s.url ? 'a' : 'span');
+    if (s.url) { title.href = s.url; title.target = '_blank'; title.rel = 'noopener'; title.style.color = 'inherit'; }
+    title.textContent = s.title || s.url || '(無題)';
+    const by = document.createElement('div');
+    by.className = 'by';
+    const notes = [];
+    if (s.by) notes.push(s.by + ' さん');
+    if (!s.yt) notes.push('YouTube 以外');
+    if (s.skipped === 'embed') notes.push('埋め込み不可で飛ばしました');
+    if (s.skipped === 'skip') notes.push('スキップ');
+    by.textContent = notes.join(' ・ ');
+    t.append(title, by);
+    el.append(num, t);
+    if (opts.del) {
+      const b = document.createElement('button');
+      b.className = 'sub';
+      b.textContent = '✕';
+      b.setAttribute('aria-label', '「' + (s.title || '') + '」を消す');
+      b.addEventListener('click', async () => {
+        if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = '消す?'; setTimeout(() => { b.dataset.armed = ''; b.textContent = '✕'; }, 3000); return; }
+        b.disabled = true;
+        try { await api('/songs/' + s.key, { method: 'DELETE' }); } catch {}
+        if (s.key === currentKey) finish(currentKey, null);
+        refresh();
+      });
+      el.append(b);
+    }
+    return el;
+  }
+
+  function render() {
+    const upcoming = songs.filter((s) => !isDone(s));
+    const played = songs.filter(isDone);
+    $('queue').replaceChildren(...upcoming.map((s, i) => li(s, i + 1, { del: isPlayer })));
+    $('emptyMsg').hidden = upcoming.length > 0;
+    $('emptyMsg').textContent = 'まだリクエストはありません。';
+    $('playedBox').hidden = played.length === 0;
+    $('playedSummary').textContent = `流した曲（${played.length}）`;
+    $('played').replaceChildren(...played.slice().reverse().map((s) => li(s, '✓')));
+  }
+
+  // ---- 変化を待つ（Firebase の REST ストリーミング＋念のための定期読み込み）----
+  try {
+    const es = new EventSource(base + '.json');
+    let t = null;
+    const kick = () => { clearTimeout(t); t = setTimeout(refresh, 150); };
+    es.addEventListener('put', kick);
+    es.addEventListener('patch', kick);
+  } catch {}
+  setInterval(refresh, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  refresh();
+
+  // ---- 流す係 ----
+  let player = null, playerReady = false, started = false, currentKey = null, wakeLock = null;
+
+  async function keepAwake() {
+    try { if ('wakeLock' in navigator && !document.hidden) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+
+  function setNow(key) {
+    nowKey = key;
+    send('', 'PATCH', { now: key }).catch(() => {});
+    render();
+  }
+
+  function onQueueChanged() {
+    if (started && !currentKey) playNext();
+  }
+
+  function playNext() {
+    const next = songs.find((s) => !isDone(s));
+    currentKey = null;
+    $('skipBtn').hidden = !next;
+    if (!next) {
+      $('nowTitle').textContent = '';
+      $('playerMsg').textContent = 'リクエスト待ち…（届いたら自動で流れます）';
+      if (nowKey) setNow(null);
+      return;
+    }
+    currentKey = next.key;
+    setNow(next.key);
+    $('nowTitle').textContent = '♪ ' + (next.title || next.url) + (next.by ? '（' + next.by + ' さん）' : '');
+    if (next.yt) {
+      $('playerMsg').textContent = '';
+      player.loadVideoById(next.yt);
+    } else {
+      try { player.stopVideo(); } catch {}
+      $('playerMsg').replaceChildren('YouTube 以外のリクエストです。手で探して流し、終わったら「次の曲へ」。 ');
+      if (next.url) {
+        const a = document.createElement('a');
+        a.href = next.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'リンクを開く';
+        $('playerMsg').append(a);
+      }
+    }
+  }
+
+  function finish(key, skipped) {
+    if (!key) return;
+    doneKeys.add(key);
+    send('/songs/' + key, 'PATCH', { played: true, ...(skipped ? { skipped } : {}) }).catch(() => {});
+    if (key === currentKey) playNext();
+    else render();
+  }
+
+  $('startBtn').addEventListener('click', () => {
+    if (!playerReady) { $('playerMsg').textContent = 'プレーヤーを読み込み中…もう一度押してください。'; return; }
+    started = true;
+    $('startBtn').hidden = true;
+    keepAwake();
+    if (currentKey) { try { player.playVideo(); } catch {} } else playNext();
+  });
+  $('skipBtn').addEventListener('click', () => finish(currentKey, 'skip'));
+  document.addEventListener('visibilitychange', () => { if (started && !document.hidden) keepAwake(); });
+
+  if (isPlayer) {
+    window.onYouTubeIframeAPIReady = () => {
+      player = new YT.Player('player', {
+        width: '100%', height: '100%',
+        playerVars: { playsinline: 1, autoplay: 1, rel: 0 },
+        events: {
+          onReady: () => { playerReady = true; },
+          onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) finish(currentKey, null); },
+          onError: (e) => {
+            const key = currentKey;
+            $('playerMsg').textContent = 'この動画は流せませんでした（埋め込み不可など）。次へ進みます。';
+            setTimeout(() => { if (currentKey === key) finish(key, e.data === 101 || e.data === 150 ? 'embed' : 'skip'); }, 1500);
+          },
+        },
+      });
+    };
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.append(s);
+  }
+})();
+</script>
+</body>
+</html>
